@@ -3886,6 +3886,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      setup_admin_user: {
+        Args: {
+          _first_name?: string
+          _last_name?: string
+          _license_number?: string
+          _license_type?: string
+          _npi?: string
+          _taxonomy_code?: string
+          _user_email: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       accept_assign_enum: "Y" | "N"
