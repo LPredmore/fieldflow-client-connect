@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useSettings } from "@/hooks/useSettings";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { PermissionProvider } from "@/contexts/PermissionContext";
 import { usePermissionChecks } from "@/hooks/permissions/usePermissionChecks";
 import { getRoleDisplayName, canAccessSettings, UserRole } from "@/utils/roleUtils";
@@ -30,7 +30,7 @@ function NavigationContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { signOut, user, userRole, isAdmin } = useAuth();
-  const { settings } = useSettings();
+  const { displayName, logoUrl, loading: brandingLoading } = useTenantBranding();
   const { 
     canAccessServices, 
     canAccessInvoicing, 
@@ -71,18 +71,19 @@ function NavigationContent() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-20 items-center justify-start border-b border-border bg-primary px-6 gap-3 py-4">
-            {settings?.logo_url && (
+            {logoUrl && (
               <img 
-                src={settings.logo_url} 
+                src={logoUrl} 
                 alt="Business Logo" 
                 className="h-8 w-8 object-contain"
               />
             )}
             <h1 className="text-xl font-bold text-primary-foreground">
-              {!settings && (
+              {brandingLoading && !displayName ? (
                 <div className="h-6 w-24 bg-primary-foreground/20 rounded animate-pulse"></div>
+              ) : (
+                displayName
               )}
-              {settings?.business_name && settings.business_name}
             </h1>
           </div>
 

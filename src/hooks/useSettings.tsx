@@ -11,6 +11,10 @@ type SettingsInsert = Database['public']['Tables']['settings']['Insert'];
 export { type Settings };
 
 export function useSettings() {
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[DEPRECATED] useSettings() queries non-existent "settings" table. Use useTenantBranding() for logo/name or useBusinessProfile() for business data.');
+  }
+
   const { user, tenantId, isAdmin } = useAuth();
   const { toast } = useToast();
 
