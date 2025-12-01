@@ -88,15 +88,10 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
         clinicianField: data.specialty,
         npiNumber: data.npiNumber,
         taxonomyCode: data.taxonomy,
-      },
-      licenses: [{
-        licenseNumber: data.licenseNumber,
         licenseType: data.licenseType,
-        state: data.primaryState as any,
-        expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year from now
-        isPrimary: true,
-      }],
-      userId: "", // Will be set after user creation in actual flow
+        licenseNumber: data.licenseNumber,
+      },
+      profileId: "", // Will be set after user creation in actual flow
     };
     
     const result = await registerStaff(registrationData);
