@@ -3,15 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoleCacheInvalidation } from '@/hooks/useRoleCacheInvalidation';
 
-export interface License {
-  licenseNumber: string;
-  licenseType: string;
-  state: string;
-  issueDate?: string;
-  expirationDate: string;
-  isPrimary: boolean;
-}
-
 export interface PersonalInfo {
   firstName: string;
   lastName: string;
@@ -27,13 +18,14 @@ export interface ProfessionalDetails {
   bio?: string;
   minClientAge?: number;
   acceptingNewClients?: 'Yes' | 'No';
+  licenseType?: string;
+  licenseNumber?: string;
 }
 
 export interface RegistrationData {
   personalInfo: PersonalInfo;
   professionalDetails: ProfessionalDetails;
-  licenses: License[];
-  userId: string;
+  profileId: string;
 }
 
 export function useStaffRegistration() {
@@ -51,97 +43,90 @@ export function useStaffRegistration() {
         throw new Error('No tenant ID found');
       }
 
-      // 1. Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          first_name: data.personalInfo.firstName,
-          last_name: data.personalInfo.lastName,
-          full_name: `${data.personalInfo.firstName} ${data.personalInfo.lastName}`,
-          phone: data.personalInfo.phone,
+      // 1. Create tenant membership (if doesn't exist)
+      const { error: membershipError } = await supabase
+        .from('tenant_memberships')
+        .upsert({
+          tenant_id: tenantId,
+          profile_id: data.profileId,
+          tenant_role: 'member',
+        }, {
+          onConflict: 'tenant_id,profile_id'
+        });
+
+      if (membershipError) throw membershipError;
+
+      // 2. Create user_roles entry for staff role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .upsert({
+          user_id: data.profileId,
           role: 'staff',
-        })
-        .eq('user_id', data.userId);
+        }, {
+          onConflict: 'user_id,role'
+        });
 
-      if (profileError) throw profileError;
+      if (roleError) throw roleError;
 
-      // 2. Create/update clinician record
-      const clinicianData = {
-        user_id: data.userId,
+      // 3. Create/update staff record
+      const staffData = {
         tenant_id: tenantId,
-        is_clinician: data.professionalDetails.isClinician,
-        clinician_status: data.professionalDetails.isClinician ? 'New' : 'Active',
-        clinician_field: data.professionalDetails.clinicianField || null,
+        profile_id: data.profileId,
+        prov_name_f: data.personalInfo.firstName,
+        prov_name_l: data.personalInfo.lastName,
+        prov_name_m: null,
+        prov_title: data.professionalDetails.clinicianField || null,
         prov_npi: data.professionalDetails.npiNumber || null,
         prov_taxonomy: data.professionalDetails.taxonomyCode || null,
-        clinician_bio: data.professionalDetails.bio || null,
-        clinician_min_client_age: data.professionalDetails.minClientAge || null,
-        clinician_accepting_new_clients: data.professionalDetails.acceptingNewClients || null,
-        prov_name_f: data.personalInfo.firstName,
-        prov_name_last: data.personalInfo.lastName,
+        prov_license_type: data.professionalDetails.licenseType || null,
+        prov_license_number: data.professionalDetails.licenseNumber || null,
+        prov_status: 'Active',
+        prov_accepting_new_clients: data.professionalDetails.acceptingNewClients === 'Yes',
+        prov_min_client_age: data.professionalDetails.minClientAge || null,
+        prov_bio: data.professionalDetails.bio || null,
       };
 
-      const { data: clinicianRecord, error: clinicianError } = await supabase
-        .from('clinicians')
-        .upsert(clinicianData, { onConflict: 'user_id' })
+      const { data: staffRecord, error: staffError } = await supabase
+        .from('staff')
+        .upsert(staffData, { onConflict: 'profile_id,tenant_id' })
         .select()
         .single();
 
-      if (clinicianError) throw clinicianError;
+      if (staffError) throw staffError;
 
-      // 3. Create license records (if clinician and has licenses)
-      if (data.professionalDetails.isClinician && data.licenses.length > 0 && clinicianRecord) {
-        const licenseRecords = data.licenses.map(license => ({
-          clinician_id: clinicianRecord.id,
-          tenant_id: tenantId,
-          license_number: license.licenseNumber,
-          license_type: license.licenseType,
-          state: license.state,
-          issue_date: license.issueDate || null,
-          expiration_date: license.expirationDate,
-          is_primary: license.isPrimary,
-          is_active: true,
-        }));
+      // 4. If clinician, create staff_role_assignments for clinical role
+      if (data.professionalDetails.isClinician && staffRecord) {
+        // First, get a clinical staff role
+        const { data: clinicalRole, error: roleQueryError } = await supabase
+          .from('staff_roles')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('is_clinical', true)
+          .limit(1)
+          .maybeSingle();
 
-        const { error: licenseError } = await supabase
-          .from('clinician_licenses')
-          .insert(licenseRecords);
+        if (roleQueryError) {
+          console.error('Failed to find clinical role:', roleQueryError);
+        } else if (clinicalRole) {
+          // Assign clinical role
+          const { error: assignmentError } = await supabase
+            .from('staff_role_assignments')
+            .upsert({
+              staff_id: staffRecord.id,
+              role_id: clinicalRole.id,
+              tenant_id: tenantId,
+            }, {
+              onConflict: 'staff_id,role_id'
+            });
 
-        if (licenseError) throw licenseError;
-      }
-
-      // 4. Update clinician status to Active after successful registration
-      if (data.professionalDetails.isClinician && clinicianRecord) {
-        const { error: statusError } = await supabase
-          .from('clinicians')
-          .update({ clinician_status: 'Active' })
-          .eq('id', clinicianRecord.id);
-
-        if (statusError) throw statusError;
-      }
-
-      // 5. Explicitly create user_roles entry for clinician role
-      if (data.professionalDetails.isClinician && tenantId) {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .upsert({
-            user_id: data.userId,
-            role: 'clinician',
-            tenant_id: tenantId,
-            granted_by_user_id: data.userId,
-            is_active: true,
-          }, {
-            onConflict: 'user_id,role,tenant_id'
-          });
-
-        if (roleError) {
-          console.error('Failed to create clinician role:', roleError);
-          throw roleError;
+          if (assignmentError) {
+            console.error('Failed to assign clinical role:', assignmentError);
+          }
         }
       }
 
-      // 6. Invalidate cache to ensure new role is reflected
-      invalidateUserRole(data.userId);
+      // 5. Invalidate cache to ensure new role is reflected
+      invalidateUserRole(data.profileId);
 
       setLoading(false);
       return { success: true };
