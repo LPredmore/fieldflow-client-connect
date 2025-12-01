@@ -10,8 +10,7 @@ import { ProfessionalSettings } from './ProfessionalSettings';
 import { ArchiveUserDialog } from './ArchiveUserDialog';
 import { UserPermissions } from '@/utils/permissionUtils';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useClinicianProfile } from '@/hooks/useClinicianProfile';
-import { useClinicianLicenses } from '@/hooks/useClinicianLicenses';
+import { useStaffProfile } from '@/hooks/useStaffProfile';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format, isPast } from 'date-fns';
@@ -46,19 +45,17 @@ export function UserRow({
   const { toast } = useToast();
   const { invalidateUserRole } = useRoleCacheInvalidation();
   const { updatePermissions } = usePermissions();
-  const { clinician, updateClinicianProfile } = useClinicianProfile({ userId: profile.user_id });
-  const { licenses, loading: licensesLoading } = useClinicianLicenses(clinician?.id);
+  const { staff, updateStaffProfile } = useStaffProfile({ profileId: profile.id });
   const { isAdmin } = useAuth();
 
   // Fetch active roles from user_roles table
   const { data: activeRoles } = useQuery({
-    queryKey: ['user_roles', profile.user_id],
+    queryKey: ['user_roles', profile.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', profile.user_id)
-        .eq('is_active', true);
+        .eq('user_id', profile.id);
 
       if (error) throw error;
       return data?.map(r => r.role) || [];
@@ -66,23 +63,15 @@ export function UserRow({
     enabled: isExpanded
   });
 
-  // Calculate license summary
-  const activeLicenses = licenses?.filter(l => l.is_active) || [];
-  const expiredLicenses = activeLicenses.filter(l => isPast(new Date(l.expiration_date)));
-  const primaryLicense = activeLicenses.find(l => l.is_primary);
-
   const [adminChanges, setAdminChanges] = useState<{ is_admin?: boolean }>({});
   const [professionalChanges, setProfessionalChanges] = useState<any>({});
   const [permissionChanges, setPermissionChanges] = useState<Partial<UserPermissions>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
 
-  // Determine if this user is clinical or non-office
-  const isClinical = clinician?.is_clinician ?? false;
-  const displayRole = isClinical ? 'Clinical' : 'Non-Office';
-  
-  // Prevent archiving self or primary admin
-  const canArchive = !isCurrentUser && clinician && !clinician.is_admin;
+  // Determine display role from staff data
+  const displayRole = staff?.prov_status || 'Staff';
+  const canArchive = !isCurrentUser && staff;
 
   const hasUnsavedChanges = 
     Object.keys(adminChanges).length > 0 || 
@@ -105,11 +94,11 @@ export function UserRow({
     setIsSaving(true);
     try {
       // Combine admin and professional changes
-      const clinicianUpdates = { ...adminChanges, ...professionalChanges };
+      const staffUpdates = { ...adminChanges, ...professionalChanges };
       
-      // Save clinician data if there are changes
-      if (Object.keys(clinicianUpdates).length > 0) {
-        const result = await updateClinicianProfile(clinicianUpdates);
+      // Save staff data if there are changes
+      if (Object.keys(staffUpdates).length > 0) {
+        const result = await updateStaffProfile(staffUpdates);
         if (result.error) {
           throw new Error(result.error.message);
         }
@@ -117,7 +106,7 @@ export function UserRow({
 
       // Save permission changes if there are any
       if (Object.keys(permissionChanges).length > 0) {
-        await updatePermissions(profile.user_id, permissionChanges);
+        await updatePermissions(profile.id, permissionChanges);
       }
 
       toast({
@@ -126,7 +115,7 @@ export function UserRow({
       });
 
       // Invalidate cache to force role detection refresh
-      invalidateUserRole(profile.user_id);
+      invalidateUserRole(profile.id);
 
       // Clear pending changes
       setAdminChanges({});
@@ -168,13 +157,13 @@ export function UserRow({
           <div className="flex items-center space-x-3">
             <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
               <span className="text-xs font-medium text-primary-foreground">
-                {(profile.full_name || profile.email || 'U').charAt(0).toUpperCase()}
+                {(profile.display_name || profile.email || 'U').charAt(0).toUpperCase()}
               </span>
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <p className="font-medium text-sm">
-                  {profile.full_name || 'Unnamed User'}
+                  {profile.display_name || 'Unnamed User'}
                 </p>
                 {isCurrentUser && (
                   <Badge variant="outline" className="text-xs">You</Badge>
@@ -190,36 +179,11 @@ export function UserRow({
         <TableCell>
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              {isClinical ? (
-                <Stethoscope className="h-3 w-3 text-primary" />
-              ) : (
-                <Briefcase className="h-3 w-3 text-muted-foreground" />
-              )}
-              <Badge 
-                variant={isClinical ? "default" : "secondary"} 
-                className="text-xs"
-              >
+              <Briefcase className="h-3 w-3 text-muted-foreground" />
+              <Badge variant="secondary" className="text-xs">
                 {displayRole}
               </Badge>
             </div>
-            {isClinical && !licensesLoading && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                {primaryLicense && (
-                  <span>{primaryLicense.state} - {primaryLicense.license_type}</span>
-                )}
-                {activeLicenses.length > 1 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{activeLicenses.length - 1} more
-                  </Badge>
-                )}
-                {expiredLicenses.length > 0 && (
-                  <Badge variant="destructive" className="text-xs flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    {expiredLicenses.length} expired
-                  </Badge>
-                )}
-              </div>
-            )}
           </div>
         </TableCell>
         
@@ -250,74 +214,26 @@ export function UserRow({
               </div>
             )}
             
-            {/* Administrator Settings - Only for staff */}
-            {profile.role === 'staff' && clinician && (
-              <AdminSettings
-                isAdmin={clinician.is_admin || false}
-                onChange={handleAdminChange}
-              />
-            )}
-
-            {/* Professional Settings - Only for staff */}
-            {profile.role === 'staff' && (
+            {/* Professional Settings */}
+            {staff && (
               <ProfessionalSettings
-                userId={profile.user_id}
+                userId={profile.id}
                 onDataChange={handleProfessionalDataChange}
               />
             )}
             
-            {/* Permissions - Only for staff */}
-            {profile.role === 'staff' && (
+            {/* Permissions */}
+            {staff && (
               <PermissionSettings
-                userId={profile.user_id}
+                userId={profile.id}
                 userPermissions={userPermissions}
                 onPermissionUpdate={onPermissionUpdate}
                 onDataChange={handlePermissionDataChange}
               />
             )}
-
-            {/* License Summary for Clinical Staff */}
-            {isClinical && !licensesLoading && activeLicenses.length > 0 && (
-              <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
-                <h4 className="font-medium text-sm">Active Licenses</h4>
-                <div className="space-y-2">
-                  {activeLicenses.map((license) => {
-                    const isExpired = isPast(new Date(license.expiration_date));
-                    const expirationDate = format(new Date(license.expiration_date), 'MMM dd, yyyy');
-                    
-                    return (
-                      <div key={license.id} className="flex items-center justify-between text-sm p-2 bg-background rounded">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={license.is_primary ? 'default' : 'outline'} className="text-xs">
-                            {license.state}
-                          </Badge>
-                          <span className="text-muted-foreground">{license.license_type}</span>
-                          <span className="text-xs text-muted-foreground">#{license.license_number}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isExpired ? (
-                            <Badge variant="destructive" className="text-xs flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              Expired {expirationDate}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              Exp: {expirationDate}
-                            </span>
-                          )}
-                          {license.is_primary && (
-                            <Badge variant="outline" className="text-xs">Primary</Badge>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
             
-            {/* Action Buttons - Only for staff */}
-            {profile.role === 'staff' && (
+            {/* Action Buttons */}
+            {staff && (
               <div className="flex justify-between items-center">
                 {canArchive && (
                   <Button

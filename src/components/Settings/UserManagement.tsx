@@ -9,8 +9,7 @@ import { UserPermissions } from "@/utils/permissionUtils";
 import { UserTable } from "./UserManagement/UserTable";
 import { UserRow } from "./UserManagement/UserRow";
 import { AddStaffDialog } from "./UserManagement/AddStaffDialog";
-import { LicenseManagementTable } from "./UserManagement/LicenseManagementTable";
-import { ArchivedUsersView } from "./UserManagement/ArchivedUsersView";
+import { LicenseManagementSimple } from "./UserManagement/LicenseManagementSimple";
 import { RoleSyncDashboard } from "./UserManagement/RoleSyncDashboard";
 import { supabase } from '@/integrations/supabase/client';
 
@@ -22,51 +21,34 @@ export default function UserManagement() {
   const { user: currentUser } = useAuth();
   const { refetchPermissions } = usePermissions();
 
-  // Filter to only show active staff members
+  // Filter to show all staff members (from staff table join)
   const activeStaffProfiles = useMemo(() => {
-    return profiles.filter(p => p.role === 'staff' && !p.archived);
+    return profiles.filter(p => p.staff_data);
   }, [profiles]);
 
-  const handleRoleChange = async (profileId: string, newRole: 'staff' | 'client') => {
+  const handleRoleChange = async (profileId: string, newRole: string) => {
     setUpdatingUser(profileId);
-    
-    try {
-      await updateProfile(profileId, { role: newRole });
-    } finally {
-      setUpdatingUser(null);
-    }
+    // Role changes now managed via user_roles table, not profiles
+    setUpdatingUser(null);
   };
 
   const handleToggleExpanded = (userId: string) => {
     setExpandedUser(expandedUser === userId ? null : userId);
   };
 
-  const fetchUserPermissions = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_permissions')
-        .select('access_appointments, access_services, access_invoicing, access_forms, supervisor')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!error) {
-        setUserPermissions(prev => ({ ...prev, [userId]: data }));
-      } else if (error.code === 'PGRST116') {
-        // No permissions found, set defaults
-        setUserPermissions(prev => ({ 
-          ...prev, 
-          [userId]: {
-            access_appointments: false,
-            access_services: false,
-            access_invoicing: false,
-            access_forms: false,
-            supervisor: false
-          }
-        }));
+  const fetchUserPermissions = async (profileId: string) => {
+    // Permissions are now managed via staff_permissions or other tables
+    // Placeholder for future implementation
+    setUserPermissions(prev => ({ 
+      ...prev, 
+      [profileId]: {
+        access_appointments: false,
+        access_services: false,
+        access_invoicing: false,
+        access_forms: false,
+        supervisor: false
       }
-    } catch (error) {
-      console.error('Error fetching user permissions:', error);
-    }
+    }));
   };
 
   const handlePermissionUpdate = () => {
@@ -84,15 +66,12 @@ export default function UserManagement() {
     await restoreUser(profileId);
   };
 
-  // Fetch permissions for expanded user - use user_id from profile
+  // Fetch permissions for expanded user
   useEffect(() => {
     if (expandedUser) {
-      const profile = activeStaffProfiles.find(p => p.id === expandedUser);
-      if (profile?.user_id) {
-        fetchUserPermissions(profile.user_id);
-      }
+      fetchUserPermissions(expandedUser);
     }
-  }, [expandedUser, activeStaffProfiles]);
+  }, [expandedUser]);
 
   if (loading) {
     return (
@@ -134,7 +113,7 @@ export default function UserManagement() {
                 Active Staff ({activeStaffProfiles.length})
               </TabsTrigger>
               <TabsTrigger value="archived">
-                Archived ({profiles.filter(p => p.archived && p.role === 'staff').length})
+                Archived (0)
               </TabsTrigger>
             </TabsList>
 
@@ -173,17 +152,19 @@ export default function UserManagement() {
             </TabsContent>
 
             <TabsContent value="archived">
-              <ArchivedUsersView 
-                profiles={profiles}
-                onRestore={handleRestoreUser}
-              />
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Archive feature coming soon</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  User archiving is not yet available
+                </p>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
 
       {/* License Management */}
-      <LicenseManagementTable />
+      <LicenseManagementSimple />
 
       {/* Role Sync Dashboard */}
       <RoleSyncDashboard />

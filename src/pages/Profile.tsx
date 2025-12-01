@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, User, Lock, MapPin, X, Upload, Camera } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
-import { useClinician } from '@/hooks/useClinician';
+import { useStaffData } from '@/hooks/useStaffData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +17,7 @@ import { US_STATES } from '@/constants/usStates';
 
 export default function Profile() {
   const { profile, loading, updatePersonalInfo, updatePassword } = useProfile();
-  const { clinician, updateClinicianInfo } = useClinician();
+  const { staff, updateStaffInfo } = useStaffData();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -53,35 +53,35 @@ export default function Profile() {
 
   const [treatmentApproachInput, setTreatmentApproachInput] = useState('');
 
-  // Sync profile data
+  // Sync profile data from staff table
   useEffect(() => {
-    if (profile) {
+    if (profile && staff) {
       setPersonalInfo({
-        first_name: profile.first_name || '',
-        last_name: profile.last_name || '',
-        phone: profile.phone || '',
+        first_name: staff.prov_name_f || '',
+        last_name: staff.prov_name_l || '',
+        phone: '', // Phone not stored in current schema
         email: profile.email || '',
       });
     }
-  }, [profile]);
+  }, [profile, staff]);
 
-  // Sync clinician data
+  // Sync staff data
   useEffect(() => {
-    if (clinician) {
+    if (staff) {
       setClinicianForm({
-        prov_name_f: clinician.prov_name_f || '',
-        prov_name_last: clinician.prov_name_last || '',
-        clinician_bio: clinician.clinician_bio || '',
-        clinician_treatment_approaches: clinician.clinician_treatment_approaches || [],
-        clinician_min_client_age: clinician.clinician_min_client_age || 18,
-        clinician_accepting_new_clients: clinician.clinician_accepting_new_clients || 'Yes',
-        clinician_license_type: clinician.clinician_license_type || '',
-        clinician_licensed_states: clinician.clinician_licensed_states || [],
-        prov_npi: clinician.prov_npi || '',
-        clinician_taxonomy_code: clinician.clinician_taxonomy_code || '',
+        prov_name_f: staff.prov_name_f || '',
+        prov_name_last: staff.prov_name_l || '',
+        clinician_bio: staff.prov_bio || '',
+        clinician_treatment_approaches: staff.prov_treatment_approaches || [],
+        clinician_min_client_age: staff.prov_min_client_age || 18,
+        clinician_accepting_new_clients: staff.prov_accepting_new_clients || 'Yes',
+        clinician_license_type: staff.prov_license_type || '',
+        clinician_licensed_states: [],
+        prov_npi: staff.prov_npi || '',
+        clinician_taxonomy_code: staff.prov_taxonomy || '',
       });
     }
-  }, [clinician]);
+  }, [staff]);
 
   const handlePersonalInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,22 +135,14 @@ export default function Profile() {
         .from('profile-images')
         .getPublicUrl(fileName);
 
-      // Update profile avatar_url
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('user_id', user.id);
+      // Update staff image_url if staff exists
+      if (staff) {
+        const { error: staffError } = await supabase
+          .from('staff')
+          .update({ prov_image_url: publicUrl })
+          .eq('profile_id', user.id);
 
-      if (profileError) throw profileError;
-
-      // Update clinician image_url if clinician exists
-      if (clinician) {
-        const { error: clinicianError } = await supabase
-          .from('clinicians')
-          .update({ clinician_image_url: publicUrl })
-          .eq('user_id', user.id);
-
-        if (clinicianError) throw clinicianError;
+        if (staffError) throw staffError;
       }
 
       toast({
@@ -219,7 +211,17 @@ export default function Profile() {
     e.preventDefault();
     setIsUpdating(true);
 
-    const result = await updateClinicianInfo(clinicianForm);
+    const result = await updateStaffInfo({
+      prov_name_f: clinicianForm.prov_name_f,
+      prov_name_l: clinicianForm.prov_name_last,
+      prov_bio: clinicianForm.clinician_bio,
+      prov_treatment_approaches: clinicianForm.clinician_treatment_approaches,
+      prov_min_client_age: clinicianForm.clinician_min_client_age,
+      prov_accepting_new_clients: clinicianForm.clinician_accepting_new_clients,
+      prov_license_type: clinicianForm.clinician_license_type,
+      prov_npi: clinicianForm.prov_npi,
+      prov_taxonomy: clinicianForm.clinician_taxonomy_code,
+    });
     
     setIsUpdating(false);
     
@@ -286,10 +288,10 @@ export default function Profile() {
         <div className="p-6 lg:p-8 space-y-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={profile?.avatar_url || ''} />
+              <AvatarImage src={staff?.prov_image_url || ''} />
               <AvatarFallback className="text-lg">
-                {profile?.first_name && profile?.last_name 
-                  ? `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase()
+                {staff?.prov_name_f && staff?.prov_name_l 
+                  ? `${staff.prov_name_f[0]}${staff.prov_name_l[0]}`.toUpperCase()
                   : profile?.email?.[0].toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
@@ -386,10 +388,10 @@ export default function Profile() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={imagePreview || profile?.avatar_url || ''} />
+                  <AvatarImage src={imagePreview || staff?.prov_image_url || ''} />
                   <AvatarFallback className="text-2xl">
-                    {profile?.first_name && profile?.last_name 
-                      ? `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase()
+                    {staff?.prov_name_f && staff?.prov_name_l 
+                      ? `${staff.prov_name_f[0]}${staff.prov_name_l[0]}`.toUpperCase()
                       : profile?.email?.[0].toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
@@ -499,8 +501,8 @@ export default function Profile() {
             </CardContent>
           </Card>
 
-          {/* Professional Licensing Section - Only for Contractors/Business Admins */}
-          {(profile?.role === 'business_admin' || profile?.role === 'contractor') && (
+          {/* Professional Information - Only for staff */}
+          {staff && (
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-card-foreground">
