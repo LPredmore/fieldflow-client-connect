@@ -1,70 +1,42 @@
-import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissionsData } from '@/hooks/permissions/usePermissionsData';
-import { UserPermissions, getDefaultPermissions } from '@/utils/permissionUtils';
+import { UserPermissions } from '@/utils/permissionUtils';
 
 /**
  * Legacy usePermissions hook - maintained for backward compatibility
+ * 
+ * IMPORTANT: Permissions are now DERIVED from roles and are READ-ONLY.
+ * To modify permissions, update user_roles or staff_role_assignments instead.
+ * 
  * For new code, prefer using usePermissionsData or PermissionProvider
  */
 export function usePermissions() {
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
   
-  // Use the new data layer hook
+  // Use the new role-based data layer hook
   const {
     data: permissions,
     loading,
     error,
-    create,
-    update,
     refetch,
   } = usePermissionsData();
 
-  // Legacy fetchPermissions method for backward compatibility
-  const fetchPermissions = useCallback(async (userId?: string) => {
-    const targetUserId = userId || user?.id;
-    if (!targetUserId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('user_permissions')
-        .select('access_appointments, access_services, access_invoicing, access_forms, supervisor')
-        .eq('user_id', targetUserId)
-        .single();
-
-      if (error) {
-        // If no permissions found, return defaults
-        if (error.code === 'PGRST116') {
-          return getDefaultPermissions(userRole as 'staff' | 'client' | null);
-        } else {
-          console.error('Error loading permissions:', error);
-          return getDefaultPermissions(userRole as 'staff' | 'client' | null);
-        }
-      }
-
-      return data;
-    } catch (error: any) {
-      console.error('Error loading permissions:', error);
-      return getDefaultPermissions(userRole as 'staff' | 'client' | null);
-    }
-  }, [user, userRole]);
-
-  // Legacy updatePermissions method for backward compatibility
-  const updatePermissions = async (userId: string, updates: Partial<UserPermissions>) => {
-    const result = await update(updates);
-    
-    // If updating current user's permissions, refresh local state
-    if (userId === user?.id) {
-      refetch();
-    }
-    
-    return result;
+  // Legacy method - now a no-op since permissions are derived
+  const updatePermissions = async (_userId: string, _updates: Partial<UserPermissions>) => {
+    console.warn('[usePermissions] updatePermissions is deprecated - permissions are now derived from roles');
+    return null;
   };
 
-  // Legacy createPermissions method for backward compatibility
-  const createPermissions = async (userId: string, tenantId: string, newPermissions: UserPermissions) => {
-    return create(userId, newPermissions);
+  // Legacy method - now a no-op since permissions are derived
+  const createPermissions = async (_userId: string, _tenantId: string, _newPermissions: UserPermissions) => {
+    console.warn('[usePermissions] createPermissions is deprecated - permissions are now derived from roles');
+    return null;
+  };
+
+  // Legacy method - now just refetches derived permissions
+  const fetchPermissions = async (_userId?: string) => {
+    refetch();
+    return permissions;
   };
 
   return {

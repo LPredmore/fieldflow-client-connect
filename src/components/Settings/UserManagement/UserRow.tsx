@@ -65,7 +65,6 @@ export function UserRow({
 
   const [adminChanges, setAdminChanges] = useState<{ is_admin?: boolean }>({});
   const [professionalChanges, setProfessionalChanges] = useState<any>({});
-  const [permissionChanges, setPermissionChanges] = useState<Partial<UserPermissions>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
 
@@ -75,8 +74,7 @@ export function UserRow({
 
   const hasUnsavedChanges = 
     Object.keys(adminChanges).length > 0 || 
-    Object.keys(professionalChanges).length > 0 || 
-    Object.keys(permissionChanges).length > 0;
+    Object.keys(professionalChanges).length > 0;
   
   const handleAdminChange = (isAdmin: boolean) => {
     setAdminChanges({ is_admin: isAdmin });
@@ -84,10 +82,6 @@ export function UserRow({
 
   const handleProfessionalDataChange = (data: any) => {
     setProfessionalChanges(data);
-  };
-
-  const handlePermissionDataChange = (changes: Partial<UserPermissions>) => {
-    setPermissionChanges(prev => ({ ...prev, ...changes }));
   };
 
   const handleSaveChanges = async () => {
@@ -104,11 +98,6 @@ export function UserRow({
         }
       }
 
-      // Save permission changes if there are any
-      if (Object.keys(permissionChanges).length > 0) {
-        await updatePermissions(profile.id, permissionChanges);
-      }
-
       toast({
         title: "Changes saved",
         description: "User settings have been updated successfully.",
@@ -120,7 +109,6 @@ export function UserRow({
       // Clear pending changes
       setAdminChanges({});
       setProfessionalChanges({});
-      setPermissionChanges({});
 
       // Refresh data
       onPermissionUpdate();
@@ -226,9 +214,6 @@ export function UserRow({
             {staff && (
               <PermissionSettings
                 userId={profile.id}
-                userPermissions={userPermissions}
-                onPermissionUpdate={onPermissionUpdate}
-                onDataChange={handlePermissionDataChange}
               />
             )}
             
