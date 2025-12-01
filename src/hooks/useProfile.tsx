@@ -7,23 +7,17 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface Profile {
   id: string;
-  full_name: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  phone: string | null;
-  company_name: string | null;
-  role: 'business_admin' | 'contractor';
-  parent_admin_id: string | null;
-  avatar_url: string | null;
+  email: string;
+  email_verified: boolean | null;
   created_at: string;
   updated_at: string | null;
+  is_active: boolean | null;
+  last_login_at: string | null;
 }
 
 interface PersonalInfo {
   first_name: string;
   last_name: string;
-  phone: string;
   email: string;
 }
 
@@ -40,7 +34,7 @@ export function useProfile() {
   } = useSupabaseQuery<Profile>({
     table: 'profiles',
     filters: {
-      user_id: user?.id,
+      id: user?.id,
     },
     enabled: !!user,
     onError: (error) => {
@@ -78,20 +72,23 @@ export function useProfile() {
       return { error: { message: "User not authenticated" } };
     }
 
-    // Combine first and last name for full_name
-    const full_name = `${personalInfo.first_name} ${personalInfo.last_name}`.trim();
+    // Get staff data to update names
+    const staffData = user.staffAttributes?.staffData;
+    if (!staffData) {
+      return { error: { message: "Staff record not found" } };
+    }
 
-    // Update profile with names
-    const profileResult = await updateProfileMutation({
-      id: user.id,
-      first_name: personalInfo.first_name,
-      last_name: personalInfo.last_name,
-      full_name: full_name,
-      phone: personalInfo.phone,
-    });
+    // Update staff table with names
+    const { error: staffError } = await supabase
+      .from('staff')
+      .update({
+        prov_name_f: personalInfo.first_name,
+        prov_name_l: personalInfo.last_name,
+      })
+      .eq('id', staffData.id);
 
-    if (profileResult.error) {
-      return profileResult;
+    if (staffError) {
+      return { error: staffError };
     }
 
     // Update email if it changed
