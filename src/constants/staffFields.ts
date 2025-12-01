@@ -1,4 +1,4 @@
-export const CLINICIAN_FIELDS = [
+export const STAFF_CLINICAL_SPECIALTIES = [
   'Licensed Clinical Social Worker (LCSW)',
   'Licensed Professional Counselor (LPC)',
   'Licensed Marriage and Family Therapist (LMFT)',
@@ -19,4 +19,4 @@ export const CLINICIAN_FIELDS = [
   'Pastoral Counselor',
 ] as const;
 
-export type ClinicianField = typeof CLINICIAN_FIELDS[number];
+export type StaffClinicalSpecialty = typeof STAFF_CLINICAL_SPECIALTIES[number];

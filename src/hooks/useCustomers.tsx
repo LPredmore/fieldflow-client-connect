@@ -30,7 +30,7 @@ export interface Customer {
   pat_ssn: number | null;
   // Status & Assignment
   status: string | null; // client_status enum
-  assigned_clinician: string | null;
+  assigned_staff: string | null;
   assigned_to_user_id: string | null;
   assigned_user_name?: string;
   // Insurance Info

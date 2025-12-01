@@ -11,8 +11,8 @@ export interface PersonalInfo {
 }
 
 export interface ProfessionalDetails {
-  isClinician: boolean;
-  clinicianField?: string;
+  isStaff: boolean;
+  clinicalSpecialty?: string;
   npiNumber?: string;
   taxonomyCode?: string;
   bio?: string;
@@ -75,7 +75,7 @@ export function useStaffRegistration() {
         prov_name_f: data.personalInfo.firstName,
         prov_name_l: data.personalInfo.lastName,
         prov_name_m: null,
-        prov_title: data.professionalDetails.clinicianField || null,
+        prov_title: data.professionalDetails.clinicalSpecialty || null,
         prov_npi: data.professionalDetails.npiNumber || null,
         prov_taxonomy: data.professionalDetails.taxonomyCode || null,
         prov_license_type: data.professionalDetails.licenseType || null,
@@ -94,8 +94,8 @@ export function useStaffRegistration() {
 
       if (staffError) throw staffError;
 
-      // 4. If clinician, create staff_role_assignments for clinical role
-      if (data.professionalDetails.isClinician && staffRecord) {
+      // 4. If clinical staff, create staff_role_assignments for clinical role
+      if (data.professionalDetails.isStaff && staffRecord) {
         // First, get a clinical staff role
         const { data: clinicalRole, error: roleQueryError } = await supabase
           .from('staff_roles')

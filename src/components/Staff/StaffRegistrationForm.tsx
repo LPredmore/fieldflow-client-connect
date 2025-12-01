@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useStaffRegistration, type PersonalInfo, type ProfessionalDetails } from "@/hooks/useStaffRegistration";
 import { useAuth } from "@/hooks/useAuth";
-import { CLINICIAN_FIELDS } from "@/constants/clinicianFields";
+import { STAFF_CLINICAL_SPECIALTIES } from "@/constants/staffFields";
 import { Loader2 } from "lucide-react";
 
 
@@ -26,8 +26,8 @@ const personalInfoSchema = z.object({
 
 // Step 2: Professional Details (with optional single license)
 const professionalDetailsSchema = z.object({
-  isClinician: z.boolean(),
-  clinicianField: z.string().optional(),
+  isStaff: z.boolean(),
+  clinicalSpecialty: z.string().optional(),
   npiNumber: z.string().optional(),
   taxonomyCode: z.string().optional(),
   bio: z.string().optional(),
@@ -61,7 +61,7 @@ export const StaffRegistrationForm = () => {
   const professionalForm = useForm<ProfessionalDetailsForm>({
     resolver: zodResolver(professionalDetailsSchema),
     defaultValues: {
-      isClinician: true,
+      isStaff: true,
       acceptingNewClients: 'Yes',
       minClientAge: 18,
     },
@@ -94,8 +94,8 @@ export const StaffRegistrationForm = () => {
     };
 
     const validatedProfessionalDetails: ProfessionalDetails = {
-      isClinician: data.isClinician,
-      clinicianField: data.clinicianField,
+      isStaff: data.isStaff,
+      clinicalSpecialty: data.clinicalSpecialty,
       npiNumber: data.npiNumber,
       taxonomyCode: data.taxonomyCode,
       bio: data.bio,
@@ -178,25 +178,25 @@ export const StaffRegistrationForm = () => {
           <form onSubmit={handleProfessionalDetailsSubmit} className="space-y-4">
             <div className="flex items-center space-x-2">
               <Switch
-                id="isClinician"
-                checked={professionalForm.watch("isClinician")}
-                onCheckedChange={(checked) => professionalForm.setValue("isClinician", checked)}
+                id="isStaff"
+                checked={professionalForm.watch("isStaff")}
+                onCheckedChange={(checked) => professionalForm.setValue("isStaff", checked)}
               />
-              <Label htmlFor="isClinician">I am a licensed clinician</Label>
+              <Label htmlFor="isStaff">I am a licensed clinical staff member</Label>
             </div>
 
-            {professionalForm.watch("isClinician") && (
+            {professionalForm.watch("isStaff") && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="clinicianField">Clinical Specialty *</Label>
+                  <Label htmlFor="clinicalSpecialty">Clinical Specialty *</Label>
                   <Select
-                    onValueChange={(value) => professionalForm.setValue("clinicianField", value)}
+                    onValueChange={(value) => professionalForm.setValue("clinicalSpecialty", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select your specialty" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CLINICIAN_FIELDS.map((field) => (
+                      {STAFF_CLINICAL_SPECIALTIES.map((field) => (
                         <SelectItem key={field} value={field}>{field}</SelectItem>
                       ))}
                     </SelectContent>

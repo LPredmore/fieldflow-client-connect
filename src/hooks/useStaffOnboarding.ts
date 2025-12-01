@@ -5,8 +5,8 @@ export function useStaffOnboarding() {
   return {
     loading: false,
     error: null,
-    clinicianData: null,
-    updateClinicianData: async () => ({ 
+    staffData: null,
+    updateStaffData: async () => ({ 
       error: 'Staff onboarding not implemented' 
     })
   };

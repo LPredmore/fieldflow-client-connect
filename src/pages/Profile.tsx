@@ -38,17 +38,17 @@ export default function Profile() {
     confirmPassword: '',
   });
 
-  const [clinicianForm, setClinicianForm] = useState({
+  const [staffForm, setStaffForm] = useState({
     prov_name_f: '',
     prov_name_last: '',
-    clinician_bio: '',
-    clinician_treatment_approaches: [] as string[],
-    clinician_min_client_age: 18,
-    clinician_accepting_new_clients: 'Yes' as 'Yes' | 'No',
-    clinician_license_type: '',
-    clinician_licensed_states: [] as string[],
+    staff_bio: '',
+    staff_treatment_approaches: [] as string[],
+    staff_min_client_age: 18,
+    staff_accepting_new_clients: 'Yes' as 'Yes' | 'No',
+    staff_license_type: '',
+    staff_licensed_states: [] as string[],
     prov_npi: '',
-    clinician_taxonomy_code: '',
+    staff_taxonomy_code: '',
   });
 
   const [treatmentApproachInput, setTreatmentApproachInput] = useState('');
@@ -68,17 +68,17 @@ export default function Profile() {
   // Sync staff data
   useEffect(() => {
     if (staff) {
-      setClinicianForm({
+      setStaffForm({
         prov_name_f: staff.prov_name_f || '',
         prov_name_last: staff.prov_name_l || '',
-        clinician_bio: staff.prov_bio || '',
-        clinician_treatment_approaches: staff.prov_treatment_approaches || [],
-        clinician_min_client_age: staff.prov_min_client_age || 18,
-        clinician_accepting_new_clients: staff.prov_accepting_new_clients || 'Yes',
-        clinician_license_type: staff.prov_license_type || '',
-        clinician_licensed_states: [],
+        staff_bio: staff.prov_bio || '',
+        staff_treatment_approaches: staff.prov_treatment_approaches || [],
+        staff_min_client_age: staff.prov_min_client_age || 18,
+        staff_accepting_new_clients: staff.prov_accepting_new_clients || 'Yes',
+        staff_license_type: staff.prov_license_type || '',
+        staff_licensed_states: [],
         prov_npi: staff.prov_npi || '',
-        clinician_taxonomy_code: staff.prov_taxonomy || '',
+        staff_taxonomy_code: staff.prov_taxonomy || '',
       });
     }
   }, [staff]);
@@ -207,20 +207,20 @@ export default function Profile() {
     }
   };
 
-  const handleClinicianSubmit = async (e: React.FormEvent) => {
+  const handleStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdating(true);
 
     const result = await updateStaffInfo({
-      prov_name_f: clinicianForm.prov_name_f,
-      prov_name_l: clinicianForm.prov_name_last,
-      prov_bio: clinicianForm.clinician_bio,
-      prov_treatment_approaches: clinicianForm.clinician_treatment_approaches,
-      prov_min_client_age: clinicianForm.clinician_min_client_age,
-      prov_accepting_new_clients: clinicianForm.clinician_accepting_new_clients,
-      prov_license_type: clinicianForm.clinician_license_type,
-      prov_npi: clinicianForm.prov_npi,
-      prov_taxonomy: clinicianForm.clinician_taxonomy_code,
+      prov_name_f: staffForm.prov_name_f,
+      prov_name_l: staffForm.prov_name_last,
+      prov_bio: staffForm.staff_bio,
+      prov_treatment_approaches: staffForm.staff_treatment_approaches,
+      prov_min_client_age: staffForm.staff_min_client_age,
+      prov_accepting_new_clients: staffForm.staff_accepting_new_clients,
+      prov_license_type: staffForm.staff_license_type,
+      prov_npi: staffForm.prov_npi,
+      prov_taxonomy: staffForm.staff_taxonomy_code,
     });
     
     setIsUpdating(false);
@@ -235,35 +235,35 @@ export default function Profile() {
   };
 
   const addTreatmentApproach = () => {
-    if (treatmentApproachInput.trim() && !clinicianForm.clinician_treatment_approaches.includes(treatmentApproachInput.trim())) {
-      setClinicianForm(prev => ({
+    if (treatmentApproachInput.trim() && !staffForm.staff_treatment_approaches.includes(treatmentApproachInput.trim())) {
+      setStaffForm(prev => ({
         ...prev,
-        clinician_treatment_approaches: [...prev.clinician_treatment_approaches, treatmentApproachInput.trim()]
+        staff_treatment_approaches: [...prev.staff_treatment_approaches, treatmentApproachInput.trim()]
       }));
       setTreatmentApproachInput('');
     }
   };
 
   const removeTreatmentApproach = (approach: string) => {
-    setClinicianForm(prev => ({
+    setStaffForm(prev => ({
       ...prev,
-      clinician_treatment_approaches: prev.clinician_treatment_approaches.filter(a => a !== approach)
+      staff_treatment_approaches: prev.staff_treatment_approaches.filter(a => a !== approach)
     }));
   };
 
   const addLicensedState = (stateCode: string) => {
-    if (!clinicianForm.clinician_licensed_states.includes(stateCode)) {
-      setClinicianForm(prev => ({
+    if (!staffForm.staff_licensed_states.includes(stateCode)) {
+      setStaffForm(prev => ({
         ...prev,
-        clinician_licensed_states: [...prev.clinician_licensed_states, stateCode].sort()
+        staff_licensed_states: [...prev.staff_licensed_states, stateCode].sort()
       }));
     }
   };
 
   const removeLicensedState = (stateCode: string) => {
-    setClinicianForm(prev => ({
+    setStaffForm(prev => ({
       ...prev,
-      clinician_licensed_states: prev.clinician_licensed_states.filter(s => s !== stateCode)
+      staff_licensed_states: prev.staff_licensed_states.filter(s => s !== stateCode)
     }));
   };
 
@@ -512,7 +512,7 @@ export default function Profile() {
                 <CardDescription>Manage your professional credentials and client-facing information</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleClinicianSubmit} className="space-y-6">
+                <form onSubmit={handleStaffSubmit} className="space-y-6">
                   {/* Professional Identity */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Professional Identity</h3>
@@ -521,8 +521,8 @@ export default function Profile() {
                         <Label htmlFor="prov_name_f">Provider First Name</Label>
                         <Input
                           id="prov_name_f"
-                          value={clinicianForm.prov_name_f}
-                          onChange={(e) => setClinicianForm(prev => ({ ...prev, prov_name_f: e.target.value }))}
+                          value={staffForm.prov_name_f}
+                          onChange={(e) => setStaffForm(prev => ({ ...prev, prov_name_f: e.target.value }))}
                           placeholder="First name for professional use"
                         />
                       </div>
@@ -530,8 +530,8 @@ export default function Profile() {
                         <Label htmlFor="prov_name_last">Provider Last Name</Label>
                         <Input
                           id="prov_name_last"
-                          value={clinicianForm.prov_name_last}
-                          onChange={(e) => setClinicianForm(prev => ({ ...prev, prov_name_last: e.target.value }))}
+                          value={staffForm.prov_name_last}
+                          onChange={(e) => setStaffForm(prev => ({ ...prev, prov_name_last: e.target.value }))}
                           placeholder="Last name for professional use"
                         />
                       </div>
@@ -542,11 +542,11 @@ export default function Profile() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Biography & Approach</h3>
                     <div className="space-y-2">
-                      <Label htmlFor="clinician_bio">Professional Bio</Label>
+                      <Label htmlFor="staff_bio">Professional Bio</Label>
                       <Textarea
-                        id="clinician_bio"
-                        value={clinicianForm.clinician_bio}
-                        onChange={(e) => setClinicianForm(prev => ({ ...prev, clinician_bio: e.target.value }))}
+                        id="staff_bio"
+                        value={staffForm.staff_bio}
+                        onChange={(e) => setStaffForm(prev => ({ ...prev, staff_bio: e.target.value }))}
                         placeholder="Share your professional background, approach, and what clients can expect..."
                         rows={6}
                         className="resize-y"
@@ -566,7 +566,7 @@ export default function Profile() {
                         <Button type="button" onClick={addTreatmentApproach}>Add</Button>
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {clinicianForm.clinician_treatment_approaches.map(approach => (
+                        {staffForm.staff_treatment_approaches.map(approach => (
                           <Badge key={approach} variant="secondary" className="flex items-center gap-1">
                             {approach}
                             <X
@@ -584,21 +584,21 @@ export default function Profile() {
                     <h3 className="text-lg font-semibold">Client Parameters</h3>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="clinician_min_client_age">Client Minimum Age</Label>
+                        <Label htmlFor="staff_min_client_age">Client Minimum Age</Label>
                         <Input
-                          id="clinician_min_client_age"
+                          id="staff_min_client_age"
                           type="number"
                           min="0"
                           max="100"
-                          value={clinicianForm.clinician_min_client_age}
-                          onChange={(e) => setClinicianForm(prev => ({ ...prev, clinician_min_client_age: parseInt(e.target.value) || 0 }))}
+                          value={staffForm.staff_min_client_age}
+                          onChange={(e) => setStaffForm(prev => ({ ...prev, staff_min_client_age: parseInt(e.target.value) || 0 }))}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="clinician_accepting_new_clients">Accepting New Clients</Label>
+                        <Label htmlFor="staff_accepting_new_clients">Accepting New Clients</Label>
                         <Select
-                          value={clinicianForm.clinician_accepting_new_clients}
-                          onValueChange={(value: 'Yes' | 'No') => setClinicianForm(prev => ({ ...prev, clinician_accepting_new_clients: value }))}
+                          value={staffForm.staff_accepting_new_clients}
+                          onValueChange={(value: 'Yes' | 'No') => setStaffForm(prev => ({ ...prev, staff_accepting_new_clients: value }))}
                         >
                           <SelectTrigger className="bg-background">
                             <SelectValue />
@@ -616,11 +616,11 @@ export default function Profile() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Licensing & Credentials</h3>
                     <div className="space-y-2">
-                      <Label htmlFor="clinician_license_type">License Type</Label>
+                      <Label htmlFor="staff_license_type">License Type</Label>
                       <Input
-                        id="clinician_license_type"
-                        value={clinicianForm.clinician_license_type}
-                        onChange={(e) => setClinicianForm(prev => ({ ...prev, clinician_license_type: e.target.value }))}
+                        id="staff_license_type"
+                        value={staffForm.staff_license_type}
+                        onChange={(e) => setStaffForm(prev => ({ ...prev, staff_license_type: e.target.value }))}
                         placeholder="e.g., LCSW, LMFT, PhD"
                       />
                     </div>
@@ -628,8 +628,8 @@ export default function Profile() {
                     <div className="space-y-2">
                       <Label htmlFor="licensed-states">States Licensed In</Label>
                       <div className="flex flex-wrap gap-2 mb-2">
-                        {clinicianForm.clinician_licensed_states.length > 0 ? (
-                          clinicianForm.clinician_licensed_states.map(stateCode => {
+                        {staffForm.staff_licensed_states.length > 0 ? (
+                          staffForm.staff_licensed_states.map(stateCode => {
                             const stateName = US_STATES.find(s => s.value === stateCode)?.label || stateCode;
                             return (
                               <Badge key={stateCode} variant="secondary" className="flex items-center gap-1">
@@ -657,7 +657,7 @@ export default function Profile() {
                             <SelectItem
                               key={state.value}
                               value={state.value}
-                              disabled={clinicianForm.clinician_licensed_states.includes(state.value)}
+                              disabled={staffForm.staff_licensed_states.includes(state.value)}
                             >
                               {state.label}
                             </SelectItem>
@@ -671,17 +671,17 @@ export default function Profile() {
                         <Label htmlFor="prov_npi">NPI Number</Label>
                         <Input
                           id="prov_npi"
-                          value={clinicianForm.prov_npi}
-                          onChange={(e) => setClinicianForm(prev => ({ ...prev, prov_npi: e.target.value }))}
+                          value={staffForm.prov_npi}
+                          onChange={(e) => setStaffForm(prev => ({ ...prev, prov_npi: e.target.value }))}
                           placeholder="National Provider Identifier"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="clinician_taxonomy_code">Taxonomy Code</Label>
+                        <Label htmlFor="staff_taxonomy_code">Taxonomy Code</Label>
                         <Input
-                          id="clinician_taxonomy_code"
-                          value={clinicianForm.clinician_taxonomy_code}
-                          onChange={(e) => setClinicianForm(prev => ({ ...prev, clinician_taxonomy_code: e.target.value }))}
+                          id="staff_taxonomy_code"
+                          value={staffForm.staff_taxonomy_code}
+                          onChange={(e) => setStaffForm(prev => ({ ...prev, staff_taxonomy_code: e.target.value }))}
                           placeholder="Healthcare Provider Taxonomy Code"
                         />
                       </div>
