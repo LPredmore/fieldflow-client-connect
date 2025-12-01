@@ -230,6 +230,9 @@ export default function BusinessSettings() {
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     try {
+      // Destructure out UI-only field before database save
+      const { sameAsLocation, ...billingData } = data.billing;
+      
       await Promise.all([
         updateTenant(data.organization),
         updateLocation({
@@ -237,7 +240,7 @@ export default function BusinessSettings() {
           state: data.location.state || undefined,
         } as any),
         updateBilling({
-          ...data.billing,
+          ...billingData,
           bill_state: data.billing.bill_state || undefined,
         } as any),
       ]);
