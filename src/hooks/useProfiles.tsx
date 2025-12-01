@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useSupabaseUpdate } from '@/hooks/data/useSupabaseMutation';
@@ -6,13 +6,21 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
 export interface Profile {
-  id: string;
+  id: string; // This IS the user_id from auth.users
   email: string;
   email_verified: boolean | null;
   created_at: string;
   updated_at: string | null;
   is_active: boolean | null;
   last_login_at: string | null;
+  // Computed from joins
+  staff_data?: {
+    prov_name_f: string | null;
+    prov_name_l: string | null;
+    prov_status: string | null;
+  };
+  user_roles?: Array<{ role: string }>;
+  display_name?: string;
 }
 
 export interface ProfileUpdateData {
@@ -26,17 +34,19 @@ export function useProfiles() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
 
-  // Query profiles via tenant_memberships (no tenant_id on profiles table)
+  // Query profiles with staff data and roles
   const {
-    data: profiles,
+    data: rawProfiles,
     loading,
     error,
     refetch: refetchProfiles,
-  } = useSupabaseQuery<Profile>({
+  } = useSupabaseQuery<any>({
     table: 'profiles',
     select: `
       *,
-      tenant_memberships!inner(tenant_id)
+      tenant_memberships!inner(tenant_id),
+      staff(prov_name_f, prov_name_l, prov_status),
+      user_roles(role)
     `,
     filters: tenantId ? {
       'tenant_memberships.tenant_id': tenantId,
@@ -47,6 +57,23 @@ export function useProfiles() {
       console.error('Error loading profiles:', error);
     },
   });
+
+  // Transform profiles to include computed display name
+  const profiles = useMemo(() => {
+    if (!rawProfiles) return [];
+    return rawProfiles.map((p: any) => {
+      const staffData = Array.isArray(p.staff) ? p.staff[0] : p.staff;
+      const displayName = staffData?.prov_name_f && staffData?.prov_name_l
+        ? `${staffData.prov_name_f} ${staffData.prov_name_l}`
+        : p.email;
+      
+      return {
+        ...p,
+        staff_data: staffData,
+        display_name: displayName,
+      };
+    });
+  }, [rawProfiles]);
 
   const {
     mutate: updateProfileMutation,
@@ -65,7 +92,6 @@ export function useProfiles() {
   };
 
   const archiveUser = async (profileId: string) => {
-    // Archive functionality removed - profiles table doesn't have archived columns
     toast({
       variant: "destructive",
       title: "Archive not supported",
@@ -74,8 +100,7 @@ export function useProfiles() {
     return { error: "Not supported" };
   };
 
-  const restoreUser = async (profileId: string, newEmail?: string) => {
-    // Restore functionality removed - not applicable with current schema
+  const restoreUser = async (profileId: string) => {
     toast({
       variant: "destructive",
       title: "Restore not supported",

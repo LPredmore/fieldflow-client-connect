@@ -41,26 +41,14 @@ export function ArchiveUserDialog({
     if (!isValid) return;
 
     try {
-      // Deactivate all user roles in user_roles table
-      const { error: rolesError } = await supabase
-        .from('user_roles')
-        .update({ is_active: false })
-        .eq('user_id', profile.user_id);
-
-      if (rolesError) {
-        console.error('Error deactivating user roles:', rolesError);
-        toast({
-          title: "Warning",
-          description: "Failed to deactivate user roles, but will proceed with archive",
-          variant: "destructive",
-        });
-      }
+      // Note: user_roles table doesn't have is_active column in current schema
+      // Archiving would need to be implemented differently
 
       // Proceed with archive
       onConfirm();
       
       // Invalidate cache
-      invalidateUserRole(profile.user_id);
+      invalidateUserRole(profile.id);
       
       // Reset form
       setEmailConfirmation('');
@@ -82,7 +70,7 @@ export function ArchiveUserDialog({
           <AlertDialogTitle>Archive User</AlertDialogTitle>
           <AlertDialogDescription className="space-y-4">
             <p>
-              You are about to archive <strong>{profile.full_name || profile.email}</strong>. 
+              You are about to archive <strong>{profile.display_name || profile.email}</strong>. 
               This action will:
             </p>
             <ul className="list-disc list-inside space-y-1 text-sm">
