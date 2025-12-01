@@ -13,4 +13,3 @@ export { useOptimizedStaffQuery, useOptimizedUserStaff, useOptimizedAvailableSta
 export type { StaffQueryOptions, OptimizedStaffResult } from './useOptimizedStaffQuery';
 
 export { useOptimizedCustomerQuery } from './useOptimizedCustomerQuery';
-export { useOptimizedSettingsQuery } from './useOptimizedSettingsQuery';
