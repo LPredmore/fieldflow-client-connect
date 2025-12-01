@@ -3184,6 +3184,7 @@ export type Database = {
           bill_addr_1: string | null
           bill_addr_2: string | null
           bill_city: string | null
+          bill_email: string | null
           bill_name: string
           bill_npi: string | null
           bill_phone: string | null
@@ -3207,6 +3208,7 @@ export type Database = {
           bill_addr_1?: string | null
           bill_addr_2?: string | null
           bill_city?: string | null
+          bill_email?: string | null
           bill_name: string
           bill_npi?: string | null
           bill_phone?: string | null
@@ -3230,6 +3232,7 @@ export type Database = {
           bill_addr_1?: string | null
           bill_addr_2?: string | null
           bill_city?: string | null
+          bill_email?: string | null
           bill_name?: string
           bill_npi?: string | null
           bill_phone?: string | null
@@ -3265,6 +3268,7 @@ export type Database = {
           addr_2: string | null
           city: string | null
           created_at: string
+          email: string | null
           fax: string | null
           id: string
           is_default: boolean
@@ -3285,6 +3289,7 @@ export type Database = {
           addr_2?: string | null
           city?: string | null
           created_at?: string
+          email?: string | null
           fax?: string | null
           id?: string
           is_default?: boolean
@@ -3305,6 +3310,7 @@ export type Database = {
           addr_2?: string | null
           city?: string | null
           created_at?: string
+          email?: string | null
           fax?: string | null
           id?: string
           is_default?: boolean
