@@ -1,7 +1,6 @@
 import { 
   Briefcase, 
   Users, 
-  DollarSign, 
   Calendar,
   TrendingUp,
   Clock,
@@ -18,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useUnifiedAppointments } from "@/hooks/useUnifiedAppointments";
-import { useInvoices } from "@/hooks/useInvoices";
 import { CustomerForm } from "@/components/Customers/CustomerForm";
 import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -38,7 +36,6 @@ const Index = () => {
   } = useUnifiedAppointments({ 
     enabled: isDashboardRoute 
   });
-  const { stats: invoiceStats } = useInvoices();
 
   // Modal state
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
@@ -81,10 +78,8 @@ const Index = () => {
       todaysJobs,
       completionRate,
       totalCustomers: customerStats.total,
-      monthlyRevenue: invoiceStats.paid_last_30_days,
-      pendingPayments: invoiceStats.outstanding,
     };
-  }, [appointments, customerStats, invoiceStats]);
+  }, [appointments, customerStats]);
 
   // Get today's scheduled jobs
   const todaysSchedule = useMemo(() => {
@@ -157,12 +152,6 @@ const Index = () => {
                 : "No patients yet"
               }
               icon={Users}
-            />
-            <MetricCard
-              title="Monthly Revenue"
-              value={`$${dashboardMetrics.monthlyRevenue.toLocaleString()}`}
-              subtitle={`$${dashboardMetrics.pendingPayments.toLocaleString()} pending payments`}
-              icon={DollarSign}
             />
             <MetricCard
               title="Completion Rate"

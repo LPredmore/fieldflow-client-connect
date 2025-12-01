@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { useInvoices } from './useInvoices';
 import { useUserTimezone } from './useUserTimezone';
 import { combineDateTimeToUTC, DEFAULT_TIMEZONE, formatInUserTimezone } from '@/lib/timezoneUtils';
 
@@ -128,7 +127,6 @@ export interface UseUnifiedAppointmentsOptions {
 export function useUnifiedJobs(options?: UseUnifiedAppointmentsOptions) {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
-  const { createInvoice } = useInvoices();
   const userTimezone = useUserTimezone();
 
   // Extract options with defaults
@@ -460,46 +458,12 @@ export function useUnifiedJobs(options?: UseUnifiedAppointmentsOptions) {
 
     if (error) throw error;
     
-    // Auto-create invoice when job is marked as completed
+    // Show toast based on status change
     if (isStatusChangingToCompleted) {
-      try {
-        const issueDate = new Date().toISOString().split('T')[0];
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30);
-        
-        const jobCost = data.actual_cost || 0;
-        const lineItems = [{
-          description: `${job.service_name || 'Service'} - ${job.title}`,
-          quantity: 1,
-          unit_price: jobCost,
-          total: jobCost
-        }];
-
-        await createInvoice({
-          customer_id: job.customer_id,
-          customer_name: job.customer_name,
-          job_id: jobId,
-          issue_date: issueDate,
-          due_date: dueDate.toISOString().split('T')[0],
-          status: 'draft',
-          line_items: lineItems,
-          tax_rate: 8.75,
-          payment_terms: 'Net 30',
-          notes: data.completion_notes || undefined
-        });
-
-        toast({
-          title: "Job completed & Invoice created",
-          description: "The job has been marked as completed and a draft invoice has been created.",
-        });
-      } catch (invoiceError) {
-        console.error('Error creating invoice:', invoiceError);
-        toast({
-          title: "Appointment updated",
-          description: "The appointment has been updated, but there was an error creating the invoice.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Job completed",
+        description: "The job has been marked as completed.",
+      });
     } else if (isStatusChangingToCancelled && job.appointment_type === 'recurring_instance') {
       toast({
         title: "Appointment series cancelled",

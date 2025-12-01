@@ -9,7 +9,6 @@ import { AuthenticationProvider } from "@/providers/AuthenticationProvider";
 import { UnifiedRoutingGuard } from "@/components/routing/UnifiedRoutingGuard";
 import { RoutingDebugPanel } from "@/components/routing/RoutingDebugPanel";
 import { BrandColorProvider } from "@/components/BrandColorProvider";
-import { ClientDataProvider } from "@/contexts/ClientDataContext";
 import { PermissionProvider } from "@/contexts/PermissionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { lazy, Suspense, useEffect } from "react";
@@ -28,12 +27,7 @@ import CompleteSignup from "./pages/CompleteSignup";
 import NotFound from "./pages/NotFound";
 
 // Portal applications
-const ClientPortalApp = lazy(() => import("./portals/ClientPortalApp"));
 const StaffPortalApp = lazy(() => import("./portals/StaffPortalApp"));
-const BillingPortalApp = lazy(() => import("./portals/BillingPortalApp"));
-
-// Public pages
-const PublicInvoice = lazy(() => import("./pages/PublicInvoice"));
 
 // Lazy load debug panel only in development
 const AuthDebugPanel = import.meta.env.DEV 
@@ -86,8 +80,7 @@ const App = () => {
         <AuthenticationProvider>
           {/* OLD AuthProvider REMOVED - Using new unified AuthenticationProvider */}
           <PermissionProvider>
-            <ClientDataProvider>
-              <BrandColorProvider>
+            <BrandColorProvider>
                 <TooltipProvider>
                   <Toaster />
                   <Sonner />
@@ -107,30 +100,11 @@ const App = () => {
                           {/* Public routes */}
                           <Route path="/auth" element={<Auth />} />
                           <Route path="/complete-signup" element={<CompleteSignup />} />
-                          <Route path="/public-invoice/:token" element={
-                            <Suspense fallback={<PageLoadingFallback />}>
-                              <PublicInvoice />
-                            </Suspense>
-                          } />
-                          
-                          {/* Client Portal - All client routes under /client/* */}
-                          <Route path="/client/*" element={
-                            <Suspense fallback={<PageLoadingFallback />}>
-                              <ClientPortalApp />
-                            </Suspense>
-                          } />
                           
                           {/* Staff Portal - All staff routes under /staff/* */}
                           <Route path="/staff/*" element={
                             <Suspense fallback={<PageLoadingFallback />}>
                               <StaffPortalApp />
-                            </Suspense>
-                          } />
-                          
-                          {/* Billing Portal - All billing routes under /billing/* */}
-                          <Route path="/billing/*" element={
-                            <Suspense fallback={<PageLoadingFallback />}>
-                              <BillingPortalApp />
                             </Suspense>
                           } />
                           
@@ -144,7 +118,6 @@ const App = () => {
                     </BrowserRouter>
                 </TooltipProvider>
               </BrandColorProvider>
-            </ClientDataProvider>
           </PermissionProvider>
           {/* OLD AuthProvider REMOVED - Using new unified AuthenticationProvider */}
         </AuthenticationProvider>

@@ -100,29 +100,6 @@ function determineRoute(
     };
   }
 
-  // Client user
-  if (user.role === 'client') {
-    // Allow access to client routes
-    if (currentPath.startsWith('/client/')) {
-      authLogger.logRouting('Client on client route - no redirect', { currentPath }, user.id);
-      return {
-        shouldRedirect: false,
-        reason: 'Client accessing client portal'
-      };
-    }
-    
-    // Redirect to client dashboard
-    authLogger.logRouting('Client redirecting to dashboard', {
-      from: currentPath,
-      to: '/client/dashboard'
-    }, user.id);
-    return {
-      shouldRedirect: true,
-      redirectTo: '/client/dashboard',
-      reason: 'Client user redirected to client portal'
-    };
-  }
-
   // Staff user
   if (user.role === 'staff') {
     const isClinician = user.staffAttributes?.is_clinician === true;
