@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
-import { useSettings } from '@/hooks/useSettings';
+import { useTenantBranding } from '@/hooks/useTenantBranding';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Building, UserCheck, Mail, ArrowLeft, User, Stethoscope, AlertCircle } from 'lucide-react';
 
@@ -24,7 +24,7 @@ export default function Auth() {
   const [authError, setAuthError] = useState<string | null>(null);
   
   const { signIn, signUp, resetPassword, user, loading: authLoading } = useAuth();
-  const { settings } = useSettings();
+  const { displayName, logoUrl } = useTenantBranding();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -93,9 +93,9 @@ export default function Auth() {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center space-x-2">
-            {settings?.logo_url ? (
+            {logoUrl ? (
               <img 
-                src={settings.logo_url} 
+                src={logoUrl} 
                 alt="Business Logo" 
                 className="h-8 w-8 object-contain"
               />
@@ -103,7 +103,7 @@ export default function Auth() {
               <Building className="h-8 w-8 text-primary" />
             )}
             <h1 className="text-3xl font-bold text-foreground">
-              {settings?.business_name || 'FieldFlow'}
+              {displayName || 'ValorWell'}
             </h1>
           </div>
           <p className="text-muted-foreground">
@@ -120,8 +120,8 @@ export default function Auth() {
               {showForgotPassword 
                 ? 'Enter your email address to receive a password reset link'
                 : (isLogin 
-                  ? `Sign in to your ${settings?.business_name || 'FieldFlow'} account` 
-                  : `Get started with ${settings?.business_name || 'FieldFlow'} today`
+                  ? `Sign in to your ${displayName || 'ValorWell'} account` 
+                  : `Get started with ${displayName || 'ValorWell'} today`
                 )
               }
             </CardDescription>
