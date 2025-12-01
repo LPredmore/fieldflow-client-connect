@@ -84,8 +84,8 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
         email: data.email,
       },
       professionalDetails: {
-        isClinician: true,
-        clinicianField: data.specialty,
+        isStaff: true,
+        clinicalSpecialty: data.specialty,
         npiNumber: data.npiNumber,
         taxonomyCode: data.taxonomy,
         licenseType: data.licenseType,
