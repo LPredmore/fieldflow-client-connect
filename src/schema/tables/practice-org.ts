@@ -70,6 +70,7 @@ export const PRACTICE_ORG_TABLES = {
       bill_state: { type: 'state_code_enum', nullable: true },
       bill_zip: { type: 'text', nullable: true },
       bill_phone: { type: 'text', nullable: true },
+      bill_email: { type: 'text', nullable: true },
       // Pay-To Address
       pay_addr_1: { type: 'text', nullable: true },
       pay_addr_2: { type: 'text', nullable: true },
@@ -96,6 +97,7 @@ export const PRACTICE_ORG_TABLES = {
       state: { type: 'state_code_enum', nullable: true },
       zip: { type: 'text', nullable: true },
       phone: { type: 'text', nullable: true },
+      email: { type: 'text', nullable: true },
       fax: { type: 'text', nullable: true },
       // Service Location Info
       svc_npi: { type: 'text', nullable: true },
