@@ -21,7 +21,7 @@ export function useRoleCacheInvalidation() {
     // 2. Invalidate React Query caches
     queryClient.invalidateQueries({ queryKey: ['profiles'] });
     queryClient.invalidateQueries({ queryKey: ['user_roles'] });
-    queryClient.invalidateQueries({ queryKey: ['clinicians'] });
+    queryClient.invalidateQueries({ queryKey: ['staff'] });
     queryClient.invalidateQueries({ queryKey: ['user_permissions'] });
   };
 
@@ -32,7 +32,7 @@ export function useRoleCacheInvalidation() {
     // Invalidate all React Query caches
     queryClient.invalidateQueries({ queryKey: ['profiles'] });
     queryClient.invalidateQueries({ queryKey: ['user_roles'] });
-    queryClient.invalidateQueries({ queryKey: ['clinicians'] });
+    queryClient.invalidateQueries({ queryKey: ['staff'] });
     queryClient.invalidateQueries({ queryKey: ['user_permissions'] });
   };
 

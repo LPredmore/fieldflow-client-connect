@@ -8,7 +8,9 @@ export type { MutationOptions, MutationResult } from './useSupabaseMutation';
 export { useSupabaseTable } from './useSupabaseTable';
 export type { TableOptions, TableResult } from './useSupabaseTable';
 
-// Re-export for convenience
-export * from './useSupabaseQuery';
-export * from './useSupabaseMutation';
-export * from './useSupabaseTable';
+// Optimized query hooks
+export { useOptimizedStaffQuery, useOptimizedUserStaff, useOptimizedAvailableStaff, useOptimizedStaffProfiles, staffPreloadManager } from './useOptimizedStaffQuery';
+export type { StaffQueryOptions, OptimizedStaffResult } from './useOptimizedStaffQuery';
+
+export { useOptimizedCustomerQuery } from './useOptimizedCustomerQuery';
+export { useOptimizedSettingsQuery } from './useOptimizedSettingsQuery';
