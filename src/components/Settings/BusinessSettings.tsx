@@ -294,7 +294,7 @@ export default function BusinessSettings() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Company Logo</label>
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center bg-card hover:bg-accent/10 transition-colors">
+                  <div className="relative border-2 border-dashed border-border rounded-lg p-6 text-center bg-card hover:bg-accent/10 transition-colors">
                     {form.watch('organization.logo_url') ? (
                       <div className="space-y-3">
                         <img 
