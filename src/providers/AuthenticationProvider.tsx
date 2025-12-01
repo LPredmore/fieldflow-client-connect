@@ -399,6 +399,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
    */
   useEffect(() => {
     console.debug('[AuthenticationProvider] Setting up auth state listener');
+    let lastFailedUserId: string | null = null;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -408,8 +409,20 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
           switch (event) {
             case 'SIGNED_IN':
               if (session?.user) {
+                // Prevent infinite retry loop if loadUserData previously failed for this user
+                if (lastFailedUserId === session.user.id) {
+                  console.warn('[AuthenticationProvider] Skipping loadUserData - previously failed for this user');
+                  return;
+                }
+                
                 console.debug('[AuthenticationProvider] User signed in, loading data');
-                await loadUserData(session.user.id, session.user.email || '');
+                try {
+                  await loadUserData(session.user.id, session.user.email || '');
+                  lastFailedUserId = null; // Reset on success
+                } catch (err) {
+                  lastFailedUserId = session.user.id; // Track failure to prevent retry loop
+                  throw err;
+                }
               }
               break;
 
