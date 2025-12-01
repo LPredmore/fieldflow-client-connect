@@ -7,9 +7,13 @@ interface UserRoleRecord {
   role: 'admin' | 'staff';
 }
 
+interface StaffRecord {
+  id: string;
+}
+
 interface StaffRoleAssignmentRecord {
   staff_roles: {
-    role_name: string;
+    code: string;
   };
 }
 
@@ -45,15 +49,14 @@ export function usePermissionsData(options: UsePermissionsDataOptions = {}) {
     staleTime: 300000, // Cache for 5 minutes
   });
 
-  // Query staff role assignments (CLINICIAN, BILLING, etc.)
+  // Step 1: Query staff table to get staff.id for this user's profile_id
   const {
-    data: staffAssignmentsArray,
-    loading: assignmentsLoading,
-    error: assignmentsError,
-    refetch: refetchAssignments,
-  } = useSupabaseQuery<StaffRoleAssignmentRecord>({
-    table: 'staff_role_assignments',
-    select: 'staff_roles(role_name)',
+    data: staffArray,
+    loading: staffLoading,
+    error: staffError,
+  } = useSupabaseQuery<StaffRecord>({
+    table: 'staff',
+    select: 'id',
     filters: {
       profile_id: targetUserId,
     },
@@ -61,43 +64,46 @@ export function usePermissionsData(options: UsePermissionsDataOptions = {}) {
     staleTime: 300000,
   });
 
+  const staffId = staffArray?.[0]?.id;
+
+  // Step 2: Query staff role assignments using staff_id
+  const {
+    data: staffAssignmentsArray,
+    loading: assignmentsLoading,
+    error: assignmentsError,
+    refetch: refetchAssignments,
+  } = useSupabaseQuery<StaffRoleAssignmentRecord>({
+    table: 'staff_role_assignments',
+    select: 'staff_roles(code)',
+    filters: {
+      staff_id: staffId,
+    },
+    enabled: options.enabled !== false && !!staffId,
+    staleTime: 300000,
+  });
+
   // Derive permissions from roles
   const permissions = useMemo(() => {
-    const loading = rolesLoading || assignmentsLoading;
-    
-    console.log('[usePermissionsData] Computing permissions:', {
-      loading,
-      targetUserId,
-      userRolesArray,
-      staffAssignmentsArray,
-      userRole
-    });
+    const loading = rolesLoading || staffLoading || assignmentsLoading;
     
     // While loading, return null to prevent premature checks
     if (loading) {
-      console.log('[usePermissionsData] Still loading, returning null');
       return null;
     }
     
     // Get app role (admin or staff)
     const appRole = userRolesArray?.[0]?.role || null;
     
-    // Get staff role assignments
+    // Get staff role assignments - map code to role_name for compatibility
     const staffRoles: StaffRoleAssignment[] = staffAssignmentsArray?.map(assignment => ({
-      role_name: assignment.staff_roles?.role_name || ''
+      role_name: assignment.staff_roles?.code || ''
     })) || [];
     
     // Derive permissions from roles
     const derived = derivePermissionsFromRoles(appRole, staffRoles);
     
-    console.log('[usePermissionsData] Derived permissions:', {
-      appRole,
-      staffRoles: staffRoles.map(r => r.role_name),
-      derived
-    });
-    
     return derived;
-  }, [userRolesArray, staffAssignmentsArray, rolesLoading, assignmentsLoading, targetUserId, userRole]);
+  }, [userRolesArray, staffAssignmentsArray, rolesLoading, staffLoading, assignmentsLoading, targetUserId, userRole]);
 
   // Refetch all role data
   const refetch = () => {
@@ -107,8 +113,8 @@ export function usePermissionsData(options: UsePermissionsDataOptions = {}) {
 
   return {
     data: permissions,
-    loading: rolesLoading || assignmentsLoading,
-    error: rolesError || assignmentsError,
+    loading: rolesLoading || staffLoading || assignmentsLoading,
+    error: rolesError || staffError || assignmentsError,
     mutating: false, // No mutations - permissions are derived
     refetch,
     hasCustomPermissions: (staffAssignmentsArray?.length || 0) > 0,
