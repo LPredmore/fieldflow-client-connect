@@ -8,7 +8,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { UserRoleContext, UserProfile, ClinicianData, UserPermissions } from '@/services/auth/UnifiedRoleDetectionService';
+import type { UserRoleContext, UserProfile, StaffData, UserPermissions } from '@/services/auth/UnifiedRoleDetectionService';
 
 /**
  * User object containing all authentication and role data
@@ -36,8 +36,8 @@ export interface User {
 export interface StaffAttributes {
   is_clinician: boolean;
   is_admin: boolean;
-  clinician_status?: string | null;
-  clinicianData?: ClinicianData;
+  prov_status?: string | null;
+  staffData?: StaffData;
 }
 
 /**

@@ -17,7 +17,7 @@ export { retryWithBackoff, withRetry } from './retryWithBackoff';
 export type {
   UserRoleContext,
   UserProfile,
-  ClinicianData,
+  StaffData,
   UserPermissions
 } from './UnifiedRoleDetectionService';
 

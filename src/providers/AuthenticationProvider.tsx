@@ -40,14 +40,13 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
       const roleContext = await unifiedRoleDetectionService.detectUserRole(userId);
 
       // Build staff attributes if user is staff
-      // FIXED: Always set staffAttributes for all staff, even without clinicianData
       let staffAttributes: StaffAttributes | undefined;
       if (roleContext.isStaff) {
         staffAttributes = {
           is_clinician: roleContext.isClinician,
           is_admin: roleContext.isAdmin,
-          clinician_status: roleContext.clinicianData?.clinician_status,
-          clinicianData: roleContext.clinicianData
+          prov_status: roleContext.staffData?.prov_status,
+          staffData: roleContext.staffData
         };
       }
 
@@ -60,11 +59,13 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
         staffAttributes,
         permissions: roleContext.permissions,
         roleContext,
-        // Legacy compatibility - populate user_metadata
+        // Legacy compatibility - populate user_metadata from staff table
         user_metadata: {
-          full_name: `${roleContext.profile.first_name || ''} ${roleContext.profile.last_name || ''}`.trim(),
-          first_name: roleContext.profile.first_name,
-          last_name: roleContext.profile.last_name,
+          full_name: roleContext.staffData 
+            ? `${roleContext.staffData.prov_name_f || ''} ${roleContext.staffData.prov_name_l || ''}`.trim()
+            : '',
+          first_name: roleContext.staffData?.prov_name_f || null,
+          last_name: roleContext.staffData?.prov_name_l || null,
         }
       };
 
@@ -91,7 +92,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
         isClinician: staffAttributes?.is_clinician,
         isAdmin: staffAttributes?.is_admin,
         hasProfile: !!roleContext.profile,
-        profileName: roleContext.profile?.full_name
+        staffName: roleContext.staffData ? `${roleContext.staffData.prov_name_f} ${roleContext.staffData.prov_name_l}` : null
       });
     } catch (err) {
       const authError = AuthError.fromError(err, AuthErrorType.DATA_FETCH_FAILED);
@@ -530,7 +531,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
 
   // Compute legacy properties from user object
   const userRole = user?.role || null;
-  const tenantId = user?.profile?.tenant_id || null;
+  const tenantId = user?.roleContext?.tenantId || null;
   const isAdmin = user?.staffAttributes?.is_admin || false;
 
   const contextValue = {
