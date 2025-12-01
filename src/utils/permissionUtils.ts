@@ -6,6 +6,10 @@ export interface UserPermissions {
   supervisor: boolean;
 }
 
+export interface StaffRoleAssignment {
+  role_name: string;
+}
+
 export const hasPermission = (permissions: UserPermissions | null, permissionName: keyof UserPermissions): boolean => {
   if (!permissions) return false;
   return permissions[permissionName] === true;
@@ -31,20 +35,92 @@ export const canSupervise = (permissions: UserPermissions | null): boolean => {
   return hasPermission(permissions, 'supervisor');
 };
 
-// Default permissions for fallback scenarios
-export const getDefaultPermissions = (role: 'staff' | 'client' | null): UserPermissions => {
-  // Clients have no business permissions - they only access their own portal
-  if (role === 'client') {
+/**
+ * Derive permissions from user roles and staff role assignments
+ * 
+ * Role hierarchy:
+ * - 'admin' in user_roles → Full access to everything
+ * - Staff role assignments:
+ *   - ACCOUNT_OWNER → Full access
+ *   - BILLING → access_invoicing, access_services
+ *   - CLINICIAN → access_appointments, access_forms, access_services
+ *   - SUPERVISOR → supervisor + all clinician permissions
+ */
+export const derivePermissionsFromRoles = (
+  appRole: 'admin' | 'staff' | null,
+  staffRoles: StaffRoleAssignment[]
+): UserPermissions => {
+  // Admin role gets full access
+  if (appRole === 'admin') {
     return {
-      access_appointments: false,
-      access_services: false,
-      access_invoicing: false,
-      access_forms: false,
-      supervisor: false,
+      access_appointments: true,
+      access_services: true,
+      access_invoicing: true,
+      access_forms: true,
+      supervisor: true,
+    };
+  }
+
+  // Start with no permissions
+  const permissions: UserPermissions = {
+    access_appointments: false,
+    access_services: false,
+    access_invoicing: false,
+    access_forms: false,
+    supervisor: false,
+  };
+
+  // Derive from staff role assignments
+  staffRoles.forEach(assignment => {
+    const roleName = assignment.role_name?.toUpperCase();
+    
+    switch (roleName) {
+      case 'ACCOUNT_OWNER':
+        // Full access
+        permissions.access_appointments = true;
+        permissions.access_services = true;
+        permissions.access_invoicing = true;
+        permissions.access_forms = true;
+        permissions.supervisor = true;
+        break;
+      
+      case 'BILLING':
+        permissions.access_invoicing = true;
+        permissions.access_services = true;
+        break;
+      
+      case 'CLINICIAN':
+        permissions.access_appointments = true;
+        permissions.access_forms = true;
+        permissions.access_services = true;
+        break;
+      
+      case 'SUPERVISOR':
+        permissions.supervisor = true;
+        permissions.access_appointments = true;
+        permissions.access_forms = true;
+        permissions.access_services = true;
+        break;
+    }
+  });
+
+  return permissions;
+};
+
+// Default permissions for fallback scenarios
+export const getDefaultPermissions = (role: 'admin' | 'staff' | 'client' | null): UserPermissions => {
+  // Admin gets full access
+  if (role === 'admin') {
+    return {
+      access_appointments: true,
+      access_services: true,
+      access_invoicing: true,
+      access_forms: true,
+      supervisor: true,
     };
   }
   
-  // Staff users get default (no permissions) - must be explicitly granted
+  // All others get no permissions by default
   return {
     access_appointments: false,
     access_services: false,

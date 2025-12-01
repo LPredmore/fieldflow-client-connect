@@ -7,9 +7,6 @@ interface PermissionContextValue {
   loading: boolean;
   error: string | null;
   hasCustomPermissions: boolean;
-  updatePermissions: (updates: Partial<UserPermissions>) => Promise<any>;
-  createPermissions: (userId: string, newPermissions: UserPermissions) => Promise<any>;
-  removePermissions: () => Promise<any>;
   refetch: () => void;
 }
 
@@ -19,15 +16,19 @@ interface PermissionProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Permission Provider
+ * 
+ * Provides derived permissions based on user_roles and staff_role_assignments.
+ * Permissions are READ-ONLY as they are computed from roles.
+ * To change permissions, modify role assignments instead.
+ */
 export function PermissionProvider({ children }: PermissionProviderProps) {
   const {
     data: permissions,
     loading,
     error,
     hasCustomPermissions,
-    create,
-    update,
-    remove,
     refetch,
   } = usePermissionsData();
 
@@ -36,9 +37,6 @@ export function PermissionProvider({ children }: PermissionProviderProps) {
     loading,
     error,
     hasCustomPermissions,
-    updatePermissions: update,
-    createPermissions: create,
-    removePermissions: remove,
     refetch,
   };
 
