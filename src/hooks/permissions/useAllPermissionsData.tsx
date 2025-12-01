@@ -3,12 +3,16 @@ import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useAuth } from '@/hooks/useAuth';
 import { UserPermissions, derivePermissionsFromRoles, StaffRoleAssignment } from '@/utils/permissionUtils';
 
-interface ProfileWithRoles {
-  id: string;
-  user_roles: Array<{ role: 'admin' | 'staff' }>;
+interface StaffWithRoles {
+  profile_id: string;
   staff_role_assignments: Array<{
-    staff_roles: { role_name: string };
+    staff_roles: { code: string };
   }>;
+}
+
+interface UserRoleRecord {
+  user_id: string;
+  role: 'admin' | 'staff';
 }
 
 interface UseAllPermissionsDataOptions {
@@ -23,43 +27,56 @@ interface UseAllPermissionsDataOptions {
 export function useAllPermissionsData(options: UseAllPermissionsDataOptions = {}) {
   const { tenantId } = useAuth();
   
-  // Query all profiles in tenant with their roles
+  // Query all user_roles for users in this tenant
   const {
-    data: profilesWithRoles,
-    loading,
-    error,
+    data: userRolesArray,
+    loading: rolesLoading,
+    error: rolesError,
+  } = useSupabaseQuery<UserRoleRecord>({
+    table: 'user_roles',
+    select: 'user_id, role',
+    enabled: options.enabled !== false && !!tenantId,
+  });
+
+  // Query all staff with their role assignments for this tenant
+  const {
+    data: staffWithRoles,
+    loading: staffLoading,
+    error: staffError,
     refetch,
-  } = useSupabaseQuery<ProfileWithRoles>({
-    table: 'profiles',
-    select: `
-      id,
-      user_roles!inner(role),
-      staff_role_assignments(staff_roles(role_name))
-    `,
+  } = useSupabaseQuery<StaffWithRoles>({
+    table: 'staff',
+    select: 'profile_id, staff_role_assignments(staff_roles(code))',
     filters: {
-      'tenant_memberships.tenant_id': tenantId,
+      tenant_id: tenantId,
     },
     enabled: options.enabled !== false && !!tenantId,
   });
 
   // Derive permissions for each user
   const permissionsMap = useMemo(() => {
-    if (!profilesWithRoles) return new Map<string, UserPermissions>();
+    if (!userRolesArray || !staffWithRoles) return new Map<string, UserPermissions>();
     
     const map = new Map<string, UserPermissions>();
     
-    profilesWithRoles.forEach(profile => {
-      const appRole = profile.user_roles?.[0]?.role || null;
-      const staffRoles: StaffRoleAssignment[] = profile.staff_role_assignments?.map(assignment => ({
-        role_name: assignment.staff_roles?.role_name || ''
+    // Build a map of profile_id to staff roles
+    const staffRolesMap = new Map<string, StaffRoleAssignment[]>();
+    staffWithRoles.forEach(staff => {
+      const roles: StaffRoleAssignment[] = staff.staff_role_assignments?.map(assignment => ({
+        role_name: assignment.staff_roles?.code || ''
       })) || [];
-      
-      const permissions = derivePermissionsFromRoles(appRole, staffRoles);
-      map.set(profile.id, permissions);
+      staffRolesMap.set(staff.profile_id, roles);
+    });
+    
+    // Derive permissions for each user
+    userRolesArray.forEach(userRole => {
+      const staffRoles = staffRolesMap.get(userRole.user_id) || [];
+      const permissions = derivePermissionsFromRoles(userRole.role, staffRoles);
+      map.set(userRole.user_id, permissions);
     });
     
     return map;
-  }, [profilesWithRoles]);
+  }, [userRolesArray, staffWithRoles]);
 
   // Helper to get permissions for a specific user
   const getPermissionsForUser = (userId: string): UserPermissions | null => {
@@ -71,8 +88,8 @@ export function useAllPermissionsData(options: UseAllPermissionsDataOptions = {}
       user_id: userId,
       ...permissions,
     })),
-    loading,
-    error,
+    loading: rolesLoading || staffLoading,
+    error: rolesError || staffError,
     getPermissionsForUser,
     refetch,
   };

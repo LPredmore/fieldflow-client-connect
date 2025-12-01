@@ -5,7 +5,7 @@
  * No circuit breakers, no deduplication, no complex caching.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthenticationContext';
 
@@ -57,6 +57,10 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
     onError
   } = options;
 
+  // Stabilize filters to prevent infinite loops from object reference changes
+  const filtersKey = JSON.stringify(filters);
+  const stableFilters = useMemo(() => filters, [filtersKey]);
+
   const fetchData = useCallback(async (isRefetch: boolean = false) => {
     // Skip if disabled or no user/tenant when filters require them
     if (!enabled) {
@@ -73,7 +77,7 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
     }
 
     // Check if we need user/tenant for this query
-    const needsUser = filters?.user_id !== undefined || filters?.tenant_id !== undefined;
+    const needsUser = stableFilters?.user_id !== undefined || stableFilters?.tenant_id !== undefined;
     if (needsUser && !user) {
       console.log('⏸️ [useSupabaseQuery] Query skipped - waiting for user', { table });
       if (!isRefetch) {
@@ -111,8 +115,8 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
       let query = supabase.from(table).select(select);
 
       // Apply filters
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
+      if (stableFilters) {
+        Object.entries(stableFilters).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
             // Replace special user/tenant placeholders
             let filterValue = value;
@@ -183,7 +187,7 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
       }
       abortControllerRef.current = null;
     }
-  }, [table, select, filters, orderBy, enabled, user, onSuccess, onError]);
+  }, [table, select, stableFilters, orderBy, enabled, user, onSuccess, onError]);
 
   const refetch = useCallback(async () => {
     await fetchData(true);
