@@ -1,9 +1,9 @@
 /**
- * Core TypeScript interfaces and types for the Clinician Registration and Routing System
+ * Core TypeScript interfaces and types for the Staff Registration and Routing System
  * 
  * This file defines all the interfaces, types, and error definitions needed for:
  * - Staff type detection
- * - Clinician status management  
+ * - Staff status management  
  * - Route guarding
  * - Registration flow control
  */
@@ -13,47 +13,28 @@
 // ============================================================================
 
 /**
- * Clinician status enumeration
- * - "New": Clinician who needs to complete registration
- * - "Active": Staff member with full system access (completed clinicians or non-clinician staff)
+ * Staff status enumeration
+ * - "New": Staff member who needs to complete registration
+ * - "Active": Staff member with full system access (completed registration or non-clinical staff)
  */
-export type ClinicianStatus = "New" | "Active";
+export type StaffStatus = "New" | "Active";
 
 /**
  * Staff record from the public.staff table
  */
 export interface StaffRecord {
   id: string;
-  user_id: string;
-  is_clinician: boolean;
-  role: string;
-  department?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-/**
- * Clinician record from the public.clinicians table
- */
-export interface ClinicianRecord {
-  id: string;
-  user_id: string;
   tenant_id: string;
-  clinician_status: ClinicianStatus | null;
-  clinician_field?: string | null;
-  clinician_license_number?: string | null;
-  clinician_license_type?: string | null;
-  clinician_bio?: string | null;
-  clinician_min_client_age?: number | null;
-  clinician_accepting_new_clients?: string | null;
-  prov_name_f?: string | null;
-  prov_name_last?: string | null;
-  prov_npi?: string | null;
-  prov_taxonomy?: string | null;
-  clinician_taxonomy_code?: string | null;
-  clinician_treatment_approaches?: string[] | null;
-  is_clinician: boolean;
-  is_admin: boolean;
+  profile_id: string;
+  prov_name_f: string | null;
+  prov_name_m: string | null;
+  prov_name_l: string | null;
+  prov_status: string | null;
+  prov_field: string | null;
+  prov_license_type: string | null;
+  prov_license_number: string | null;
+  prov_npi: string | null;
+  prov_taxonomy: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -68,12 +49,13 @@ export interface RouteDecision {
 }
 
 /**
- * Registration data for completing clinician onboarding
+ * Registration data for completing staff onboarding
  */
 export interface RegistrationData {
   // Professional Information
   licenseNumber: string;
-  specialties: string | string[];
+  licenseType: string;
+  specialty: string;
   certifications?: string[];
   npiNumber?: string;
   taxonomyCode?: string;
@@ -101,15 +83,15 @@ export interface ValidationResult {
 
 /**
  * Staff Type Detector Interface
- * Responsible for determining if a user is a clinician or non-clinician staff
+ * Responsible for determining if a user is clinical staff or administrative staff
  */
 export interface StaffTypeDetector {
   /**
-   * Determines if a user is clinician staff
+   * Determines if a user is clinical staff
    * @param userId - The user ID to check
-   * @returns Promise resolving to true if user is a clinician
+   * @returns Promise resolving to true if user is clinical staff
    */
-  isClinicianStaff(userId: string): Promise<boolean>;
+  isClinicalStaff(userId: string): Promise<boolean>;
 
   /**
    * Retrieves staff record for a user
@@ -120,39 +102,39 @@ export interface StaffTypeDetector {
 }
 
 /**
- * Clinician Status Manager Interface
- * Manages clinician_status values and ensures data consistency
+ * Staff Status Manager Interface
+ * Manages staff status values and ensures data consistency
  */
-export interface ClinicianStatusManager {
+export interface StaffStatusManager {
   /**
-   * Gets the current clinician status for a user
+   * Gets the current staff status for a user
    * @param userId - The user ID to check
-   * @returns Promise resolving to clinician status or null
+   * @returns Promise resolving to staff status or null
    */
-  getClinicianStatus(userId: string): Promise<ClinicianStatus | null>;
+  getStaffStatus(userId: string): Promise<StaffStatus | null>;
 
   /**
-   * Sets the clinician status for a user
+   * Sets the staff status for a user
    * @param userId - The user ID to update
    * @param status - The new status to set
    * @returns Promise that resolves when update is complete
    */
-  setClinicianStatus(userId: string, status: ClinicianStatus): Promise<void>;
+  setStaffStatus(userId: string, status: StaffStatus): Promise<void>;
 
   /**
-   * Initializes a clinician record for a new staff member
+   * Initializes a staff record for a new staff member
    * @param userId - The user ID to initialize
-   * @param isClinicianStaff - Whether the user is clinician staff
+   * @param isClinicalStaff - Whether the user is clinical staff
    * @returns Promise that resolves when initialization is complete
    */
-  initializeClinicianRecord(userId: string, isClinicianStaff: boolean): Promise<void>;
+  initializeStaffRecord(userId: string, isClinicalStaff: boolean): Promise<void>;
 
   /**
-   * Gets the full clinician record for a user
+   * Gets the full staff record for a user
    * @param userId - The user ID to look up
-   * @returns Promise resolving to clinician record or null
+   * @returns Promise resolving to staff record or null
    */
-  getClinicianRecord(userId: string): Promise<ClinicianRecord | null>;
+  getStaffRecord(userId: string): Promise<StaffRecord | null>;
 }
 
 /**
@@ -189,7 +171,7 @@ export interface RouteGuard {
  */
 export interface RegistrationFlowController {
   /**
-   * Completes the registration process for a clinician
+   * Completes the registration process for a staff member
    * @param userId - The user ID completing registration
    * @param registrationData - The registration data to save
    * @returns Promise that resolves when registration is complete
@@ -210,7 +192,7 @@ export interface RegistrationFlowController {
    */
   getRegistrationStatus(userId: string): Promise<{
     isRegistered: boolean;
-    clinicianStatus: string | null;
+    staffStatus: string | null;
     missingFields: string[];
   }>;
 }
@@ -220,9 +202,9 @@ export interface RegistrationFlowController {
 // ============================================================================
 
 /**
- * Base error class for clinician registration system
+ * Base error class for staff registration system
  */
-export abstract class ClinicianRegistrationError extends Error {
+export abstract class StaffRegistrationError extends Error {
   abstract readonly errorType: string;
   abstract readonly errorCode: string;
   
@@ -235,7 +217,7 @@ export abstract class ClinicianRegistrationError extends Error {
 /**
  * Authentication-related errors
  */
-export class AuthenticationError extends ClinicianRegistrationError {
+export class AuthenticationError extends StaffRegistrationError {
   readonly errorType = 'authentication';
   readonly errorCode = 'AUTH_ERROR';
 }
@@ -243,7 +225,7 @@ export class AuthenticationError extends ClinicianRegistrationError {
 /**
  * Data consistency errors (missing records, invalid states)
  */
-export class DataConsistencyError extends ClinicianRegistrationError {
+export class DataConsistencyError extends StaffRegistrationError {
   readonly errorType = 'data_consistency';
   readonly errorCode = 'DATA_ERROR';
   
@@ -255,7 +237,7 @@ export class DataConsistencyError extends ClinicianRegistrationError {
 /**
  * Permission/authorization errors
  */
-export class PermissionError extends ClinicianRegistrationError {
+export class PermissionError extends StaffRegistrationError {
   readonly errorType = 'permission';
   readonly errorCode = 'PERMISSION_ERROR';
   
@@ -267,7 +249,7 @@ export class PermissionError extends ClinicianRegistrationError {
 /**
  * System errors (database connectivity, unexpected failures)
  */
-export class SystemError extends ClinicianRegistrationError {
+export class SystemError extends StaffRegistrationError {
   readonly errorType = 'system';
   readonly errorCode = 'SYSTEM_ERROR';
   
@@ -279,7 +261,7 @@ export class SystemError extends ClinicianRegistrationError {
 /**
  * Validation errors for registration data
  */
-export class ValidationError extends ClinicianRegistrationError {
+export class ValidationError extends StaffRegistrationError {
   readonly errorType = 'validation';
   readonly errorCode = 'VALIDATION_ERROR';
   
@@ -328,9 +310,9 @@ export interface ErrorHandler {
 // ============================================================================
 
 /**
- * Configuration options for the clinician registration system
+ * Configuration options for the staff registration system
  */
-export interface ClinicianRegistrationConfig {
+export interface StaffRegistrationConfig {
   /** Base URL for EMR domain */
   emrDomainUrl: string;
   /** Path to registration page */
@@ -366,7 +348,7 @@ export interface AuditLogEntry {
  */
 export interface StaffTypeCacheEntry {
   userId: string;
-  isClinicianStaff: boolean;
+  isClinicalStaff: boolean;
   staffRecord: StaffRecord | null;
   cachedAt: number;
   expiresAt: number;

@@ -1,16 +1,16 @@
 /**
  * System Monitoring Service
  * 
- * This service provides comprehensive monitoring for the clinician registration routing system.
+ * This service provides comprehensive monitoring for the staff registration routing system.
  * It tracks performance metrics, system health, routing decisions, status changes, and provides
  * audit logging for security and compliance purposes.
  */
 
 import {
   AuditLogEntry,
-  ClinicianStatus,
+  StaffStatus,
   RouteDecision,
-} from '@/types/clinician-registration';
+} from '@/types/staff-registration';
 
 /**
  * Performance metrics for system monitoring
@@ -31,7 +31,7 @@ export interface PerformanceMetrics {
     cacheHitRate: number;
     errorRate: number;
   };
-  /** Clinician status management metrics */
+  /** Staff status management metrics */
   statusManagement: {
     totalOperations: number;
     averageResponseTime: number;
@@ -95,7 +95,14 @@ export type AuditEventType =
 /**
  * Enhanced audit log entry with additional context
  */
-export interface EnhancedAuditLogEntry extends AuditLogEntry {
+export interface EnhancedAuditLogEntry {
+  id: string;
+  userId: string;
+  action: AuditEventType;
+  details: Record<string, any>;
+  timestamp: string;
+  ipAddress?: string;
+  userAgent?: string;
   eventType: AuditEventType;
   severity: 'info' | 'warning' | 'error' | 'critical';
   source: string;
@@ -204,8 +211,8 @@ export class SystemMonitoringService {
    */
   logStatusChange(
     userId: string,
-    fromStatus: ClinicianStatus | null,
-    toStatus: ClinicianStatus,
+    fromStatus: StaffStatus | null,
+    toStatus: StaffStatus,
     reason: string,
     performedBy?: string,
     sessionId?: string
@@ -218,7 +225,7 @@ export class SystemMonitoringService {
       action: 'status_change',
       eventType: 'status_change',
       severity: 'info',
-      source: 'ClinicianStatusManager',
+      source: 'StaffStatusManager',
       sessionId,
       details: {
         fromStatus,
@@ -669,8 +676,8 @@ export class SystemMonitoringService {
   }
 
   private updateStatusManagementMetrics(
-    fromStatus: ClinicianStatus | null,
-    toStatus: ClinicianStatus | null,
+    fromStatus: StaffStatus | null,
+    toStatus: StaffStatus | null,
     processingTime?: number,
     success?: boolean
   ): void {
