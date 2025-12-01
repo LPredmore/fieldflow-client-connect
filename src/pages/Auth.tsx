@@ -14,7 +14,6 @@ import { Loader2, Building, UserCheck, Mail, ArrowLeft, User, Stethoscope, Alert
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [userType, setUserType] = useState<'contractor' | 'client'>('client');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -60,7 +59,7 @@ export default function Auth() {
           navigate(redirectTo, { replace: true });
         }
       } else {
-        const { error } = await signUp(email, password, firstName, lastName, phone, companyName, userType);
+        const { error } = await signUp(email, password, firstName, lastName, phone, companyName, 'contractor');
         if (error) {
           setAuthError(error.message);
         } else {
@@ -141,35 +140,6 @@ export default function Auth() {
                 Back to sign in
               </Button>
             )}
-
-            {!isLogin && !showForgotPassword && (
-              <Tabs value={userType} onValueChange={(value) => setUserType(value as 'contractor' | 'client')} className="mb-6">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="client" className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Sign up as Client
-                  </TabsTrigger>
-                  <TabsTrigger value="contractor" className="flex items-center gap-2">
-                    <Stethoscope className="h-4 w-4" />
-                    Sign up as Provider
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="client" className="mt-4">
-                  <div className="text-center p-4 bg-muted/50 rounded-md">
-                    <p className="text-sm text-muted-foreground">
-                      Creating an account as a client/patient to access your personal care portal
-                    </p>
-                  </div>
-                </TabsContent>
-                <TabsContent value="contractor" className="mt-4">
-                  <div className="text-center p-4 bg-muted/50 rounded-md">
-                    <p className="text-sm text-muted-foreground">
-                      Creating an account as a healthcare provider/practitioner
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            )}
             
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && !showForgotPassword && (
@@ -214,7 +184,7 @@ export default function Auth() {
                     />
                   </div>
                   
-                  {userType === 'contractor' && (
+                  {!isLogin && (
                     <div className="space-y-2">
                       <Label htmlFor="companyName">Practice/Organization Name</Label>
                       <Input
@@ -223,7 +193,7 @@ export default function Auth() {
                         type="text"
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
-                        required={!isLogin && userType === 'contractor'}
+                        required={!isLogin}
                         className="transition-all duration-normal"
                       />
                     </div>
@@ -291,7 +261,7 @@ export default function Auth() {
                     ) : (
                   <>
                     <UserCheck className="mr-2 h-4 w-4" />
-                    {isLogin ? 'Sign In' : `Sign Up${!isLogin ? ` as ${userType === 'client' ? 'Client' : 'Provider'}` : ''}`}
+                    {isLogin ? 'Sign In' : 'Sign Up as Staff'}
                   </>
                     )}
                   </>

@@ -7,7 +7,6 @@ import { ReactNode, useMemo } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissionContext } from '@/contexts/PermissionContext';
-import { useClientRouting } from '@/hooks/useClientRouting';
 import { useContractorRouting } from '@/hooks/useContractorRouting';
 import { hasPermission, UserPermissions } from '@/utils/permissionUtils';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -16,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 interface AppRouterProps {
   children?: ReactNode;
   allowedStates?: string[];
-  portalType?: 'client' | 'staff' | 'billing';
+  portalType?: 'staff';
   requiredPermissions?: (keyof UserPermissions)[];
   fallbackMessage?: string;
 }
@@ -30,7 +29,6 @@ export const AppRouter = ({
 }: AppRouterProps) => {
   const { user, isLoading } = useAuth();
   const { permissions, loading: permissionsLoading } = usePermissionContext();
-  const { currentState: clientState, loading: clientLoading } = useClientRouting();
   const { currentState: staffState, loading: staffLoading } = useContractorRouting();
   const location = useLocation();
 
@@ -38,25 +36,19 @@ export const AppRouter = ({
   // MUST be called before any early returns (React Rules of Hooks)
   const currentState = useMemo<string | null>(() => {
     if (!user) return null;
-    if (portalType === 'client' && user.role === 'client') {
-      return clientState;
-    } else if (portalType === 'staff' && user.role === 'staff') {
-      return staffState;
-    } else if (portalType === 'billing' && user.role === 'staff') {
+    if (portalType === 'staff' && user.role === 'staff') {
       return staffState;
     }
     return null;
-  }, [portalType, user, clientState, staffState]);
+  }, [portalType, user, staffState]);
 
   const stateLoading = useMemo(() => {
     if (!user) return false;
-    if (portalType === 'client' && user.role === 'client') {
-      return clientLoading;
-    } else if ((portalType === 'staff' || portalType === 'billing') && user.role === 'staff') {
+    if (portalType === 'staff' && user.role === 'staff') {
       return staffLoading;
     }
     return false;
-  }, [portalType, user, clientLoading, staffLoading]);
+  }, [portalType, user, staffLoading]);
 
   // Memoize allowed state check to prevent unnecessary re-renders
   const hasAllowedState = useMemo(() => {
@@ -95,15 +87,7 @@ export const AppRouter = ({
 
   if (!hasAllowedState) {
     // Redirect based on portal type and current state
-    if (portalType === 'client') {
-      if (clientState === 'needs_registration') {
-        return <Navigate to="/client/registration" replace />;
-      } else if (clientState === 'completing_signup') {
-        return <Navigate to="/client/signup-forms" replace />;
-      } else if (clientState === 'registered') {
-        return <Navigate to="/client/dashboard" replace />;
-      }
-    } else if (portalType === 'staff') {
+    if (portalType === 'staff') {
       if (staffState === 'needs_onboarding') {
         return <Navigate to="/staff/registration" replace />;
       } else if (staffState === 'staff' || staffState === 'admin') {

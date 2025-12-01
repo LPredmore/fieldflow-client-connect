@@ -7,6 +7,5 @@
 export { AuthenticationContext, useAuth } from './AuthenticationContext';
 export type { User, StaffAttributes, AuthenticationContextValue } from './AuthenticationContext';
 
-export { ClientDataProvider, useClientData } from './ClientDataContext';
 export { FormProvider, useFormContext } from './FormContext';
 export { PermissionProvider, usePermissionContext } from './PermissionContext';

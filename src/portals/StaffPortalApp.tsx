@@ -9,7 +9,6 @@ import Index from "@/pages/Index";
 import Appointments from "@/pages/Appointments";
 import Customers from "@/pages/Customers";
 import Services from "@/pages/Services";
-import Invoices from "@/pages/Invoices";
 import Settings from "@/pages/Settings";
 import Profile from "@/pages/Profile";
 import Forms from "@/pages/Forms";
@@ -60,15 +59,6 @@ const StaffPortalApp = () => {
               fallbackMessage="You need Services permission to access this page."
             >
               <Services />
-            </PermissionGuard>
-          } />
-          
-          <Route path="/invoices" element={
-            <PermissionGuard 
-              requiredPermissions={['access_invoicing']}
-              fallbackMessage="You need Invoicing permission to access this page."
-            >
-              <Invoices />
             </PermissionGuard>
           } />
           

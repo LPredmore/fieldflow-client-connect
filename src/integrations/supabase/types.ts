@@ -3850,15 +3850,46 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       accept_assign_enum: "Y" | "N"
+      app_role: "staff" | "admin"
       appointment_exception_type_enum: "cancelled" | "rescheduled"
       appointment_note_status_enum: "draft" | "signed" | "amended"
       appointment_note_type_enum: "progress" | "treatment" | "addendum"
@@ -4077,6 +4108,7 @@ export const Constants = {
   public: {
     Enums: {
       accept_assign_enum: ["Y", "N"],
+      app_role: ["staff", "admin"],
       appointment_exception_type_enum: ["cancelled", "rescheduled"],
       appointment_note_status_enum: ["draft", "signed", "amended"],
       appointment_note_type_enum: ["progress", "treatment", "addendum"],
