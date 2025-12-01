@@ -5,14 +5,10 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { canManageUsers, UserRole } from "@/utils/roleUtils";
 import BusinessSettings from "@/components/Settings/BusinessSettings";
-import FinancialSettings from "@/components/Settings/FinancialSettings";
-import UserPreferences from "@/components/Settings/UserPreferences";
 import UserManagement from "@/components/Settings/UserManagement";
 import ClinicalSettings from "@/components/Settings/ClinicalSettings";
 import { 
   Building, 
-  DollarSign, 
-  User, 
   Users,
   Stethoscope
 } from "lucide-react";
@@ -23,18 +19,6 @@ const settingsCategories = [
     name: 'Business Profile', 
     icon: Building,
     description: 'Company information and branding'
-  },
-  { 
-    id: 'financial', 
-    name: 'Financial Settings', 
-    icon: DollarSign,
-    description: 'Tax, invoicing, and payment settings'
-  },
-  { 
-    id: 'preferences', 
-    name: 'User Preferences', 
-    icon: User,
-    description: 'Display, regional, and notification preferences'
   },
   { 
     id: 'clinical', 
@@ -60,10 +44,6 @@ export default function Settings() {
     switch (activeCategory) {
       case 'business':
         return <BusinessSettings />;
-      case 'financial':
-        return <FinancialSettings />;
-      case 'preferences':
-        return <UserPreferences />;
       case 'clinical':
         return <ClinicalSettings />;
       case 'users':
