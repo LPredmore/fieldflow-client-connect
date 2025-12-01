@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useClinicianProfile } from '@/hooks/useClinicianProfile';
+import { useStaffProfile } from '@/hooks/useStaffProfile';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -32,21 +32,21 @@ interface ProfessionalSettingsProps {
 }
 
 export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSettingsProps) {
-  const { clinician, loading: clinicianLoading } = useClinicianProfile({ userId });
+  const { staff, loading: staffLoading } = useStaffProfile({ profileId: userId });
   
   const { data: licenseTypes, loading: licenseLoading } = useSupabaseQuery<LicenseType>({
     table: 'cliniclevel_license_types',
     select: '*',
   });
 
-  // Fetch clinician status enum values from database
+  // Fetch staff status enum values from database
   const [statusOptions, setStatusOptions] = useState<string[]>(['New', 'Active', 'Inactive', 'On Leave']);
   
   useEffect(() => {
     const fetchStatusEnum = async () => {
       const { data, error } = await supabase
-        .from('clinicians')
-        .select('clinician_status')
+        .from('staff')
+        .select('prov_status')
         .limit(1);
       
       // Fallback to default values if query fails
@@ -68,21 +68,21 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
     clinician_accepting_new_clients: undefined,
   });
 
-  // Initialize form data when clinician data loads
+  // Initialize form data when staff data loads
   useEffect(() => {
-    if (clinician) {
-      setIsClinician(clinician.is_clinician || false);
+    if (staff) {
+      setIsClinician(staff.is_clinician || false);
       setFormData({
-        clinician_license_type: clinician.clinician_license_type || '',
-        prov_npi: clinician.prov_npi || '',
-        clinician_taxonomy_code: clinician.clinician_taxonomy_code || '',
-        prov_name_f: clinician.prov_name_f || '',
-        prov_name_last: clinician.prov_name_last || '',
-        clinician_status: (clinician.clinician_status as 'New' | 'Active' | 'Inactive' | 'On Leave') || 'New',
-        clinician_accepting_new_clients: clinician.clinician_accepting_new_clients as 'Yes' | 'No' | undefined,
+        clinician_license_type: staff.clinician_license_type || '',
+        prov_npi: staff.prov_npi || '',
+        clinician_taxonomy_code: staff.clinician_taxonomy_code || '',
+        prov_name_f: staff.prov_name_f || '',
+        prov_name_last: staff.prov_name_last || '',
+        clinician_status: (staff.clinician_status as 'New' | 'Active' | 'Inactive' | 'On Leave') || 'New',
+        clinician_accepting_new_clients: staff.clinician_accepting_new_clients as 'Yes' | 'No' | undefined,
       });
     }
-  }, [clinician]);
+  }, [staff]);
 
   const handleClinicianToggle = (checked: boolean) => {
     setIsClinician(checked);
@@ -95,7 +95,7 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
     onDataChange({ ...updatedData, is_clinician: isClinician });
   };
 
-  if (clinicianLoading) {
+  if (staffLoading) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -110,7 +110,7 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
     );
   }
 
-  if (!clinician) {
+  if (!staff) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -118,7 +118,7 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            No clinician profile found for this user.
+            No staff profile found for this user.
           </p>
         </CardContent>
       </Card>

@@ -1,10 +1,10 @@
 /**
- * Optimized Clinician Query Hook
+ * Optimized Staff Query Hook
  * 
  * Implements task 7.1 requirements:
- * - 30-second cache with background refresh for clinicians data
- * - Preloading of clinicians data during user authentication
- * - Optimized query structure for clinician profile operations
+ * - 30-second cache with background refresh for staff data
+ * - Preloading of staff data during user authentication
+ * - Optimized query structure for staff profile operations
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -15,8 +15,8 @@ import { getCacheConfig } from '@/utils/cacheStrategies';
 import { globalBackgroundRefreshManager } from '@/utils/enhancedBackgroundRefresh';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface ClinicianQueryOptions<T> extends Omit<QueryOptions<T>, 'table' | 'staleTime'> {
-  /** Whether to preload clinician data during authentication */
+export interface StaffQueryOptions<T> extends Omit<QueryOptions<T>, 'table' | 'staleTime'> {
+  /** Whether to preload staff data during authentication */
   preload?: boolean;
   /** Whether to enable background refresh for stale data */
   backgroundRefresh?: boolean;
@@ -24,7 +24,7 @@ export interface ClinicianQueryOptions<T> extends Omit<QueryOptions<T>, 'table' 
   cacheDuration?: number;
 }
 
-export interface OptimizedClinicianResult<T> extends QueryResult<T> {
+export interface OptimizedStaffResult<T> extends QueryResult<T> {
   /** Whether data was preloaded during authentication */
   isPreloaded: boolean;
   /** Cache age in milliseconds */
@@ -34,9 +34,9 @@ export interface OptimizedClinicianResult<T> extends QueryResult<T> {
 }
 
 /**
- * Optimized cache configuration for clinicians table
+ * Optimized cache configuration for staff table
  */
-const CLINICIAN_CACHE_CONFIG: CacheConfig = {
+const STAFF_CACHE_CONFIG: CacheConfig = {
   staleTime: 30000,        // 30 seconds as per requirement 5.1
   maxAge: 300000,          // 5 minutes max age
   priority: CachePriority.HIGH,
@@ -46,20 +46,20 @@ const CLINICIAN_CACHE_CONFIG: CacheConfig = {
 };
 
 /**
- * Preload manager for clinician data during authentication
+ * Preload manager for staff data during authentication
  */
-class ClinicianPreloadManager {
+class StaffPreloadManager {
   private preloadedKeys = new Set<string>();
   private preloadPromises = new Map<string, Promise<any>>();
   
   /**
-   * Preload clinician data for authenticated user
+   * Preload staff data for authenticated user
    */
-  async preloadClinicianData(userId: string, tenantId: string): Promise<void> {
-    const preloadKey = `clinicians-preload-${userId}`;
+  async preloadStaffData(userId: string, tenantId: string): Promise<void> {
+    const preloadKey = `staff-preload-${userId}`;
     
     if (this.preloadedKeys.has(preloadKey)) {
-      console.log(`📋 Clinician data already preloaded for user: ${userId}`);
+      console.log(`📋 Staff data already preloaded for user: ${userId}`);
       return;
     }
     
@@ -69,7 +69,7 @@ class ClinicianPreloadManager {
       return;
     }
     
-    console.log(`🚀 Preloading clinician data for user: ${userId}`);
+    console.log(`🚀 Preloading staff data for user: ${userId}`);
     
     const preloadPromise = this.executePreload(userId, tenantId, preloadKey);
     this.preloadPromises.set(preloadKey, preloadPromise);
@@ -77,58 +77,58 @@ class ClinicianPreloadManager {
     try {
       await preloadPromise;
       this.preloadedKeys.add(preloadKey);
-      console.log(`✅ Clinician data preloaded successfully for user: ${userId}`);
+      console.log(`✅ Staff data preloaded successfully for user: ${userId}`);
     } catch (error) {
-      console.error(`❌ Failed to preload clinician data for user: ${userId}`, error);
+      console.error(`❌ Failed to preload staff data for user: ${userId}`, error);
     } finally {
       this.preloadPromises.delete(preloadKey);
     }
   }
   
   private async executePreload(userId: string, tenantId: string, preloadKey: string): Promise<void> {
-    // Preload user's own clinician profile
-    await this.preloadUserClinician(userId, tenantId);
+    // Preload user's own staff profile
+    await this.preloadUserStaff(userId, tenantId);
     
-    // Preload available clinicians for assignment/scheduling
-    await this.preloadAvailableClinicians(tenantId);
+    // Preload available staff for assignment/scheduling
+    await this.preloadAvailableStaff(tenantId);
     
-    // Preload clinician profiles with basic info
-    await this.preloadClinicianProfiles(tenantId);
+    // Preload staff profiles with basic info
+    await this.preloadStaffProfiles(tenantId);
   }
   
-  private async preloadUserClinician(userId: string, tenantId: string): Promise<void> {
-    const cacheKey = `clinicians-*-{"user_id":"${userId}"}-undefined-${userId}`;
+  private async preloadUserStaff(userId: string, tenantId: string): Promise<void> {
+    const cacheKey = `staff-*-{"profile_id":"${userId}"}-undefined-${userId}`;
     
     try {
       const { data, error } = await supabase
-        .from('clinicians')
+        .from('staff')
         .select('*')
-        .eq('user_id', userId)
+        .eq('profile_id', userId)
         .eq('tenant_id', tenantId);
       
       if (error) throw error;
       
       if (data && data.length > 0) {
         const queryMetadata: QueryMetadata = {
-          table: 'clinicians',
+          table: 'staff',
           select: '*',
-          filters: { user_id: userId },
+          filters: { profile_id: userId },
           userId,
           tenantId
         };
         
-        enhancedQueryCache.set(cacheKey, data, CLINICIAN_CACHE_CONFIG, queryMetadata);
-        console.log(`💾 Preloaded user clinician profile: ${data.length} records`);
+        enhancedQueryCache.set(cacheKey, data, STAFF_CACHE_CONFIG, queryMetadata);
+        console.log(`💾 Preloaded user staff profile: ${data.length} records`);
         
         // Schedule background refresh for this data
         globalBackgroundRefreshManager.scheduleRefresh(
           cacheKey,
-          'clinicians',
+          'staff',
           async () => {
             const { data: refreshData, error } = await supabase
-              .from('clinicians')
+              .from('staff')
               .select('*')
-              .eq('user_id', userId)
+              .eq('profile_id', userId)
               .eq('tenant_id', tenantId);
             
             if (error) throw error;
@@ -138,57 +138,48 @@ class ClinicianPreloadManager {
         );
       }
     } catch (error) {
-      console.error('Failed to preload user clinician:', error);
+      console.error('Failed to preload user staff:', error);
     }
   }
   
-  private async preloadAvailableClinicians(tenantId: string): Promise<void> {
-    const cacheKey = `clinicians-*,profiles!inner(first_name, last_name)-{"clinician_accepting_new_clients":"Yes","clinician_status":"Active"}-undefined-preload`;
+  private async preloadAvailableStaff(tenantId: string): Promise<void> {
+    const cacheKey = `staff-*-{"prov_status":"Active"}-undefined-preload`;
     
     try {
       const { data, error } = await supabase
-        .from('clinicians')
-        .select(`
-          *,
-          profiles!inner(first_name, last_name)
-        `)
-        .eq('clinician_accepting_new_clients', 'Yes')
-        .eq('clinician_status', 'Active')
+        .from('staff')
+        .select('*')
+        .eq('prov_status', 'Active')
         .eq('tenant_id', tenantId);
       
       if (error) throw error;
       
       if (data && data.length > 0) {
         const queryMetadata: QueryMetadata = {
-          table: 'clinicians',
-          select: '*,profiles!inner(first_name, last_name)',
+          table: 'staff',
+          select: '*',
           filters: { 
-            clinician_accepting_new_clients: 'Yes',
-            clinician_status: 'Active'
+            prov_status: 'Active'
           },
           userId: 'preload',
           tenantId
         };
         
-        enhancedQueryCache.set(cacheKey, data, CLINICIAN_CACHE_CONFIG, queryMetadata);
-        console.log(`💾 Preloaded available clinicians: ${data.length} records`);
+        enhancedQueryCache.set(cacheKey, data, STAFF_CACHE_CONFIG, queryMetadata);
+        console.log(`💾 Preloaded available staff: ${data.length} records`);
       }
     } catch (error) {
-      console.error('Failed to preload available clinicians:', error);
+      console.error('Failed to preload available staff:', error);
     }
   }
   
-  private async preloadClinicianProfiles(tenantId: string): Promise<void> {
-    const cacheKey = `clinicians-id,clinician_status,profiles!inner(first_name,last_name,email)-{}-undefined-preload`;
+  private async preloadStaffProfiles(tenantId: string): Promise<void> {
+    const cacheKey = `staff-id,prov_status,prov_name_f,prov_name_l-{}-undefined-preload`;
     
     try {
       const { data, error } = await supabase
-        .from('clinicians')
-        .select(`
-          id,
-          clinician_status,
-          profiles!inner(first_name, last_name, email)
-        `)
+        .from('staff')
+        .select('id, prov_status, prov_name_f, prov_name_l')
         .eq('tenant_id', tenantId)
         .limit(50); // Limit to prevent large preloads
       
@@ -196,18 +187,18 @@ class ClinicianPreloadManager {
       
       if (data && data.length > 0) {
         const queryMetadata: QueryMetadata = {
-          table: 'clinicians',
-          select: 'id,clinician_status,profiles!inner(first_name,last_name,email)',
+          table: 'staff',
+          select: 'id,prov_status,prov_name_f,prov_name_l',
           filters: {},
           userId: 'preload',
           tenantId
         };
         
-        enhancedQueryCache.set(cacheKey, data, CLINICIAN_CACHE_CONFIG, queryMetadata);
-        console.log(`💾 Preloaded clinician profiles: ${data.length} records`);
+        enhancedQueryCache.set(cacheKey, data, STAFF_CACHE_CONFIG, queryMetadata);
+        console.log(`💾 Preloaded staff profiles: ${data.length} records`);
       }
     } catch (error) {
-      console.error('Failed to preload clinician profiles:', error);
+      console.error('Failed to preload staff profiles:', error);
     }
   }
   
@@ -215,34 +206,34 @@ class ClinicianPreloadManager {
    * Check if data has been preloaded for a user
    */
   isPreloaded(userId: string): boolean {
-    return this.preloadedKeys.has(`clinicians-preload-${userId}`);
+    return this.preloadedKeys.has(`staff-preload-${userId}`);
   }
   
   /**
    * Clear preload cache for a user (e.g., on logout)
    */
   clearPreload(userId: string): void {
-    const preloadKey = `clinicians-preload-${userId}`;
+    const preloadKey = `staff-preload-${userId}`;
     this.preloadedKeys.delete(preloadKey);
     this.preloadPromises.delete(preloadKey);
   }
 }
 
 // Global preload manager instance
-const clinicianPreloadManager = new ClinicianPreloadManager();
+const staffPreloadManager = new StaffPreloadManager();
 
 /**
- * Optimized useSupabaseQuery hook specifically for clinicians table
+ * Optimized useSupabaseQuery hook specifically for staff table
  * 
  * Features:
  * - 30-second cache with background refresh
  * - Automatic preloading during authentication
- * - Optimized query structure for clinician operations
+ * - Optimized query structure for staff operations
  * - Enhanced performance monitoring
  */
-export function useOptimizedClinicianQuery<T = any>(
-  options: ClinicianQueryOptions<T>
-): OptimizedClinicianResult<T> {
+export function useOptimizedStaffQuery<T = any>(
+  options: StaffQueryOptions<T>
+): OptimizedStaffResult<T> {
   const {
     preload = true,
     backgroundRefresh = true,
@@ -261,7 +252,7 @@ export function useOptimizedClinicianQuery<T = any>(
     if (user && tenantId && preload && !preloadInitiatedRef.current) {
       preloadInitiatedRef.current = true;
       
-      clinicianPreloadManager.preloadClinicianData(user.id, tenantId)
+      staffPreloadManager.preloadStaffData(user.id, tenantId)
         .then(() => {
           setIsPreloaded(true);
         })
@@ -271,14 +262,14 @@ export function useOptimizedClinicianQuery<T = any>(
     }
   }, [user, tenantId, preload]);
   
-  // Create optimized query options for clinicians
+  // Create optimized query options for staff
   const optimizedOptions: QueryOptions<T> = {
     ...queryOptions,
-    table: 'clinicians',
+    table: 'staff',
     staleTime: cacheDuration,
     onSuccess: (data) => {
       // Update cache age tracking
-      const cacheKey = `clinicians-${queryOptions.select || '*'}-${JSON.stringify(queryOptions.filters || {})}-${JSON.stringify(queryOptions.orderBy)}-${user?.id}`;
+      const cacheKey = `staff-${queryOptions.select || '*'}-${JSON.stringify(queryOptions.filters || {})}-${JSON.stringify(queryOptions.orderBy)}-${user?.id}`;
       const cacheResult = enhancedQueryCache.get(cacheKey);
       setCacheAge(cacheResult.age);
       setIsBackgroundRefreshing(cacheResult.isRefreshing);
@@ -296,7 +287,7 @@ export function useOptimizedClinicianQuery<T = any>(
   // Monitor background refresh status
   useEffect(() => {
     if (user) {
-      const cacheKey = `clinicians-${queryOptions.select || '*'}-${JSON.stringify(queryOptions.filters || {})}-${JSON.stringify(queryOptions.orderBy)}-${user.id}`;
+      const cacheKey = `staff-${queryOptions.select || '*'}-${JSON.stringify(queryOptions.filters || {})}-${JSON.stringify(queryOptions.orderBy)}-${user.id}`;
       
       // Check cache status periodically
       const checkCacheStatus = () => {
@@ -310,16 +301,6 @@ export function useOptimizedClinicianQuery<T = any>(
     }
   }, [user, queryOptions.select, queryOptions.filters, queryOptions.orderBy]);
   
-  // Cleanup preload on unmount
-  useEffect(() => {
-    return () => {
-      if (user) {
-        // Don't clear preload on component unmount, only on logout
-        // clinicianPreloadManager.clearPreload(user.id);
-      }
-    };
-  }, [user]);
-  
   return {
     ...queryResult,
     isPreloaded,
@@ -329,15 +310,15 @@ export function useOptimizedClinicianQuery<T = any>(
 }
 
 /**
- * Hook for user's own clinician profile with optimized caching
+ * Hook for user's own staff profile with optimized caching
  */
-export function useOptimizedUserClinician<T = any>() {
+export function useOptimizedUserStaff<T = any>() {
   const { user } = useAuth();
   
-  return useOptimizedClinicianQuery<T>({
+  return useOptimizedStaffQuery<T>({
     select: '*',
     filters: {
-      user_id: user?.id
+      profile_id: user?.id
     },
     enabled: !!user,
     preload: true,
@@ -346,17 +327,13 @@ export function useOptimizedUserClinician<T = any>() {
 }
 
 /**
- * Hook for available clinicians with optimized caching
+ * Hook for available staff with optimized caching
  */
-export function useOptimizedAvailableClinicians<T = any>() {
-  return useOptimizedClinicianQuery<T>({
-    select: `
-      *,
-      profiles!inner(first_name, last_name)
-    `,
+export function useOptimizedAvailableStaff<T = any>() {
+  return useOptimizedStaffQuery<T>({
+    select: '*',
     filters: {
-      clinician_accepting_new_clients: 'Yes',
-      clinician_status: 'Active'
+      prov_status: 'Active'
     },
     preload: true,
     backgroundRefresh: true
@@ -364,16 +341,12 @@ export function useOptimizedAvailableClinicians<T = any>() {
 }
 
 /**
- * Hook for clinician profiles (lightweight data for lists/dropdowns)
+ * Hook for staff profiles (lightweight data for lists/dropdowns)
  */
-export function useOptimizedClinicianProfiles<T = any>() {
-  return useOptimizedClinicianQuery<T>({
-    select: `
-      id,
-      clinician_status,
-      profiles!inner(first_name, last_name, email)
-    `,
-    orderBy: { column: 'profiles.last_name', ascending: true },
+export function useOptimizedStaffProfiles<T = any>() {
+  return useOptimizedStaffQuery<T>({
+    select: 'id, prov_status, prov_name_f, prov_name_l',
+    orderBy: { column: 'prov_name_l', ascending: true },
     preload: true,
     backgroundRefresh: true,
     cacheDuration: 60000 // 1 minute for profile lists
@@ -381,4 +354,4 @@ export function useOptimizedClinicianProfiles<T = any>() {
 }
 
 // Export the preload manager for external use
-export { clinicianPreloadManager };
+export { staffPreloadManager };
