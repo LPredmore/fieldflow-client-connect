@@ -1,7 +1,7 @@
 /**
  * Error Handler Service
  * 
- * This service provides comprehensive error handling for the clinician registration system.
+ * This service provides comprehensive error handling for the staff registration system.
  * It implements user-friendly error messages, fallback behaviors, and error recovery strategies
  * for different failure scenarios.
  */
@@ -13,9 +13,9 @@ import {
   PermissionError,
   SystemError,
   ValidationError,
-  ClinicianRegistrationError,
+  StaffRegistrationError,
   AuditLogEntry,
-} from '@/types/clinician-registration';
+} from '@/types/staff-registration';
 
 /**
  * Error notification interface for UI feedback
@@ -461,7 +461,7 @@ export class ErrorHandlerService implements ErrorHandler {
   /**
    * Logs an error and returns the error ID
    */
-  private logError(error: ClinicianRegistrationError, category: string): string {
+  private logError(error: StaffRegistrationError, category: string): string {
     const errorId = crypto.randomUUID();
     
     const logEntry: AuditLogEntry = {

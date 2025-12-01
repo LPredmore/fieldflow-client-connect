@@ -19,7 +19,7 @@ export interface CustomerFormData {
   gender_identity?: string;
   // Assignment
   assigned_to_user_id?: string;
-  assigned_clinician?: string;
+  assigned_staff?: string;
   // Other
   timezone?: string;
   notes?: string;

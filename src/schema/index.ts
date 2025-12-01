@@ -29,6 +29,7 @@ export * from './tables/assessments';
 export * from './tables/client-history';
 export * from './tables/staff-provider';
 export * from './tables/practice-org';
+export * from './tables/user-roles';
 export * from './tables/reference';
 export * from './tables/billing';
 export * from './tables/era';
@@ -46,6 +47,7 @@ import { ASSESSMENT_TABLES } from './tables/assessments';
 import { CLIENT_HISTORY_TABLES } from './tables/client-history';
 import { STAFF_PROVIDER_TABLES } from './tables/staff-provider';
 import { PRACTICE_ORG_TABLES } from './tables/practice-org';
+import { USER_ROLES_TABLES } from './tables/user-roles';
 import { REFERENCE_TABLES } from './tables/reference';
 import { BILLING_TABLES } from './tables/billing';
 import { ERA_TABLES } from './tables/era';
@@ -65,6 +67,7 @@ export const DB_SCHEMA = {
     ...CLIENT_HISTORY_TABLES,
     ...STAFF_PROVIDER_TABLES,
     ...PRACTICE_ORG_TABLES,
+    ...USER_ROLES_TABLES,
     ...REFERENCE_TABLES,
     ...BILLING_TABLES,
     ...ERA_TABLES,
@@ -88,6 +91,7 @@ export const DB_STATS = {
     clientHistory: Object.keys(CLIENT_HISTORY_TABLES).length,
     staffProvider: Object.keys(STAFF_PROVIDER_TABLES).length,
     practiceOrg: Object.keys(PRACTICE_ORG_TABLES).length,
+    userRoles: Object.keys(USER_ROLES_TABLES).length,
     reference: Object.keys(REFERENCE_TABLES).length,
     billing: Object.keys(BILLING_TABLES).length,
     era: Object.keys(ERA_TABLES).length,
