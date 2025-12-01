@@ -3893,7 +3893,7 @@ export type Database = {
           _license_number?: string
           _license_type?: string
           _npi?: string
-          _taxonomy_code?: string
+          _taxonomy?: string
           _user_email: string
         }
         Returns: string

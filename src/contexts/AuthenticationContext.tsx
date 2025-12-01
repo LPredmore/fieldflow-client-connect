@@ -127,14 +127,5 @@ export function useAuth(): AuthenticationContextValue {
     throw new Error('useAuth must be used within AuthenticationProvider');
   }
   
-  console.log('🎣 [useAuth] Hook called', {
-    hasUser: !!context.user,
-    userId: context.user?.id,
-    role: context.user?.role,
-    tenantId: context.tenantId,
-    isLoading: context.isLoading,
-    hasError: !!context.error
-  });
-  
   return context;
 }
