@@ -39,10 +39,13 @@ export const useContractorRouting = () => {
     }
 
     // Check if staff profile is complete
-    const hasProfile = user.profile && user.profile.first_name && user.profile.last_name;
+    const hasStaffData = user.staffAttributes?.staffData;
+    const hasName = hasStaffData && 
+                    user.staffAttributes.staffData.prov_name_f && 
+                    user.staffAttributes.staffData.prov_name_l;
     
-    // If no profile data, needs onboarding
-    if (!hasProfile) {
+    // If no staff data with name, needs onboarding
+    if (!hasName) {
       lastStableState.current = 'needs_onboarding';
       return 'needs_onboarding';
     }
@@ -99,11 +102,13 @@ export const useContractorRouting = () => {
   // Development logging for debugging state transitions
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
+      const staffData = user?.staffAttributes?.staffData;
       console.log('[useContractorRouting] State changed:', {
         currentState,
         loading: isLoading || permissionsLoading,
         user: user?.role,
-        hasProfile: user?.profile?.first_name && user?.profile?.last_name,
+        hasStaffData: !!staffData,
+        hasName: !!(staffData?.prov_name_f && staffData?.prov_name_l),
         isAdmin: user?.staffAttributes?.is_admin,
       });
     }

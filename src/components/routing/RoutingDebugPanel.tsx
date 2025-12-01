@@ -117,7 +117,7 @@ export function RoutingDebugPanel() {
                   <Badge variant="outline">
                     {user.role === 'client'
                       ? '/client/dashboard'
-                      : user.staffAttributes?.clinician_status === 'New'
+                      : user.staffAttributes?.prov_status === 'New'
                       ? '/staff/registration'
                       : '/staff/dashboard'}
                   </Badge>
