@@ -1,0 +1,4176 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
+  }
+  public: {
+    Tables: {
+      appointment_clinical_notes: {
+        Row: {
+          appointment_id: string
+          client_affect: string | null
+          client_appearance: string | null
+          client_attitude: string | null
+          client_behavior: string | null
+          client_diagnosis: string[]
+          client_functioning: string | null
+          client_homicidalideation:
+            | Database["public"]["Enums"]["client_ideation_enum"]
+            | null
+          client_id: string
+          client_insightjudgement: string | null
+          client_intervention1: string | null
+          client_intervention2: string | null
+          client_intervention3: string | null
+          client_intervention4: string | null
+          client_intervention5: string | null
+          client_intervention6: string | null
+          client_medications: string | null
+          client_memoryconcentration: string | null
+          client_mood: string | null
+          client_nexttreatmentplanupdate: string | null
+          client_orientation: string | null
+          client_perception: string | null
+          client_personsinattendance: string | null
+          client_planlength: string | null
+          client_primaryobjective: string | null
+          client_privatenote: string | null
+          client_problem: string | null
+          client_prognosis: string | null
+          client_progress: string | null
+          client_secondaryobjective: string | null
+          client_sessionnarrative: string | null
+          client_speech: string | null
+          client_substanceabuserisk:
+            | Database["public"]["Enums"]["client_substance_abuse_risk_enum"]
+            | null
+          client_suicidalideation:
+            | Database["public"]["Enums"]["client_ideation_enum"]
+            | null
+          client_tertiaryobjective: string | null
+          client_thoughtprocess: string | null
+          client_treatmentfrequency: string | null
+          client_treatmentgoal: string | null
+          client_treatmentplan_startdate: string | null
+          created_at: string
+          id: string
+          staff_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          client_affect?: string | null
+          client_appearance?: string | null
+          client_attitude?: string | null
+          client_behavior?: string | null
+          client_diagnosis?: string[]
+          client_functioning?: string | null
+          client_homicidalideation?:
+            | Database["public"]["Enums"]["client_ideation_enum"]
+            | null
+          client_id: string
+          client_insightjudgement?: string | null
+          client_intervention1?: string | null
+          client_intervention2?: string | null
+          client_intervention3?: string | null
+          client_intervention4?: string | null
+          client_intervention5?: string | null
+          client_intervention6?: string | null
+          client_medications?: string | null
+          client_memoryconcentration?: string | null
+          client_mood?: string | null
+          client_nexttreatmentplanupdate?: string | null
+          client_orientation?: string | null
+          client_perception?: string | null
+          client_personsinattendance?: string | null
+          client_planlength?: string | null
+          client_primaryobjective?: string | null
+          client_privatenote?: string | null
+          client_problem?: string | null
+          client_prognosis?: string | null
+          client_progress?: string | null
+          client_secondaryobjective?: string | null
+          client_sessionnarrative?: string | null
+          client_speech?: string | null
+          client_substanceabuserisk?:
+            | Database["public"]["Enums"]["client_substance_abuse_risk_enum"]
+            | null
+          client_suicidalideation?:
+            | Database["public"]["Enums"]["client_ideation_enum"]
+            | null
+          client_tertiaryobjective?: string | null
+          client_thoughtprocess?: string | null
+          client_treatmentfrequency?: string | null
+          client_treatmentgoal?: string | null
+          client_treatmentplan_startdate?: string | null
+          created_at?: string
+          id?: string
+          staff_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          client_affect?: string | null
+          client_appearance?: string | null
+          client_attitude?: string | null
+          client_behavior?: string | null
+          client_diagnosis?: string[]
+          client_functioning?: string | null
+          client_homicidalideation?:
+            | Database["public"]["Enums"]["client_ideation_enum"]
+            | null
+          client_id?: string
+          client_insightjudgement?: string | null
+          client_intervention1?: string | null
+          client_intervention2?: string | null
+          client_intervention3?: string | null
+          client_intervention4?: string | null
+          client_intervention5?: string | null
+          client_intervention6?: string | null
+          client_medications?: string | null
+          client_memoryconcentration?: string | null
+          client_mood?: string | null
+          client_nexttreatmentplanupdate?: string | null
+          client_orientation?: string | null
+          client_perception?: string | null
+          client_personsinattendance?: string | null
+          client_planlength?: string | null
+          client_primaryobjective?: string | null
+          client_privatenote?: string | null
+          client_problem?: string | null
+          client_prognosis?: string | null
+          client_progress?: string | null
+          client_secondaryobjective?: string | null
+          client_sessionnarrative?: string | null
+          client_speech?: string | null
+          client_substanceabuserisk?:
+            | Database["public"]["Enums"]["client_substance_abuse_risk_enum"]
+            | null
+          client_suicidalideation?:
+            | Database["public"]["Enums"]["client_ideation_enum"]
+            | null
+          client_tertiaryobjective?: string | null
+          client_thoughtprocess?: string | null
+          client_treatmentfrequency?: string | null
+          client_treatmentgoal?: string | null
+          client_treatmentplan_startdate?: string | null
+          created_at?: string
+          id?: string
+          staff_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_clinical_notes_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_clinical_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_clinical_notes_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_clinical_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_exceptions: {
+        Row: {
+          change_type: Database["public"]["Enums"]["appointment_exception_type_enum"]
+          created_at: string
+          id: string
+          notes: string | null
+          original_start_at: string
+          replacement_appointment_id: string | null
+          series_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          change_type: Database["public"]["Enums"]["appointment_exception_type_enum"]
+          created_at?: string
+          id?: string
+          notes?: string | null
+          original_start_at: string
+          replacement_appointment_id?: string | null
+          series_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          change_type?: Database["public"]["Enums"]["appointment_exception_type_enum"]
+          created_at?: string
+          id?: string
+          notes?: string | null
+          original_start_at?: string
+          replacement_appointment_id?: string | null
+          series_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_exceptions_replacement_appointment_id_fkey"
+            columns: ["replacement_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_exceptions_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_exceptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_series: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by_profile_id: string
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          max_occurrences: number | null
+          notes: string | null
+          rrule: string
+          series_end_date: string | null
+          service_id: string
+          staff_id: string
+          start_at: string
+          tenant_id: string
+          time_zone: Database["public"]["Enums"]["time_zones"]
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by_profile_id: string
+          duration_minutes: number
+          id?: string
+          is_active?: boolean
+          max_occurrences?: number | null
+          notes?: string | null
+          rrule: string
+          series_end_date?: string | null
+          service_id: string
+          staff_id: string
+          start_at: string
+          tenant_id: string
+          time_zone: Database["public"]["Enums"]["time_zones"]
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by_profile_id?: string
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          max_occurrences?: number | null
+          notes?: string | null
+          rrule?: string
+          series_end_date?: string | null
+          service_id?: string
+          staff_id?: string
+          start_at?: string
+          tenant_id?: string
+          time_zone?: Database["public"]["Enums"]["time_zones"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_series_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_series_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_series_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_series_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_series_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_session_context: {
+        Row: {
+          appointment_id: string
+          client_location_desc: string | null
+          client_location_state:
+            | Database["public"]["Enums"]["state_code_enum"]
+            | null
+          context_captured_at: string
+          created_at: string
+          emergency_contact_id: string | null
+          emergency_plan_confirmed: boolean
+          emergency_plan_notes: string | null
+          id: string
+          risk_level: Database["public"]["Enums"]["risk_level_enum"]
+          risk_notes: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          client_location_desc?: string | null
+          client_location_state?:
+            | Database["public"]["Enums"]["state_code_enum"]
+            | null
+          context_captured_at?: string
+          created_at?: string
+          emergency_contact_id?: string | null
+          emergency_plan_confirmed?: boolean
+          emergency_plan_notes?: string | null
+          id?: string
+          risk_level?: Database["public"]["Enums"]["risk_level_enum"]
+          risk_notes?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          client_location_desc?: string | null
+          client_location_state?:
+            | Database["public"]["Enums"]["state_code_enum"]
+            | null
+          context_captured_at?: string
+          created_at?: string
+          emergency_contact_id?: string | null
+          emergency_plan_confirmed?: boolean
+          emergency_plan_notes?: string | null
+          id?: string
+          risk_level?: Database["public"]["Enums"]["risk_level_enum"]
+          risk_notes?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_session_context_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_session_context_emergency_contact_id_fkey"
+            columns: ["emergency_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_emergency_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_session_context_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          accept_assign: boolean | null
+          auto_accident: boolean | null
+          auto_accident_state: string | null
+          charge_1: number | null
+          client_id: string
+          created_at: string
+          created_by_profile_id: string
+          employment_related: boolean | null
+          end_at: string
+          from_date_1: string | null
+          id: string
+          is_telehealth: boolean
+          location_id: string | null
+          location_name: string | null
+          mod1_1: string | null
+          mod2_1: string | null
+          mod3_1: string | null
+          mod4_1: string | null
+          narrative_1: string | null
+          place_of_service_1: string | null
+          prior_auth: string | null
+          proc_code_1: string | null
+          remote_chgid_1: string | null
+          series_id: string | null
+          service_id: string
+          staff_id: string
+          start_at: string
+          status: Database["public"]["Enums"]["appointment_status_enum"]
+          tenant_id: string
+          thru_date_1: string | null
+          time_zone: Database["public"]["Enums"]["time_zones"]
+          units_1: number | null
+          updated_at: string
+        }
+        Insert: {
+          accept_assign?: boolean | null
+          auto_accident?: boolean | null
+          auto_accident_state?: string | null
+          charge_1?: number | null
+          client_id: string
+          created_at?: string
+          created_by_profile_id: string
+          employment_related?: boolean | null
+          end_at: string
+          from_date_1?: string | null
+          id?: string
+          is_telehealth?: boolean
+          location_id?: string | null
+          location_name?: string | null
+          mod1_1?: string | null
+          mod2_1?: string | null
+          mod3_1?: string | null
+          mod4_1?: string | null
+          narrative_1?: string | null
+          place_of_service_1?: string | null
+          prior_auth?: string | null
+          proc_code_1?: string | null
+          remote_chgid_1?: string | null
+          series_id?: string | null
+          service_id: string
+          staff_id: string
+          start_at: string
+          status?: Database["public"]["Enums"]["appointment_status_enum"]
+          tenant_id: string
+          thru_date_1?: string | null
+          time_zone: Database["public"]["Enums"]["time_zones"]
+          units_1?: number | null
+          updated_at?: string
+        }
+        Update: {
+          accept_assign?: boolean | null
+          auto_accident?: boolean | null
+          auto_accident_state?: string | null
+          charge_1?: number | null
+          client_id?: string
+          created_at?: string
+          created_by_profile_id?: string
+          employment_related?: boolean | null
+          end_at?: string
+          from_date_1?: string | null
+          id?: string
+          is_telehealth?: boolean
+          location_id?: string | null
+          location_name?: string | null
+          mod1_1?: string | null
+          mod2_1?: string | null
+          mod3_1?: string | null
+          mod4_1?: string | null
+          narrative_1?: string | null
+          place_of_service_1?: string | null
+          prior_auth?: string | null
+          proc_code_1?: string | null
+          remote_chgid_1?: string | null
+          series_id?: string | null
+          service_id?: string
+          staff_id?: string
+          start_at?: string
+          status?: Database["public"]["Enums"]["appointment_status_enum"]
+          tenant_id?: string
+          thru_date_1?: string | null
+          time_zone?: Database["public"]["Enums"]["time_zones"]
+          units_1?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_appeals: {
+        Row: {
+          appeal_date: string
+          appeal_reason: string | null
+          appeal_status: string
+          claim_id: string
+          created_at: string
+          id: string
+          outcome: string | null
+          outcome_date: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          appeal_date?: string
+          appeal_reason?: string | null
+          appeal_status?: string
+          claim_id: string
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          outcome_date?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          appeal_date?: string
+          appeal_reason?: string | null
+          appeal_status?: string
+          claim_id?: string
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          outcome_date?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_appeals_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_appeals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_batch_claims: {
+        Row: {
+          batch_id: string
+          claim_batch_status: string | null
+          claim_id: string
+          created_at: string
+          id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          batch_id: string
+          claim_batch_status?: string | null
+          claim_id: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string
+          claim_batch_status?: string | null
+          claim_id?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_batch_claims_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "claim_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_batch_claims_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_batch_claims_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_batches: {
+        Row: {
+          batch_status: string
+          created_at: string
+          id: string
+          remote_batch_id: string | null
+          remote_file_id: string | null
+          submitted_at: string | null
+          tenant_id: string
+        }
+        Insert: {
+          batch_status?: string
+          created_at?: string
+          id?: string
+          remote_batch_id?: string | null
+          remote_file_id?: string | null
+          submitted_at?: string | null
+          tenant_id: string
+        }
+        Update: {
+          batch_status?: string
+          created_at?: string
+          id?: string
+          remote_batch_id?: string | null
+          remote_file_id?: string | null
+          submitted_at?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_batches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_diagnoses: {
+        Row: {
+          claim_id: string
+          created_at: string
+          diag_sequence: number
+          diagnosis_code_id: string
+          id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          claim_id: string
+          created_at?: string
+          diag_sequence: number
+          diagnosis_code_id: string
+          id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          claim_id?: string
+          created_at?: string
+          diag_sequence?: number
+          diagnosis_code_id?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_diagnoses_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_diagnoses_diagnosis_code_id_fkey"
+            columns: ["diagnosis_code_id"]
+            isOneToOne: false
+            referencedRelation: "diagnosis_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_diagnoses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_line_diagnoses: {
+        Row: {
+          claim_diagnosis_id: string
+          claim_line_id: string
+          created_at: string
+          id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          claim_diagnosis_id: string
+          claim_line_id: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          claim_diagnosis_id?: string
+          claim_line_id?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_line_diagnoses_claim_diagnosis_id_fkey"
+            columns: ["claim_diagnosis_id"]
+            isOneToOne: false
+            referencedRelation: "claim_diagnoses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_line_diagnoses_claim_line_id_fkey"
+            columns: ["claim_line_id"]
+            isOneToOne: false
+            referencedRelation: "claim_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_line_diagnoses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_lines: {
+        Row: {
+          adjusted_amount: number | null
+          allowed_amount: number | null
+          appointment_id: string | null
+          charge_amount: number
+          claim_id: string
+          created_at: string
+          id: string
+          mod1: string | null
+          mod2: string | null
+          mod3: string | null
+          mod4: string | null
+          paid_amount: number | null
+          patient_responsibility: number | null
+          place_of_service: string | null
+          procedure_code: string
+          service_date_from: string
+          service_date_to: string | null
+          service_notes: string | null
+          tenant_id: string
+          units: number
+          updated_at: string
+        }
+        Insert: {
+          adjusted_amount?: number | null
+          allowed_amount?: number | null
+          appointment_id?: string | null
+          charge_amount: number
+          claim_id: string
+          created_at?: string
+          id?: string
+          mod1?: string | null
+          mod2?: string | null
+          mod3?: string | null
+          mod4?: string | null
+          paid_amount?: number | null
+          patient_responsibility?: number | null
+          place_of_service?: string | null
+          procedure_code: string
+          service_date_from: string
+          service_date_to?: string | null
+          service_notes?: string | null
+          tenant_id: string
+          units?: number
+          updated_at?: string
+        }
+        Update: {
+          adjusted_amount?: number | null
+          allowed_amount?: number | null
+          appointment_id?: string | null
+          charge_amount?: number
+          claim_id?: string
+          created_at?: string
+          id?: string
+          mod1?: string | null
+          mod2?: string | null
+          mod3?: string | null
+          mod4?: string | null
+          paid_amount?: number | null
+          patient_responsibility?: number | null
+          place_of_service?: string | null
+          procedure_code?: string
+          service_date_from?: string
+          service_date_to?: string | null
+          service_notes?: string | null
+          tenant_id?: string
+          units?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_lines_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_lines_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claims: {
+        Row: {
+          accept_assignment: boolean
+          auto_accident: boolean
+          auto_accident_state:
+            | Database["public"]["Enums"]["state_code_enum"]
+            | null
+          claim_notes: string | null
+          claim_status: string
+          client_id: string
+          client_insurance_id: string
+          created_at: string
+          employment_related: boolean
+          frequency_code: string | null
+          id: string
+          original_claim_id: string | null
+          practice_id: string
+          prior_auth: string | null
+          referral_id: string | null
+          rendering_staff_id: string
+          tenant_id: string
+          total_charge: number | null
+          updated_at: string
+        }
+        Insert: {
+          accept_assignment?: boolean
+          auto_accident?: boolean
+          auto_accident_state?:
+            | Database["public"]["Enums"]["state_code_enum"]
+            | null
+          claim_notes?: string | null
+          claim_status?: string
+          client_id: string
+          client_insurance_id: string
+          created_at?: string
+          employment_related?: boolean
+          frequency_code?: string | null
+          id?: string
+          original_claim_id?: string | null
+          practice_id: string
+          prior_auth?: string | null
+          referral_id?: string | null
+          rendering_staff_id: string
+          tenant_id: string
+          total_charge?: number | null
+          updated_at?: string
+        }
+        Update: {
+          accept_assignment?: boolean
+          auto_accident?: boolean
+          auto_accident_state?:
+            | Database["public"]["Enums"]["state_code_enum"]
+            | null
+          claim_notes?: string | null
+          claim_status?: string
+          client_id?: string
+          client_insurance_id?: string
+          created_at?: string
+          employment_related?: boolean
+          frequency_code?: string | null
+          id?: string
+          original_claim_id?: string | null
+          practice_id?: string
+          prior_auth?: string | null
+          referral_id?: string | null
+          rendering_staff_id?: string
+          tenant_id?: string
+          total_charge?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claims_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claims_client_insurance_id_fkey"
+            columns: ["client_insurance_id"]
+            isOneToOne: false
+            referencedRelation: "client_insurance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claims_original_claim_id_fkey"
+            columns: ["original_claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claims_practice_id_fkey"
+            columns: ["practice_id"]
+            isOneToOne: false
+            referencedRelation: "practice_info"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claims_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "referrals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claims_rendering_staff_id_fkey"
+            columns: ["rendering_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claims_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_diagnoses: {
+        Row: {
+          added_at: string
+          client_id: string
+          created_at: string
+          diagnosis_code_id: string
+          id: string
+          is_active: boolean
+          is_primary: boolean
+          notes: string | null
+          resolved_at: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          added_at?: string
+          client_id: string
+          created_at?: string
+          diagnosis_code_id: string
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          notes?: string | null
+          resolved_at?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          added_at?: string
+          client_id?: string
+          created_at?: string
+          diagnosis_code_id?: string
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          notes?: string | null
+          resolved_at?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_diagnoses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_diagnoses_diagnosis_code_id_fkey"
+            columns: ["diagnosis_code_id"]
+            isOneToOne: false
+            referencedRelation: "diagnosis_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_diagnoses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_emergency_contacts: {
+        Row: {
+          addr_1: string | null
+          addr_2: string | null
+          city: string | null
+          client_id: string
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          is_primary: boolean
+          name: string
+          phone: string
+          relationship: string | null
+          state: Database["public"]["Enums"]["state_code_enum"] | null
+          tenant_id: string
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          addr_1?: string | null
+          addr_2?: string | null
+          city?: string | null
+          client_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          name: string
+          phone: string
+          relationship?: string | null
+          state?: Database["public"]["Enums"]["state_code_enum"] | null
+          tenant_id: string
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          addr_1?: string | null
+          addr_2?: string | null
+          city?: string | null
+          client_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          name?: string
+          phone?: string
+          relationship?: string | null
+          state?: Database["public"]["Enums"]["state_code_enum"] | null
+          tenant_id?: string
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_emergency_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_emergency_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_gad7_assessments: {
+        Row: {
+          administered_at: string
+          appointment_id: string | null
+          client_id: string
+          clinician_name_snapshot: string | null
+          created_at: string
+          id: string
+          q1: number
+          q2: number
+          q3: number
+          q4: number
+          q5: number
+          q6: number
+          q7: number
+          severity: Database["public"]["Enums"]["gad7_severity_enum"]
+          staff_id: string | null
+          tenant_id: string
+          total_score: number
+          updated_at: string
+        }
+        Insert: {
+          administered_at?: string
+          appointment_id?: string | null
+          client_id: string
+          clinician_name_snapshot?: string | null
+          created_at?: string
+          id?: string
+          q1: number
+          q2: number
+          q3: number
+          q4: number
+          q5: number
+          q6: number
+          q7: number
+          severity: Database["public"]["Enums"]["gad7_severity_enum"]
+          staff_id?: string | null
+          tenant_id: string
+          total_score: number
+          updated_at?: string
+        }
+        Update: {
+          administered_at?: string
+          appointment_id?: string | null
+          client_id?: string
+          clinician_name_snapshot?: string | null
+          created_at?: string
+          id?: string
+          q1?: number
+          q2?: number
+          q3?: number
+          q4?: number
+          q5?: number
+          q6?: number
+          q7?: number
+          severity?: Database["public"]["Enums"]["gad7_severity_enum"]
+          staff_id?: string | null
+          tenant_id?: string
+          total_score?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_gad7_assessments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_gad7_assessments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_gad7_assessments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_gad7_assessments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_history_family_members: {
+        Row: {
+          client_id: string
+          context: Database["public"]["Enums"]["client_history_family_context_enum"]
+          created_at: string
+          history_form_id: string
+          id: string
+          name: string | null
+          personality: string | null
+          relationship_growing_up: string | null
+          relationship_now: string | null
+          relationship_type: string | null
+          sort_order: number | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          context: Database["public"]["Enums"]["client_history_family_context_enum"]
+          created_at?: string
+          history_form_id: string
+          id?: string
+          name?: string | null
+          personality?: string | null
+          relationship_growing_up?: string | null
+          relationship_now?: string | null
+          relationship_type?: string | null
+          sort_order?: number | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          context?: Database["public"]["Enums"]["client_history_family_context_enum"]
+          created_at?: string
+          history_form_id?: string
+          id?: string
+          name?: string | null
+          personality?: string | null
+          relationship_growing_up?: string | null
+          relationship_now?: string | null
+          relationship_type?: string | null
+          sort_order?: number | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_history_family_members_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_family_members_history_form_id_fkey"
+            columns: ["history_form_id"]
+            isOneToOne: false
+            referencedRelation: "client_history_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_family_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_history_forms: {
+        Row: {
+          additional_info: string | null
+          additional_info2: string | null
+          alcohol_use_per_week: number | null
+          childhood_elaboration: string | null
+          childhood_experiences: string[] | null
+          chronic_health: string | null
+          client_id: string
+          counseling_goals: string | null
+          created_at: string
+          current_issues: string | null
+          drug_use: string | null
+          education_level: string | null
+          emergency_name: string | null
+          emergency_phone: string | null
+          emergency_relationship: string | null
+          ever_married_before: boolean | null
+          ever_mh_treatment: boolean | null
+          ever_psych_hold: boolean | null
+          ever_psych_hospitalized: boolean | null
+          ever_suicide_attempt: boolean | null
+          hobbies: string | null
+          id: string
+          is_married: boolean | null
+          life_changes: string | null
+          medical_conditions: string[] | null
+          occupation_details: string | null
+          personal_strengths: string | null
+          progression_of_issues: string | null
+          relationship_problems: string | null
+          same_household_as_family: boolean | null
+          signature: string | null
+          sleep_hours: number | null
+          spouse_name: string | null
+          spouse_personality: string | null
+          spouse_relationship: string | null
+          submission_date: string | null
+          submitted_by_profile_id: string | null
+          symptoms_behavioral: string[] | null
+          symptoms_cognitive: string[] | null
+          symptoms_life_stressors: string[] | null
+          symptoms_mood: string[] | null
+          symptoms_physical: string[] | null
+          takes_prescription_meds: boolean | null
+          tenant_id: string
+          tobacco_use_per_day: number | null
+          updated_at: string
+        }
+        Insert: {
+          additional_info?: string | null
+          additional_info2?: string | null
+          alcohol_use_per_week?: number | null
+          childhood_elaboration?: string | null
+          childhood_experiences?: string[] | null
+          chronic_health?: string | null
+          client_id: string
+          counseling_goals?: string | null
+          created_at?: string
+          current_issues?: string | null
+          drug_use?: string | null
+          education_level?: string | null
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          emergency_relationship?: string | null
+          ever_married_before?: boolean | null
+          ever_mh_treatment?: boolean | null
+          ever_psych_hold?: boolean | null
+          ever_psych_hospitalized?: boolean | null
+          ever_suicide_attempt?: boolean | null
+          hobbies?: string | null
+          id?: string
+          is_married?: boolean | null
+          life_changes?: string | null
+          medical_conditions?: string[] | null
+          occupation_details?: string | null
+          personal_strengths?: string | null
+          progression_of_issues?: string | null
+          relationship_problems?: string | null
+          same_household_as_family?: boolean | null
+          signature?: string | null
+          sleep_hours?: number | null
+          spouse_name?: string | null
+          spouse_personality?: string | null
+          spouse_relationship?: string | null
+          submission_date?: string | null
+          submitted_by_profile_id?: string | null
+          symptoms_behavioral?: string[] | null
+          symptoms_cognitive?: string[] | null
+          symptoms_life_stressors?: string[] | null
+          symptoms_mood?: string[] | null
+          symptoms_physical?: string[] | null
+          takes_prescription_meds?: boolean | null
+          tenant_id: string
+          tobacco_use_per_day?: number | null
+          updated_at?: string
+        }
+        Update: {
+          additional_info?: string | null
+          additional_info2?: string | null
+          alcohol_use_per_week?: number | null
+          childhood_elaboration?: string | null
+          childhood_experiences?: string[] | null
+          chronic_health?: string | null
+          client_id?: string
+          counseling_goals?: string | null
+          created_at?: string
+          current_issues?: string | null
+          drug_use?: string | null
+          education_level?: string | null
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          emergency_relationship?: string | null
+          ever_married_before?: boolean | null
+          ever_mh_treatment?: boolean | null
+          ever_psych_hold?: boolean | null
+          ever_psych_hospitalized?: boolean | null
+          ever_suicide_attempt?: boolean | null
+          hobbies?: string | null
+          id?: string
+          is_married?: boolean | null
+          life_changes?: string | null
+          medical_conditions?: string[] | null
+          occupation_details?: string | null
+          personal_strengths?: string | null
+          progression_of_issues?: string | null
+          relationship_problems?: string | null
+          same_household_as_family?: boolean | null
+          signature?: string | null
+          sleep_hours?: number | null
+          spouse_name?: string | null
+          spouse_personality?: string | null
+          spouse_relationship?: string | null
+          submission_date?: string | null
+          submitted_by_profile_id?: string | null
+          symptoms_behavioral?: string[] | null
+          symptoms_cognitive?: string[] | null
+          symptoms_life_stressors?: string[] | null
+          symptoms_mood?: string[] | null
+          symptoms_physical?: string[] | null
+          takes_prescription_meds?: boolean | null
+          tenant_id?: string
+          tobacco_use_per_day?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_history_forms_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_forms_submitted_by_profile_id_fkey"
+            columns: ["submitted_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_forms_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_history_medications: {
+        Row: {
+          client_id: string
+          created_at: string
+          history_form_id: string
+          id: string
+          med_duration: string | null
+          med_name: string | null
+          med_purpose: string | null
+          sort_order: number | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          history_form_id: string
+          id?: string
+          med_duration?: string | null
+          med_name?: string | null
+          med_purpose?: string | null
+          sort_order?: number | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          history_form_id?: string
+          id?: string
+          med_duration?: string | null
+          med_name?: string | null
+          med_purpose?: string | null
+          sort_order?: number | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_history_medications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_medications_history_form_id_fkey"
+            columns: ["history_form_id"]
+            isOneToOne: false
+            referencedRelation: "client_history_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_medications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_history_past_spouses: {
+        Row: {
+          client_id: string
+          created_at: string
+          history_form_id: string
+          id: string
+          name: string | null
+          personality: string | null
+          relationship: string | null
+          sort_order: number | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          history_form_id: string
+          id?: string
+          name?: string | null
+          personality?: string | null
+          relationship?: string | null
+          sort_order?: number | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          history_form_id?: string
+          id?: string
+          name?: string | null
+          personality?: string | null
+          relationship?: string | null
+          sort_order?: number | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_history_past_spouses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_past_spouses_history_form_id_fkey"
+            columns: ["history_form_id"]
+            isOneToOne: false
+            referencedRelation: "client_history_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_past_spouses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_history_past_treatments: {
+        Row: {
+          client_id: string
+          created_at: string
+          history_form_id: string
+          id: string
+          provider_name: string | null
+          sort_order: number | null
+          tenant_id: string
+          treatment_length: string | null
+          treatment_reason: string | null
+          treatment_year: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          history_form_id: string
+          id?: string
+          provider_name?: string | null
+          sort_order?: number | null
+          tenant_id: string
+          treatment_length?: string | null
+          treatment_reason?: string | null
+          treatment_year?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          history_form_id?: string
+          id?: string
+          provider_name?: string | null
+          sort_order?: number | null
+          tenant_id?: string
+          treatment_length?: string | null
+          treatment_reason?: string | null
+          treatment_year?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_history_past_treatments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_past_treatments_history_form_id_fkey"
+            columns: ["history_form_id"]
+            isOneToOne: false
+            referencedRelation: "client_history_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_past_treatments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_insurance: {
+        Row: {
+          claims_office_number: string | null
+          client_id: string
+          created_at: string
+          effective_date: string | null
+          id: string
+          ins_addr_1: string | null
+          ins_addr_2: string | null
+          ins_city: string | null
+          ins_country: string
+          ins_dob: string | null
+          ins_employer: string | null
+          ins_group: string | null
+          ins_name_f: string | null
+          ins_name_l: string | null
+          ins_name_m: string | null
+          ins_number: string | null
+          ins_phone: string | null
+          ins_plan: string | null
+          ins_sex: Database["public"]["Enums"]["sex_enum"] | null
+          ins_state: Database["public"]["Enums"]["state_code_enum"] | null
+          ins_zip: string | null
+          is_active: boolean
+          pat_rel: Database["public"]["Enums"]["pat_rel_enum"] | null
+          payer_addr_1: string | null
+          payer_addr_2: string | null
+          payer_city: string | null
+          payer_name: string | null
+          payer_order: string
+          payer_phone: string | null
+          payer_state: Database["public"]["Enums"]["state_code_enum"] | null
+          payer_zip: string | null
+          payerid: string | null
+          prior_auth: string | null
+          tenant_id: string
+          termination_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          claims_office_number?: string | null
+          client_id: string
+          created_at?: string
+          effective_date?: string | null
+          id?: string
+          ins_addr_1?: string | null
+          ins_addr_2?: string | null
+          ins_city?: string | null
+          ins_country?: string
+          ins_dob?: string | null
+          ins_employer?: string | null
+          ins_group?: string | null
+          ins_name_f?: string | null
+          ins_name_l?: string | null
+          ins_name_m?: string | null
+          ins_number?: string | null
+          ins_phone?: string | null
+          ins_plan?: string | null
+          ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
+          ins_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          ins_zip?: string | null
+          is_active?: boolean
+          pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
+          payer_addr_1?: string | null
+          payer_addr_2?: string | null
+          payer_city?: string | null
+          payer_name?: string | null
+          payer_order: string
+          payer_phone?: string | null
+          payer_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          payer_zip?: string | null
+          payerid?: string | null
+          prior_auth?: string | null
+          tenant_id: string
+          termination_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          claims_office_number?: string | null
+          client_id?: string
+          created_at?: string
+          effective_date?: string | null
+          id?: string
+          ins_addr_1?: string | null
+          ins_addr_2?: string | null
+          ins_city?: string | null
+          ins_country?: string
+          ins_dob?: string | null
+          ins_employer?: string | null
+          ins_group?: string | null
+          ins_name_f?: string | null
+          ins_name_l?: string | null
+          ins_name_m?: string | null
+          ins_number?: string | null
+          ins_phone?: string | null
+          ins_plan?: string | null
+          ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
+          ins_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          ins_zip?: string | null
+          is_active?: boolean
+          pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
+          payer_addr_1?: string | null
+          payer_addr_2?: string | null
+          payer_city?: string | null
+          payer_name?: string | null
+          payer_order?: string
+          payer_phone?: string | null
+          payer_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          payer_zip?: string | null
+          payerid?: string | null
+          prior_auth?: string | null
+          tenant_id?: string
+          termination_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_insurance_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_insurance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_payments: {
+        Row: {
+          amount: number
+          claim_id: string | null
+          client_id: string
+          created_at: string
+          external_txn_id: string | null
+          id: string
+          payment_date: string
+          payment_method: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          claim_id?: string | null
+          client_id: string
+          created_at?: string
+          external_txn_id?: string | null
+          id?: string
+          payment_date?: string
+          payment_method?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          claim_id?: string | null
+          client_id?: string
+          created_at?: string
+          external_txn_id?: string | null
+          id?: string
+          payment_date?: string
+          payment_method?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_payments_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_payments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_pcl5_assessments: {
+        Row: {
+          administered_at: string
+          appointment_id: string | null
+          assessment_date: string | null
+          client_id: string
+          clinical_notes: string | null
+          clinician_name_snapshot: string | null
+          cluster_arousal: number
+          cluster_avoidance: number
+          cluster_intrusion: number
+          cluster_negative_alterations: number
+          created_at: string
+          event_description: string | null
+          id: string
+          meets_ptsd_cutoff: boolean
+          q1: number
+          q10: number
+          q11: number
+          q12: number
+          q13: number
+          q14: number
+          q15: number
+          q16: number
+          q17: number
+          q18: number
+          q19: number
+          q2: number
+          q20: number
+          q3: number
+          q4: number
+          q5: number
+          q6: number
+          q7: number
+          q8: number
+          q9: number
+          staff_id: string | null
+          tenant_id: string
+          total_score: number
+          updated_at: string
+        }
+        Insert: {
+          administered_at?: string
+          appointment_id?: string | null
+          assessment_date?: string | null
+          client_id: string
+          clinical_notes?: string | null
+          clinician_name_snapshot?: string | null
+          cluster_arousal: number
+          cluster_avoidance: number
+          cluster_intrusion: number
+          cluster_negative_alterations: number
+          created_at?: string
+          event_description?: string | null
+          id?: string
+          meets_ptsd_cutoff: boolean
+          q1: number
+          q10: number
+          q11: number
+          q12: number
+          q13: number
+          q14: number
+          q15: number
+          q16: number
+          q17: number
+          q18: number
+          q19: number
+          q2: number
+          q20: number
+          q3: number
+          q4: number
+          q5: number
+          q6: number
+          q7: number
+          q8: number
+          q9: number
+          staff_id?: string | null
+          tenant_id: string
+          total_score: number
+          updated_at?: string
+        }
+        Update: {
+          administered_at?: string
+          appointment_id?: string | null
+          assessment_date?: string | null
+          client_id?: string
+          clinical_notes?: string | null
+          clinician_name_snapshot?: string | null
+          cluster_arousal?: number
+          cluster_avoidance?: number
+          cluster_intrusion?: number
+          cluster_negative_alterations?: number
+          created_at?: string
+          event_description?: string | null
+          id?: string
+          meets_ptsd_cutoff?: boolean
+          q1?: number
+          q10?: number
+          q11?: number
+          q12?: number
+          q13?: number
+          q14?: number
+          q15?: number
+          q16?: number
+          q17?: number
+          q18?: number
+          q19?: number
+          q2?: number
+          q20?: number
+          q3?: number
+          q4?: number
+          q5?: number
+          q6?: number
+          q7?: number
+          q8?: number
+          q9?: number
+          staff_id?: string | null
+          tenant_id?: string
+          total_score?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_pcl5_assessments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_pcl5_assessments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_pcl5_assessments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_pcl5_assessments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_phq9_assessments: {
+        Row: {
+          additional_notes: string | null
+          administered_at: string
+          ai_narrative: string | null
+          ai_narrative_generated_at: string | null
+          appointment_id: string | null
+          assessment_date: string | null
+          client_id: string
+          clinician_name_snapshot: string | null
+          created_at: string
+          id: string
+          q1: number
+          q2: number
+          q3: number
+          q4: number
+          q5: number
+          q6: number
+          q7: number
+          q8: number
+          q9: number
+          severity: Database["public"]["Enums"]["phq9_severity_enum"]
+          staff_id: string | null
+          tenant_id: string
+          total_score: number
+          updated_at: string
+        }
+        Insert: {
+          additional_notes?: string | null
+          administered_at?: string
+          ai_narrative?: string | null
+          ai_narrative_generated_at?: string | null
+          appointment_id?: string | null
+          assessment_date?: string | null
+          client_id: string
+          clinician_name_snapshot?: string | null
+          created_at?: string
+          id?: string
+          q1: number
+          q2: number
+          q3: number
+          q4: number
+          q5: number
+          q6: number
+          q7: number
+          q8: number
+          q9: number
+          severity: Database["public"]["Enums"]["phq9_severity_enum"]
+          staff_id?: string | null
+          tenant_id: string
+          total_score: number
+          updated_at?: string
+        }
+        Update: {
+          additional_notes?: string | null
+          administered_at?: string
+          ai_narrative?: string | null
+          ai_narrative_generated_at?: string | null
+          appointment_id?: string | null
+          assessment_date?: string | null
+          client_id?: string
+          clinician_name_snapshot?: string | null
+          created_at?: string
+          id?: string
+          q1?: number
+          q2?: number
+          q3?: number
+          q4?: number
+          q5?: number
+          q6?: number
+          q7?: number
+          q8?: number
+          q9?: number
+          severity?: Database["public"]["Enums"]["phq9_severity_enum"]
+          staff_id?: string | null
+          tenant_id?: string
+          total_score?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_phq9_assessments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_phq9_assessments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_phq9_assessments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_phq9_assessments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_safety_plans: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by_profile_id: string
+          crisis_steps: string | null
+          deactivated_at: string | null
+          id: string
+          internal_coping: string | null
+          is_active: boolean
+          plan_title: string | null
+          plan_version: number
+          professional_contacts: string | null
+          reasons_for_living: string | null
+          restricting_access: string | null
+          social_supports: string | null
+          tenant_id: string
+          updated_at: string
+          warning_signs: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by_profile_id: string
+          crisis_steps?: string | null
+          deactivated_at?: string | null
+          id?: string
+          internal_coping?: string | null
+          is_active?: boolean
+          plan_title?: string | null
+          plan_version?: number
+          professional_contacts?: string | null
+          reasons_for_living?: string | null
+          restricting_access?: string | null
+          social_supports?: string | null
+          tenant_id: string
+          updated_at?: string
+          warning_signs?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by_profile_id?: string
+          crisis_steps?: string | null
+          deactivated_at?: string | null
+          id?: string
+          internal_coping?: string | null
+          is_active?: boolean
+          plan_title?: string | null
+          plan_version?: number
+          professional_contacts?: string | null
+          reasons_for_living?: string | null
+          restricting_access?: string | null
+          social_supports?: string | null
+          tenant_id?: string
+          updated_at?: string
+          warning_signs?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_safety_plans_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_safety_plans_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_safety_plans_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_telehealth_consents: {
+        Row: {
+          client_id: string
+          consent_template_key: string
+          consent_template_version: string
+          created_at: string
+          document_id: string | null
+          document_storage_path: string | null
+          id: string
+          is_revoked: boolean
+          revoked_at: string | null
+          signature_date: string
+          signature_text: string
+          signed_at: string
+          signed_by_profile_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          consent_template_key?: string
+          consent_template_version?: string
+          created_at?: string
+          document_id?: string | null
+          document_storage_path?: string | null
+          id?: string
+          is_revoked?: boolean
+          revoked_at?: string | null
+          signature_date: string
+          signature_text: string
+          signed_at?: string
+          signed_by_profile_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          consent_template_key?: string
+          consent_template_version?: string
+          created_at?: string
+          document_id?: string | null
+          document_storage_path?: string | null
+          id?: string
+          is_revoked?: boolean
+          revoked_at?: string | null
+          signature_date?: string
+          signature_text?: string
+          signed_at?: string
+          signed_by_profile_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_telehealth_consents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_telehealth_consents_signed_by_profile_id_fkey"
+            columns: ["signed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_telehealth_consents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_treatment_plans: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by_profile_id: string
+          id: string
+          intervention1: string | null
+          intervention2: string | null
+          intervention3: string | null
+          intervention4: string | null
+          intervention5: string | null
+          intervention6: string | null
+          is_active: boolean
+          next_treatmentplan_update: string | null
+          plan_narrative: string | null
+          plan_version: number
+          planlength: string | null
+          primaryobjective: string | null
+          problem: string | null
+          secondaryobjective: string | null
+          staff_id: string
+          supersedes_plan_id: string | null
+          tenant_id: string
+          tertiaryobjective: string | null
+          treatmentfrequency: string | null
+          treatmentgoal: string | null
+          treatmentplan_startdate: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by_profile_id: string
+          id?: string
+          intervention1?: string | null
+          intervention2?: string | null
+          intervention3?: string | null
+          intervention4?: string | null
+          intervention5?: string | null
+          intervention6?: string | null
+          is_active?: boolean
+          next_treatmentplan_update?: string | null
+          plan_narrative?: string | null
+          plan_version?: number
+          planlength?: string | null
+          primaryobjective?: string | null
+          problem?: string | null
+          secondaryobjective?: string | null
+          staff_id: string
+          supersedes_plan_id?: string | null
+          tenant_id: string
+          tertiaryobjective?: string | null
+          treatmentfrequency?: string | null
+          treatmentgoal?: string | null
+          treatmentplan_startdate?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by_profile_id?: string
+          id?: string
+          intervention1?: string | null
+          intervention2?: string | null
+          intervention3?: string | null
+          intervention4?: string | null
+          intervention5?: string | null
+          intervention6?: string | null
+          is_active?: boolean
+          next_treatmentplan_update?: string | null
+          plan_narrative?: string | null
+          plan_version?: number
+          planlength?: string | null
+          primaryobjective?: string | null
+          problem?: string | null
+          secondaryobjective?: string | null
+          staff_id?: string
+          supersedes_plan_id?: string | null
+          tenant_id?: string
+          tertiaryobjective?: string | null
+          treatmentfrequency?: string | null
+          treatmentgoal?: string | null
+          treatmentplan_startdate?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_treatment_plans_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_treatment_plans_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_treatment_plans_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_treatment_plans_supersedes_plan_id_fkey"
+            columns: ["supersedes_plan_id"]
+            isOneToOne: false
+            referencedRelation: "client_treatment_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_treatment_plans_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          pat_addr_1: string | null
+          pat_addr_2: string | null
+          pat_city: string | null
+          pat_country: string
+          pat_dob: string | null
+          pat_gender_identity: Database["public"]["Enums"]["sex_enum"] | null
+          pat_goal: string | null
+          pat_marital_status: string | null
+          pat_name_f: string | null
+          pat_name_l: string | null
+          pat_name_m: string | null
+          pat_name_preferred: string | null
+          pat_sex: Database["public"]["Enums"]["sex_enum"] | null
+          pat_ssn: string | null
+          pat_state: Database["public"]["Enums"]["state_code_enum"] | null
+          pat_status: Database["public"]["Enums"]["pat_status_enum"] | null
+          pat_time_zone: Database["public"]["Enums"]["time_zones"] | null
+          pat_zip: string | null
+          pcn: string | null
+          phone: string | null
+          primary_staff_id: string | null
+          profile_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          pat_addr_1?: string | null
+          pat_addr_2?: string | null
+          pat_city?: string | null
+          pat_country?: string
+          pat_dob?: string | null
+          pat_gender_identity?: Database["public"]["Enums"]["sex_enum"] | null
+          pat_goal?: string | null
+          pat_marital_status?: string | null
+          pat_name_f?: string | null
+          pat_name_l?: string | null
+          pat_name_m?: string | null
+          pat_name_preferred?: string | null
+          pat_sex?: Database["public"]["Enums"]["sex_enum"] | null
+          pat_ssn?: string | null
+          pat_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          pat_status?: Database["public"]["Enums"]["pat_status_enum"] | null
+          pat_time_zone?: Database["public"]["Enums"]["time_zones"] | null
+          pat_zip?: string | null
+          pcn?: string | null
+          phone?: string | null
+          primary_staff_id?: string | null
+          profile_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          pat_addr_1?: string | null
+          pat_addr_2?: string | null
+          pat_city?: string | null
+          pat_country?: string
+          pat_dob?: string | null
+          pat_gender_identity?: Database["public"]["Enums"]["sex_enum"] | null
+          pat_goal?: string | null
+          pat_marital_status?: string | null
+          pat_name_f?: string | null
+          pat_name_l?: string | null
+          pat_name_m?: string | null
+          pat_name_preferred?: string | null
+          pat_sex?: Database["public"]["Enums"]["sex_enum"] | null
+          pat_ssn?: string | null
+          pat_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          pat_status?: Database["public"]["Enums"]["pat_status_enum"] | null
+          pat_time_zone?: Database["public"]["Enums"]["time_zones"] | null
+          pat_zip?: string | null
+          pcn?: string | null
+          phone?: string | null
+          primary_staff_id?: string | null
+          profile_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_primary_staff_id_fkey"
+            columns: ["primary_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cliniclevel_license_types: {
+        Row: {
+          created_at: string
+          created_by_user_id: string | null
+          id: number
+          license: string | null
+          specialty: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: number
+          license?: string | null
+          specialty?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: number
+          license?: string | null
+          specialty?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
+      diagnosis_codes: {
+        Row: {
+          code: string
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          is_billable: boolean
+          system: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description: string
+          id?: string
+          is_active?: boolean
+          is_billable?: boolean
+          system?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          is_billable?: boolean
+          system?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      eligibility_checks: {
+        Row: {
+          client_id: string
+          client_insurance_id: string
+          coverage_end: string | null
+          coverage_start: string | null
+          created_at: string
+          eligibility_status: string | null
+          id: string
+          requested_at: string
+          response_message: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          client_insurance_id: string
+          coverage_end?: string | null
+          coverage_start?: string | null
+          created_at?: string
+          eligibility_status?: string | null
+          id?: string
+          requested_at?: string
+          response_message?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          client_insurance_id?: string
+          coverage_end?: string | null
+          coverage_start?: string | null
+          created_at?: string
+          eligibility_status?: string | null
+          id?: string
+          requested_at?: string
+          response_message?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eligibility_checks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eligibility_checks_client_insurance_id_fkey"
+            columns: ["client_insurance_id"]
+            isOneToOne: false
+            referencedRelation: "client_insurance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eligibility_checks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      era_adjustments: {
+        Row: {
+          adjustment_group: string | null
+          amount: number
+          created_at: string
+          era_service_line_id: string
+          id: string
+          reason_code: string | null
+          remark_code: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          adjustment_group?: string | null
+          amount: number
+          created_at?: string
+          era_service_line_id: string
+          id?: string
+          reason_code?: string | null
+          remark_code?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          adjustment_group?: string | null
+          amount?: number
+          created_at?: string
+          era_service_line_id?: string
+          id?: string
+          reason_code?: string | null
+          remark_code?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "era_adjustments_era_service_line_id_fkey"
+            columns: ["era_service_line_id"]
+            isOneToOne: false
+            referencedRelation: "era_service_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "era_adjustments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      era_claims: {
+        Row: {
+          allowed_amount: number | null
+          claim_amount: number | null
+          claim_id: string | null
+          claim_status_code: string | null
+          created_at: string
+          era_id: string
+          id: string
+          paid_amount: number | null
+          patient_responsibility_amt: number | null
+          payer_claim_control_no: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_amount?: number | null
+          claim_amount?: number | null
+          claim_id?: string | null
+          claim_status_code?: string | null
+          created_at?: string
+          era_id: string
+          id?: string
+          paid_amount?: number | null
+          patient_responsibility_amt?: number | null
+          payer_claim_control_no?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_amount?: number | null
+          claim_amount?: number | null
+          claim_id?: string | null
+          claim_status_code?: string | null
+          created_at?: string
+          era_id?: string
+          id?: string
+          paid_amount?: number | null
+          patient_responsibility_amt?: number | null
+          payer_claim_control_no?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "era_claims_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "era_claims_era_id_fkey"
+            columns: ["era_id"]
+            isOneToOne: false
+            referencedRelation: "eras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "era_claims_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      era_service_lines: {
+        Row: {
+          allowed_amount: number | null
+          billed_amount: number | null
+          claim_line_id: string | null
+          created_at: string
+          era_claim_id: string
+          id: string
+          mod1: string | null
+          mod2: string | null
+          mod3: string | null
+          mod4: string | null
+          paid_amount: number | null
+          patient_responsibility_amt: number | null
+          procedure_code: string | null
+          service_date_from: string | null
+          service_date_to: string | null
+          tenant_id: string
+          units: number | null
+          updated_at: string
+        }
+        Insert: {
+          allowed_amount?: number | null
+          billed_amount?: number | null
+          claim_line_id?: string | null
+          created_at?: string
+          era_claim_id: string
+          id?: string
+          mod1?: string | null
+          mod2?: string | null
+          mod3?: string | null
+          mod4?: string | null
+          paid_amount?: number | null
+          patient_responsibility_amt?: number | null
+          procedure_code?: string | null
+          service_date_from?: string | null
+          service_date_to?: string | null
+          tenant_id: string
+          units?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allowed_amount?: number | null
+          billed_amount?: number | null
+          claim_line_id?: string | null
+          created_at?: string
+          era_claim_id?: string
+          id?: string
+          mod1?: string | null
+          mod2?: string | null
+          mod3?: string | null
+          mod4?: string | null
+          paid_amount?: number | null
+          patient_responsibility_amt?: number | null
+          procedure_code?: string | null
+          service_date_from?: string | null
+          service_date_to?: string | null
+          tenant_id?: string
+          units?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "era_service_lines_claim_line_id_fkey"
+            columns: ["claim_line_id"]
+            isOneToOne: false
+            referencedRelation: "claim_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "era_service_lines_era_claim_id_fkey"
+            columns: ["era_claim_id"]
+            isOneToOne: false
+            referencedRelation: "era_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "era_service_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eras: {
+        Row: {
+          created_at: string
+          id: string
+          payer_id: string | null
+          payer_name: string | null
+          payment_date: string | null
+          payment_reference: string | null
+          practice_id: string
+          tenant_id: string
+          total_payment_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payer_id?: string | null
+          payer_name?: string | null
+          payment_date?: string | null
+          payment_reference?: string | null
+          practice_id: string
+          tenant_id: string
+          total_payment_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payer_id?: string | null
+          payer_name?: string | null
+          payment_date?: string | null
+          payment_reference?: string | null
+          practice_id?: string
+          tenant_id?: string
+          total_payment_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eras_practice_id_fkey"
+            columns: ["practice_id"]
+            isOneToOne: false
+            referencedRelation: "practice_info"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eras_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      insurance_info: {
+        Row: {
+          id: string
+          ins_addr_1: string | null
+          ins_addr_2: string | null
+          ins_city: string | null
+          ins_dob: string | null
+          ins_employer: string | null
+          ins_group: string | null
+          ins_name_f: string | null
+          ins_name_l: string | null
+          ins_name_m: string | null
+          ins_number: string | null
+          ins_phone: string | null
+          ins_plan: string | null
+          ins_sex: Database["public"]["Enums"]["sex_enum"] | null
+          ins_state: string | null
+          ins_zip: string | null
+          other_ins_dob: string | null
+          other_ins_group: string | null
+          other_ins_medicare_code: string | null
+          other_ins_name_f: string | null
+          other_ins_name_l: string | null
+          other_ins_name_m: string | null
+          other_ins_number: string | null
+          other_ins_payment_date: string | null
+          other_ins_plan: string | null
+          other_ins_sex: Database["public"]["Enums"]["sex_enum"] | null
+          other_pat_rel: Database["public"]["Enums"]["pat_rel_enum"] | null
+          other_payer_addr_1: string | null
+          other_payer_addr_2: string | null
+          other_payer_city: string | null
+          other_payer_name: string | null
+          other_payer_phone: string | null
+          other_payer_state: string | null
+          other_payer_typecode: string | null
+          other_payer_zip: string | null
+          other_payerid: string | null
+          pat_rel: Database["public"]["Enums"]["pat_rel_enum"] | null
+          pay_addr_1: string | null
+          pay_addr_2: string | null
+          pay_city: string | null
+          pay_state: string | null
+          pay_zip: string | null
+          payer_addr_1: string | null
+          payer_addr_2: string | null
+          payer_city: string | null
+          payer_name: string | null
+          payer_order: string | null
+          payer_state: string | null
+          payer_zip: string | null
+          payerid: string | null
+          pcn: string | null
+          prior_auth: string | null
+          profile_id: string
+        }
+        Insert: {
+          id?: string
+          ins_addr_1?: string | null
+          ins_addr_2?: string | null
+          ins_city?: string | null
+          ins_dob?: string | null
+          ins_employer?: string | null
+          ins_group?: string | null
+          ins_name_f?: string | null
+          ins_name_l?: string | null
+          ins_name_m?: string | null
+          ins_number?: string | null
+          ins_phone?: string | null
+          ins_plan?: string | null
+          ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
+          ins_state?: string | null
+          ins_zip?: string | null
+          other_ins_dob?: string | null
+          other_ins_group?: string | null
+          other_ins_medicare_code?: string | null
+          other_ins_name_f?: string | null
+          other_ins_name_l?: string | null
+          other_ins_name_m?: string | null
+          other_ins_number?: string | null
+          other_ins_payment_date?: string | null
+          other_ins_plan?: string | null
+          other_ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
+          other_pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
+          other_payer_addr_1?: string | null
+          other_payer_addr_2?: string | null
+          other_payer_city?: string | null
+          other_payer_name?: string | null
+          other_payer_phone?: string | null
+          other_payer_state?: string | null
+          other_payer_typecode?: string | null
+          other_payer_zip?: string | null
+          other_payerid?: string | null
+          pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
+          pay_addr_1?: string | null
+          pay_addr_2?: string | null
+          pay_city?: string | null
+          pay_state?: string | null
+          pay_zip?: string | null
+          payer_addr_1?: string | null
+          payer_addr_2?: string | null
+          payer_city?: string | null
+          payer_name?: string | null
+          payer_order?: string | null
+          payer_state?: string | null
+          payer_zip?: string | null
+          payerid?: string | null
+          pcn?: string | null
+          prior_auth?: string | null
+          profile_id: string
+        }
+        Update: {
+          id?: string
+          ins_addr_1?: string | null
+          ins_addr_2?: string | null
+          ins_city?: string | null
+          ins_dob?: string | null
+          ins_employer?: string | null
+          ins_group?: string | null
+          ins_name_f?: string | null
+          ins_name_l?: string | null
+          ins_name_m?: string | null
+          ins_number?: string | null
+          ins_phone?: string | null
+          ins_plan?: string | null
+          ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
+          ins_state?: string | null
+          ins_zip?: string | null
+          other_ins_dob?: string | null
+          other_ins_group?: string | null
+          other_ins_medicare_code?: string | null
+          other_ins_name_f?: string | null
+          other_ins_name_l?: string | null
+          other_ins_name_m?: string | null
+          other_ins_number?: string | null
+          other_ins_payment_date?: string | null
+          other_ins_plan?: string | null
+          other_ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
+          other_pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
+          other_payer_addr_1?: string | null
+          other_payer_addr_2?: string | null
+          other_payer_city?: string | null
+          other_payer_name?: string | null
+          other_payer_phone?: string | null
+          other_payer_state?: string | null
+          other_payer_typecode?: string | null
+          other_payer_zip?: string | null
+          other_payerid?: string | null
+          pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
+          pay_addr_1?: string | null
+          pay_addr_2?: string | null
+          pay_city?: string | null
+          pay_state?: string | null
+          pay_zip?: string | null
+          payer_addr_1?: string | null
+          payer_addr_2?: string | null
+          payer_city?: string | null
+          payer_name?: string | null
+          payer_order?: string | null
+          payer_state?: string | null
+          payer_zip?: string | null
+          payerid?: string | null
+          pcn?: string | null
+          prior_auth?: string | null
+          profile_id?: string
+        }
+        Relationships: []
+      }
+      pat_rel: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: number
+          pat_rel: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          pat_rel?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          pat_rel?: string | null
+        }
+        Relationships: []
+      }
+      payment_allocations: {
+        Row: {
+          allocated_amount: number
+          claim_line_id: string
+          created_at: string
+          id: string
+          payment_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          allocated_amount: number
+          claim_line_id: string
+          created_at?: string
+          id?: string
+          payment_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          allocated_amount?: number
+          claim_line_id?: string
+          created_at?: string
+          id?: string
+          payment_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_claim_line_id_fkey"
+            columns: ["claim_line_id"]
+            isOneToOne: false
+            referencedRelation: "claim_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "client_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_of_service: {
+        Row: {
+          description: string
+          pos_code: string
+        }
+        Insert: {
+          description: string
+          pos_code: string
+        }
+        Update: {
+          description?: string
+          pos_code?: string
+        }
+        Relationships: []
+      }
+      practice_info: {
+        Row: {
+          bill_addr_1: string | null
+          bill_addr_2: string | null
+          bill_city: string | null
+          bill_name: string
+          bill_npi: string | null
+          bill_phone: string | null
+          bill_state: Database["public"]["Enums"]["state_code_enum"] | null
+          bill_taxid: string
+          bill_taxid_type: string | null
+          bill_taxonomy: string | null
+          bill_zip: string | null
+          created_at: string
+          id: string
+          is_default: boolean
+          pay_addr_1: string | null
+          pay_addr_2: string | null
+          pay_city: string | null
+          pay_state: Database["public"]["Enums"]["state_code_enum"] | null
+          pay_zip: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          bill_addr_1?: string | null
+          bill_addr_2?: string | null
+          bill_city?: string | null
+          bill_name: string
+          bill_npi?: string | null
+          bill_phone?: string | null
+          bill_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          bill_taxid: string
+          bill_taxid_type?: string | null
+          bill_taxonomy?: string | null
+          bill_zip?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          pay_addr_1?: string | null
+          pay_addr_2?: string | null
+          pay_city?: string | null
+          pay_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          pay_zip?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          bill_addr_1?: string | null
+          bill_addr_2?: string | null
+          bill_city?: string | null
+          bill_name?: string
+          bill_npi?: string | null
+          bill_phone?: string | null
+          bill_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          bill_taxid?: string
+          bill_taxid_type?: string | null
+          bill_taxonomy?: string | null
+          bill_zip?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          pay_addr_1?: string | null
+          pay_addr_2?: string | null
+          pay_city?: string | null
+          pay_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          pay_zip?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_info_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_locations: {
+        Row: {
+          addr_1: string | null
+          addr_2: string | null
+          city: string | null
+          created_at: string
+          fax: string | null
+          id: string
+          is_default: boolean
+          is_telehealth_only: boolean
+          name: string
+          phone: string | null
+          state: Database["public"]["Enums"]["state_code_enum"] | null
+          svc_npi: string | null
+          svc_taxid: string | null
+          svc_taxid_type: string | null
+          svc_taxonomy: string | null
+          tenant_id: string
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          addr_1?: string | null
+          addr_2?: string | null
+          city?: string | null
+          created_at?: string
+          fax?: string | null
+          id?: string
+          is_default?: boolean
+          is_telehealth_only?: boolean
+          name: string
+          phone?: string | null
+          state?: Database["public"]["Enums"]["state_code_enum"] | null
+          svc_npi?: string | null
+          svc_taxid?: string | null
+          svc_taxid_type?: string | null
+          svc_taxonomy?: string | null
+          tenant_id: string
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          addr_1?: string | null
+          addr_2?: string | null
+          city?: string | null
+          created_at?: string
+          fax?: string | null
+          id?: string
+          is_default?: boolean
+          is_telehealth_only?: boolean
+          name?: string
+          phone?: string | null
+          state?: Database["public"]["Enums"]["state_code_enum"] | null
+          svc_npi?: string | null
+          svc_taxid?: string | null
+          svc_taxid_type?: string | null
+          svc_taxonomy?: string | null
+          tenant_id?: string
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_locations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          email_verified: boolean
+          failed_login_attempts: number
+          id: string
+          is_active: boolean
+          last_login_at: string | null
+          last_login_ip: string | null
+          locked_until: string | null
+          password: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_verified?: boolean
+          failed_login_attempts?: number
+          id: string
+          is_active?: boolean
+          last_login_at?: string | null
+          last_login_ip?: string | null
+          locked_until?: string | null
+          password: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_verified?: boolean
+          failed_login_attempts?: number
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
+          last_login_ip?: string | null
+          locked_until?: string | null
+          password?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          client_id: string
+          created_at: string
+          expiration_date: string | null
+          id: string
+          ref_name_f: string | null
+          ref_name_l: string | null
+          ref_name_m: string | null
+          ref_npi: string | null
+          referral_date: string | null
+          referral_reason: string | null
+          tenant_id: string
+          updated_at: string
+          visit_limit: number | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          ref_name_f?: string | null
+          ref_name_l?: string | null
+          ref_name_m?: string | null
+          ref_npi?: string | null
+          referral_date?: string | null
+          referral_reason?: string | null
+          tenant_id: string
+          updated_at?: string
+          visit_limit?: number | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          ref_name_f?: string | null
+          ref_name_l?: string | null
+          ref_name_m?: string | null
+          ref_npi?: string | null
+          referral_date?: string | null
+          referral_reason?: string | null
+          tenant_id?: string
+          updated_at?: string
+          visit_limit?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          category: string | null
+          cpt_code: string | null
+          created_at: string
+          created_by_profile_id: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          is_active: boolean
+          name: string
+          price_per_unit: number | null
+          schedulable: boolean
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          cpt_code?: string | null
+          created_at?: string
+          created_by_profile_id: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price_per_unit?: number | null
+          schedulable?: boolean
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          cpt_code?: string | null
+          created_at?: string
+          created_by_profile_id?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_per_unit?: number | null
+          schedulable?: boolean
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          prov_accepting_new_clients: boolean
+          prov_addr_1: string | null
+          prov_addr_2: string | null
+          prov_bio: string | null
+          prov_city: string | null
+          prov_field: string | null
+          prov_image_url: string | null
+          prov_license_number: string | null
+          prov_license_type: string | null
+          prov_min_client_age: number
+          prov_name_f: string | null
+          prov_name_for_clients: string | null
+          prov_name_l: string | null
+          prov_name_m: string | null
+          prov_npi: string | null
+          prov_phone: string | null
+          prov_qualifier: string | null
+          prov_state: Database["public"]["Enums"]["state_code_enum"] | null
+          prov_status: string | null
+          prov_taxid: string | null
+          prov_taxid_type: string | null
+          prov_taxonomy: string | null
+          prov_treatment_approaches: string[] | null
+          prov_zip: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          prov_accepting_new_clients?: boolean
+          prov_addr_1?: string | null
+          prov_addr_2?: string | null
+          prov_bio?: string | null
+          prov_city?: string | null
+          prov_field?: string | null
+          prov_image_url?: string | null
+          prov_license_number?: string | null
+          prov_license_type?: string | null
+          prov_min_client_age?: number
+          prov_name_f?: string | null
+          prov_name_for_clients?: string | null
+          prov_name_l?: string | null
+          prov_name_m?: string | null
+          prov_npi?: string | null
+          prov_phone?: string | null
+          prov_qualifier?: string | null
+          prov_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          prov_status?: string | null
+          prov_taxid?: string | null
+          prov_taxid_type?: string | null
+          prov_taxonomy?: string | null
+          prov_treatment_approaches?: string[] | null
+          prov_zip?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          prov_accepting_new_clients?: boolean
+          prov_addr_1?: string | null
+          prov_addr_2?: string | null
+          prov_bio?: string | null
+          prov_city?: string | null
+          prov_field?: string | null
+          prov_image_url?: string | null
+          prov_license_number?: string | null
+          prov_license_type?: string | null
+          prov_min_client_age?: number
+          prov_name_f?: string | null
+          prov_name_for_clients?: string | null
+          prov_name_l?: string | null
+          prov_name_m?: string | null
+          prov_npi?: string | null
+          prov_phone?: string | null
+          prov_qualifier?: string | null
+          prov_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          prov_status?: string | null
+          prov_taxid?: string | null
+          prov_taxid_type?: string | null
+          prov_taxonomy?: string | null
+          prov_treatment_approaches?: string[] | null
+          prov_zip?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_licenses: {
+        Row: {
+          created_at: string
+          expiration_date: string | null
+          id: string
+          is_active: boolean
+          issue_date: string | null
+          license_number: string
+          license_state: Database["public"]["Enums"]["state_code_enum"]
+          license_type: string
+          staff_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          is_active?: boolean
+          issue_date?: string | null
+          license_number: string
+          license_state: Database["public"]["Enums"]["state_code_enum"]
+          license_type: string
+          staff_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          is_active?: boolean
+          issue_date?: string | null
+          license_number?: string
+          license_state?: Database["public"]["Enums"]["state_code_enum"]
+          license_type?: string
+          staff_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_licenses_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_licenses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_role_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          staff_id: string
+          staff_role_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          staff_id: string
+          staff_role_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          staff_id?: string
+          staff_role_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_role_assignments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_role_assignments_staff_role_id_fkey"
+            columns: ["staff_role_id"]
+            isOneToOne: false
+            referencedRelation: "staff_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_role_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_roles: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_clinical: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_clinical?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_clinical?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tenant_memberships: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          tenant_id: string
+          tenant_role: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          tenant_id: string
+          tenant_role?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          tenant_id?: string
+          tenant_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_memberships_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_memberships_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          brand_accent_color: string | null
+          brand_primary_color: string | null
+          brand_secondary_color: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          slug: string
+          trial_end_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_accent_color?: string | null
+          brand_primary_color?: string | null
+          brand_secondary_color?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          slug: string
+          trial_end_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_accent_color?: string | null
+          brand_primary_color?: string | null
+          brand_secondary_color?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          slug?: string
+          trial_end_date?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      treatment_approaches: {
+        Row: {
+          approaches: string | null
+          created_at: string
+          id: number
+          specialty: string | null
+        }
+        Insert: {
+          approaches?: string | null
+          created_at?: string
+          id?: number
+          specialty?: string | null
+        }
+        Update: {
+          approaches?: string | null
+          created_at?: string
+          id?: number
+          specialty?: string | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      accept_assign_enum: "Y" | "N"
+      appointment_exception_type_enum: "cancelled" | "rescheduled"
+      appointment_note_status_enum: "draft" | "signed" | "amended"
+      appointment_note_type_enum: "progress" | "treatment" | "addendum"
+      appointment_status_enum: "scheduled" | "completed" | "cancelled"
+      client_history_family_context_enum:
+        | "family_of_origin"
+        | "current_household"
+      client_ideation_enum: "none" | "passive" | "active"
+      client_status_enum: "New" | "Registered" | "Active" | "Inactive"
+      client_substance_abuse_risk_enum: "none" | "low" | "medium" | "high"
+      clinician_status_enum: "New" | "Active" | "Inactive"
+      form_type_enum: "signup" | "intake" | "session_notes"
+      gad7_severity_enum: "minimal" | "mild" | "moderate" | "severe"
+      gender_identity_enum: "Female" | "Male" | "Non-Binary" | "Other"
+      pat_rel_enum: "18" | "01" | "19" | "20" | "21" | "39" | "40" | "53" | "G8"
+      pat_status_enum: "New" | "Active"
+      phq9_severity_enum:
+        | "none_minimal"
+        | "mild"
+        | "moderate"
+        | "moderately_severe"
+        | "severe"
+      risk_level_enum: "none" | "low" | "moderate" | "high" | "imminent"
+      sex_enum: "M" | "F"
+      state_code_enum:
+        | "AL"
+        | "AK"
+        | "AZ"
+        | "AR"
+        | "CA"
+        | "CO"
+        | "CT"
+        | "DE"
+        | "FL"
+        | "GA"
+        | "HI"
+        | "ID"
+        | "IL"
+        | "IN"
+        | "IA"
+        | "KS"
+        | "KY"
+        | "LA"
+        | "ME"
+        | "MD"
+        | "MA"
+        | "MI"
+        | "MN"
+        | "MS"
+        | "MO"
+        | "MT"
+        | "NE"
+        | "NV"
+        | "NH"
+        | "NJ"
+        | "NM"
+        | "NY"
+        | "NC"
+        | "ND"
+        | "OH"
+        | "OK"
+        | "OR"
+        | "PA"
+        | "RI"
+        | "SC"
+        | "SD"
+        | "TN"
+        | "TX"
+        | "UT"
+        | "VT"
+        | "VA"
+        | "WA"
+        | "WV"
+        | "WI"
+        | "WY"
+        | "DC"
+        | "PR"
+        | "VI"
+        | "GU"
+      time_zones:
+        | "America/New_York"
+        | "America/Chicago"
+        | "America/Denver"
+        | "America/Phoenix"
+        | "America/Los_Angeles"
+        | "America/Anchorage"
+        | "Pacific/Honolulu"
+        | "America/Puerto_Rico"
+        | "Pacific/Guam"
+        | "Pacific/Pago_Pago"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      accept_assign_enum: ["Y", "N"],
+      appointment_exception_type_enum: ["cancelled", "rescheduled"],
+      appointment_note_status_enum: ["draft", "signed", "amended"],
+      appointment_note_type_enum: ["progress", "treatment", "addendum"],
+      appointment_status_enum: ["scheduled", "completed", "cancelled"],
+      client_history_family_context_enum: [
+        "family_of_origin",
+        "current_household",
+      ],
+      client_ideation_enum: ["none", "passive", "active"],
+      client_status_enum: ["New", "Registered", "Active", "Inactive"],
+      client_substance_abuse_risk_enum: ["none", "low", "medium", "high"],
+      clinician_status_enum: ["New", "Active", "Inactive"],
+      form_type_enum: ["signup", "intake", "session_notes"],
+      gad7_severity_enum: ["minimal", "mild", "moderate", "severe"],
+      gender_identity_enum: ["Female", "Male", "Non-Binary", "Other"],
+      pat_rel_enum: ["18", "01", "19", "20", "21", "39", "40", "53", "G8"],
+      pat_status_enum: ["New", "Active"],
+      phq9_severity_enum: [
+        "none_minimal",
+        "mild",
+        "moderate",
+        "moderately_severe",
+        "severe",
+      ],
+      risk_level_enum: ["none", "low", "moderate", "high", "imminent"],
+      sex_enum: ["M", "F"],
+      state_code_enum: [
+        "AL",
+        "AK",
+        "AZ",
+        "AR",
+        "CA",
+        "CO",
+        "CT",
+        "DE",
+        "FL",
+        "GA",
+        "HI",
+        "ID",
+        "IL",
+        "IN",
+        "IA",
+        "KS",
+        "KY",
+        "LA",
+        "ME",
+        "MD",
+        "MA",
+        "MI",
+        "MN",
+        "MS",
+        "MO",
+        "MT",
+        "NE",
+        "NV",
+        "NH",
+        "NJ",
+        "NM",
+        "NY",
+        "NC",
+        "ND",
+        "OH",
+        "OK",
+        "OR",
+        "PA",
+        "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+        "UT",
+        "VT",
+        "VA",
+        "WA",
+        "WV",
+        "WI",
+        "WY",
+        "DC",
+        "PR",
+        "VI",
+        "GU",
+      ],
+      time_zones: [
+        "America/New_York",
+        "America/Chicago",
+        "America/Denver",
+        "America/Phoenix",
+        "America/Los_Angeles",
+        "America/Anchorage",
+        "Pacific/Honolulu",
+        "America/Puerto_Rico",
+        "Pacific/Guam",
+        "Pacific/Pago_Pago",
+      ],
+    },
+  },
+} as const

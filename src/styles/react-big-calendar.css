@@ -1,0 +1,152 @@
+/* React Big Calendar Custom Styles */
+/* Integrates with FieldFlow Material Design System */
+
+.rbc-calendar {
+  font-family: inherit;
+}
+
+/* Month view styling */
+.rbc-month-view {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.rbc-header {
+  padding: 0.75rem 0.5rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.3);
+}
+
+.rbc-today {
+  background-color: hsl(var(--accent));
+}
+
+.rbc-off-range-bg {
+  background: hsl(var(--muted) / 0.3);
+}
+
+.rbc-date-cell {
+  padding: 0.5rem;
+  text-align: right;
+}
+
+.rbc-now .rbc-button-link {
+  color: hsl(var(--primary));
+  font-weight: 700;
+}
+
+/* Week/Day view styling */
+.rbc-time-view {
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+
+.rbc-time-header {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.rbc-time-content {
+  border-top: 1px solid hsl(var(--border));
+}
+
+.rbc-timeslot-group {
+  min-height: 60px;
+  border-left: 1px solid hsl(var(--border));
+}
+
+.rbc-time-slot {
+  border-top: 1px solid hsl(var(--border) / 0.5);
+}
+
+.rbc-current-time-indicator {
+  background-color: hsl(var(--primary));
+  height: 2px;
+}
+
+/* Event styling */
+.rbc-event {
+  padding: 2px 5px;
+  border: none !important;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  transition: var(--transition-fast);
+}
+
+.rbc-event:hover {
+  opacity: 1 !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2);
+}
+
+.rbc-event-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.rbc-event-content {
+  font-size: 0.875rem;
+}
+
+.rbc-selected {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Selection styling */
+.rbc-slot-selection {
+  background-color: hsl(var(--primary) / 0.2);
+  border: 1px solid hsl(var(--primary));
+}
+
+/* Agenda view (if needed) */
+.rbc-agenda-view {
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+
+.rbc-agenda-view table.rbc-agenda-table {
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.rbc-agenda-view table.rbc-agenda-table tbody > tr > td {
+  padding: 0.75rem;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+  padding: 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.3);
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+/* Dark mode adjustments */
+.dark .rbc-calendar {
+  color: hsl(var(--foreground));
+}
+
+.dark .rbc-off-range {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .rbc-time-content > * + * > * {
+  border-left-color: hsl(var(--border));
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rbc-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .rbc-header {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.875rem;
+  }
+}

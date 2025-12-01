@@ -1,0 +1,1265 @@
+{
+  "timestamp": "2025-10-07T19:22:17.139Z",
+  "summary": {
+    "totalTables": 24,
+    "totalPolicies": 141,
+    "tablesWithDependencies": 19,
+    "circularReferences": 0
+  },
+  "tableAnalysis": {
+    "profiles": {
+      "policyCount": 9,
+      "dependencies": [],
+      "policies": [
+        {
+          "name": "Allow authenticated users to read own profile",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to update own profile",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow business admins to read their contractors",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow business admins to read their contractors",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250909192402_59e3f817-69b6-49f5-a739-ebe14d861720.sql"
+        },
+        {
+          "name": "Users can read own profile and admins can read their contractors",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928173812_76b7f070-25b5-46e6-aaf2-7a14869392bf.sql"
+        },
+        {
+          "name": "Users can view their own profile",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Users can update their own profile",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Allow user creation during signup",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Admins can update profiles in their tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251006200230_d564ba10-96a3-453d-9f75-21a5eeb846f3.sql"
+        }
+      ]
+    },
+    "customers": {
+      "policyCount": 17,
+      "dependencies": [
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to update within their tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to delete within their tenant",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250909215149_f605978a-ff56-4244-a418-92ab5b4ab9a0.sql"
+        },
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250910201339_002c4418-075b-43ef-958b-5bd708d7647c.sql"
+        },
+        {
+          "name": "Admins can view all customers within tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250912123021_bc566ea5-5638-4fa7-926a-cba4dfcf4f6b.sql"
+        },
+        {
+          "name": "Contractors can view assigned customers",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250912123021_bc566ea5-5638-4fa7-926a-cba4dfcf4f6b.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250912123021_bc566ea5-5638-4fa7-926a-cba4dfcf4f6b.sql"
+        },
+        {
+          "name": "Admins can update any customer within tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250912123021_bc566ea5-5638-4fa7-926a-cba4dfcf4f6b.sql"
+        },
+        {
+          "name": "Contractors can update assigned customers",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250912123021_bc566ea5-5638-4fa7-926a-cba4dfcf4f6b.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250912124645_8030ee1d-b643-4cb8-8974-efb3bd2598d0.sql"
+        },
+        {
+          "name": "Tenant users can view customers",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Clients can view their own customer record",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Clients can update their own customer record",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Contractors can manage customers",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Staff can manage customers",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "services": {
+      "policyCount": 7,
+      "dependencies": [
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to update within their tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to delete within their tenant",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Tenant users can view services",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Contractors can manage services",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Staff can manage services",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "jobs": {
+      "policyCount": 4,
+      "dependencies": [
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to update within their tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to delete within their tenant",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        }
+      ]
+    },
+    "quotes": {
+      "policyCount": 13,
+      "dependencies": [
+        "profiles",
+        "customers"
+      ],
+      "policies": [
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to update within their tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to delete within their tenant",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250909215149_f605978a-ff56-4244-a418-92ab5b4ab9a0.sql"
+        },
+        {
+          "name": "Allow public read access via share_token",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250910011548_adab42e5-d2c8-4a50-82f3-4ac0444b6166.sql"
+        },
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250910203705_aa26010a-92f0-4f27-839c-cc9636176951.sql"
+        },
+        {
+          "name": "Admins can view all quotes within tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250912174619_cf02feda-d852-4756-9459-4db2264d0746.sql"
+        },
+        {
+          "name": "Contractors can view their own quotes",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250912174619_cf02feda-d852-4756-9459-4db2264d0746.sql"
+        },
+        {
+          "name": "Allow public read access via valid share_token",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250928165428_4f47610f-e491-4764-8937-cb7e6db2ade3.sql"
+        },
+        {
+          "name": "Tenant users can view quotes",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Clients can view their own quotes",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Contractors can manage quotes",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        }
+      ]
+    },
+    "invoices": {
+      "policyCount": 12,
+      "dependencies": [
+        "profiles",
+        "customers"
+      ],
+      "policies": [
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to update within their tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to delete within their tenant",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250909215149_f605978a-ff56-4244-a418-92ab5b4ab9a0.sql"
+        },
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250910203705_aa26010a-92f0-4f27-839c-cc9636176951.sql"
+        },
+        {
+          "name": "Allow public read access via share_token",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250913013948_7b10df54-6be5-49c3-856e-22ab92d482e7.sql"
+        },
+        {
+          "name": "Allow public read access via valid share_token",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250928165428_4f47610f-e491-4764-8937-cb7e6db2ade3.sql"
+        },
+        {
+          "name": "Tenant users can view invoices",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Clients can view their own invoices",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Contractors can manage invoices",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Staff can manage invoices",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "settings": {
+      "policyCount": 7,
+      "dependencies": [
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to update within their tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Allow authenticated users to delete within their tenant",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250909135543_32857641-da98-463b-908f-856ee5e3034d.sql"
+        },
+        {
+          "name": "Users can view their tenant settings",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Business admins can manage settings",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Admins can manage settings",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "quote_responses": {
+      "policyCount": 3,
+      "dependencies": [
+        "quotes"
+      ],
+      "policies": [
+        {
+          "name": "Allow public insert on quote_responses",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250910011548_adab42e5-d2c8-4a50-82f3-4ac0444b6166.sql"
+        },
+        {
+          "name": "Allow authenticated read on quote_responses",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": false,
+          "file": "20250910011548_adab42e5-d2c8-4a50-82f3-4ac0444b6166.sql"
+        },
+        {
+          "name": "Allow quote responses for valid tokens",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": true,
+          "referencesAuth": false,
+          "file": "20250928173145_2b6202da-1b9f-458c-90f9-f69ea6f12a6a.sql"
+        }
+      ]
+    },
+    "user_permissions": {
+      "policyCount": 6,
+      "dependencies": [
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Users can view permissions within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250912194035_b64a01f9-1ea8-46e5-916b-b8b52bc5cb20.sql"
+        },
+        {
+          "name": "Business admins can manage permissions within their tenant",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250912194035_b64a01f9-1ea8-46e5-916b-b8b52bc5cb20.sql"
+        },
+        {
+          "name": "Users can view their own permissions",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250912194035_b64a01f9-1ea8-46e5-916b-b8b52bc5cb20.sql"
+        },
+        {
+          "name": "Users can view their own permissions",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Business admins can manage user permissions",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Admins can manage user permissions",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "job_series": {
+      "policyCount": 7,
+      "dependencies": [
+        "profiles",
+        "customers"
+      ],
+      "policies": [
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250913032747_6b7edca1-2d4b-444d-818f-29ef71762ef7.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250913032747_6b7edca1-2d4b-444d-818f-29ef71762ef7.sql"
+        },
+        {
+          "name": "Allow authenticated users to update within their tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250913032747_6b7edca1-2d4b-444d-818f-29ef71762ef7.sql"
+        },
+        {
+          "name": "Allow authenticated users to delete within their tenant",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250913032747_6b7edca1-2d4b-444d-818f-29ef71762ef7.sql"
+        },
+        {
+          "name": "Tenant users can view job series",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Clients can view their own job series",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Contractors can manage job series",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        }
+      ]
+    },
+    "job_occurrences": {
+      "policyCount": 7,
+      "dependencies": [
+        "profiles",
+        "customers"
+      ],
+      "policies": [
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250913032747_6b7edca1-2d4b-444d-818f-29ef71762ef7.sql"
+        },
+        {
+          "name": "Allow authenticated users to insert within their tenant",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250913032747_6b7edca1-2d4b-444d-818f-29ef71762ef7.sql"
+        },
+        {
+          "name": "Allow authenticated users to update within their tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250913032747_6b7edca1-2d4b-444d-818f-29ef71762ef7.sql"
+        },
+        {
+          "name": "Allow authenticated users to delete within their tenant",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250913032747_6b7edca1-2d4b-444d-818f-29ef71762ef7.sql"
+        },
+        {
+          "name": "Tenant users can view job occurrences",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Clients can view their own job occurrences",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        },
+        {
+          "name": "Contractors can manage job occurrences",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250928215110_a7f0e17d-9475-44e6-a049-dc578a933a32.sql"
+        }
+      ]
+    },
+    "jobs_calendar_upcoming": {
+      "policyCount": 1,
+      "dependencies": [],
+      "policies": [
+        {
+          "name": "Enable access for users within their tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250916100914_9f41cc8f-d92c-49ed-8da3-4f0479f85c7d.sql"
+        }
+      ]
+    },
+    "shared_content_access_logs": {
+      "policyCount": 3,
+      "dependencies": [
+        "invoices",
+        "quotes"
+      ],
+      "policies": [
+        {
+          "name": "Users can view access logs for their tenant content",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": false,
+          "file": "20250928165428_4f47610f-e491-4764-8937-cb7e6db2ade3.sql"
+        },
+        {
+          "name": "Allow public insertion of access logs",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250928165428_4f47610f-e491-4764-8937-cb7e6db2ade3.sql"
+        },
+        {
+          "name": "Allow access logs for valid shared content",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": true,
+          "referencesAuth": false,
+          "file": "20250928173145_2b6202da-1b9f-458c-90f9-f69ea6f12a6a.sql"
+        }
+      ]
+    },
+    "rate_limits": {
+      "policyCount": 3,
+      "dependencies": [],
+      "policies": [
+        {
+          "name": "Allow public rate limit tracking",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250928165428_4f47610f-e491-4764-8937-cb7e6db2ade3.sql"
+        },
+        {
+          "name": "System rate limit access only",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250928172332_5b281adb-30c6-42c3-a8c3-5b7fdc5f5f13.sql"
+        },
+        {
+          "name": "Service role rate limit access",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250928172332_5b281adb-30c6-42c3-a8c3-5b7fdc5f5f13.sql"
+        }
+      ]
+    },
+    "audit_logs": {
+      "policyCount": 2,
+      "dependencies": [],
+      "policies": [
+        {
+          "name": "Admins can view audit logs within tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250928174513_046d344a-17cc-4dd4-aca9-365dcb7156c2.sql"
+        },
+        {
+          "name": "System can insert audit logs",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250928174513_046d344a-17cc-4dd4-aca9-365dcb7156c2.sql"
+        }
+      ]
+    },
+    "appointment_series": {
+      "policyCount": 4,
+      "dependencies": [
+        "customers",
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Clients can view their own appointment series",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930180704_dc6b1eaa-d1a0-4a29-871c-da721f216fbd.sql"
+        },
+        {
+          "name": "Contractors can manage appointment series",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930180704_dc6b1eaa-d1a0-4a29-871c-da721f216fbd.sql"
+        },
+        {
+          "name": "Tenant users can view appointment series",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250930180704_dc6b1eaa-d1a0-4a29-871c-da721f216fbd.sql"
+        },
+        {
+          "name": "Staff can manage appointment series",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "appointment_occurrences": {
+      "policyCount": 4,
+      "dependencies": [
+        "customers",
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Clients can view their own appointment occurrences",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930180704_dc6b1eaa-d1a0-4a29-871c-da721f216fbd.sql"
+        },
+        {
+          "name": "Contractors can manage appointment occurrences",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930180704_dc6b1eaa-d1a0-4a29-871c-da721f216fbd.sql"
+        },
+        {
+          "name": "Tenant users can view appointment occurrences",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250930180704_dc6b1eaa-d1a0-4a29-871c-da721f216fbd.sql"
+        },
+        {
+          "name": "Staff can manage appointment occurrences",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "form_templates": {
+      "policyCount": 4,
+      "dependencies": [
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Contractors can manage form templates",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Tenant users can view form templates",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Public can view active signup forms",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Staff can manage form templates",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "form_fields": {
+      "policyCount": 4,
+      "dependencies": [
+        "form_templates",
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Contractors can manage form fields",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Tenant users can view form fields",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Public can view active signup form fields",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": false,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Staff can manage form fields",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "form_responses": {
+      "policyCount": 6,
+      "dependencies": [
+        "form_templates",
+        "profiles",
+        "customers"
+      ],
+      "policies": [
+        {
+          "name": "Contractors can view form responses",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Clients can view their own responses",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Anyone can submit signup form responses",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": true,
+          "referencesAuth": false,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Contractors can insert form responses",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930213246_4ce2e549-98e2-4600-a13f-aaad18a86056.sql"
+        },
+        {
+          "name": "Staff can insert form responses",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        },
+        {
+          "name": "Staff can view form responses",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "form_assignments": {
+      "policyCount": 4,
+      "dependencies": [
+        "profiles",
+        "customers"
+      ],
+      "policies": [
+        {
+          "name": "Contractors can manage form assignments",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930220623_53d6e3ca-c8df-4f88-97cd-16c4edd00c62.sql"
+        },
+        {
+          "name": "Clients can view their assigned forms",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930220623_53d6e3ca-c8df-4f88-97cd-16c4edd00c62.sql"
+        },
+        {
+          "name": "Clients can update their assigned forms status",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20250930220623_53d6e3ca-c8df-4f88-97cd-16c4edd00c62.sql"
+        },
+        {
+          "name": "Staff can manage form assignments",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "clinicians": {
+      "policyCount": 6,
+      "dependencies": [
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Clinicians can manage their own record",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003105154_6f3efe4f-a130-45ff-bd60-8caa12072983.sql"
+        },
+        {
+          "name": "Business admins can view all clinicians in tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003105154_6f3efe4f-a130-45ff-bd60-8caa12072983.sql"
+        },
+        {
+          "name": "Tenant users can view clinicians",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003105154_6f3efe4f-a130-45ff-bd60-8caa12072983.sql"
+        },
+        {
+          "name": "Admins can view all clinicians in tenant",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        },
+        {
+          "name": "Admins can update clinicians in tenant",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        },
+        {
+          "name": "Prevent privilege escalation on is_admin",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    },
+    "objects": {
+      "policyCount": 4,
+      "dependencies": [],
+      "policies": [
+        {
+          "name": "Users can upload own profile images",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003112635_9979e0aa-be25-446a-80bb-62a56603cc2c.sql"
+        },
+        {
+          "name": "Public profile images are viewable",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": false,
+          "file": "20251003112635_9979e0aa-be25-446a-80bb-62a56603cc2c.sql"
+        },
+        {
+          "name": "Users can update own profile images",
+          "forClause": "FOR UPDATE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003112635_9979e0aa-be25-446a-80bb-62a56603cc2c.sql"
+        },
+        {
+          "name": "Users can delete own profile images",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003112635_9979e0aa-be25-446a-80bb-62a56603cc2c.sql"
+        }
+      ]
+    },
+    "cliniclevel_license_types": {
+      "policyCount": 4,
+      "dependencies": [
+        "profiles"
+      ],
+      "policies": [
+        {
+          "name": "Business admins can view tenant license types",
+          "forClause": "FOR SELECT",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003131433_ff39dc8f-cf51-4f44-aceb-f1b01cd36635.sql"
+        },
+        {
+          "name": "Business admins can insert license types",
+          "forClause": "FOR INSERT",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003131433_ff39dc8f-cf51-4f44-aceb-f1b01cd36635.sql"
+        },
+        {
+          "name": "Business admins can delete tenant license types",
+          "forClause": "FOR DELETE",
+          "hasComplexLogic": true,
+          "referencesAuth": true,
+          "file": "20251003131433_ff39dc8f-cf51-4f44-aceb-f1b01cd36635.sql"
+        },
+        {
+          "name": "Admins can manage license types",
+          "forClause": "FOR ALL",
+          "hasComplexLogic": false,
+          "referencesAuth": true,
+          "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+        }
+      ]
+    }
+  },
+  "circularReferences": [],
+  "cliniciansTableAnalysis": {
+    "totalPolicies": 6,
+    "policies": [
+      {
+        "name": "Clinicians can manage their own record",
+        "type": "ALL",
+        "complexity": "low",
+        "dependencies": [],
+        "usesDirectAuth": true,
+        "file": "20251003105154_6f3efe4f-a130-45ff-bd60-8caa12072983.sql"
+      },
+      {
+        "name": "Business admins can view all clinicians in tenant",
+        "type": "SELECT",
+        "complexity": "medium",
+        "dependencies": [
+          "profiles"
+        ],
+        "usesDirectAuth": true,
+        "file": "20251003105154_6f3efe4f-a130-45ff-bd60-8caa12072983.sql"
+      },
+      {
+        "name": "Tenant users can view clinicians",
+        "type": "SELECT",
+        "complexity": "medium",
+        "dependencies": [
+          "profiles"
+        ],
+        "usesDirectAuth": true,
+        "file": "20251003105154_6f3efe4f-a130-45ff-bd60-8caa12072983.sql"
+      },
+      {
+        "name": "Admins can view all clinicians in tenant",
+        "type": "SELECT",
+        "complexity": "medium",
+        "dependencies": [
+          "profiles"
+        ],
+        "usesDirectAuth": true,
+        "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+      },
+      {
+        "name": "Admins can update clinicians in tenant",
+        "type": "UPDATE",
+        "complexity": "medium",
+        "dependencies": [
+          "profiles"
+        ],
+        "usesDirectAuth": true,
+        "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+      },
+      {
+        "name": "Prevent privilege escalation on is_admin",
+        "type": "UPDATE",
+        "complexity": "medium",
+        "dependencies": [
+          "clinicians"
+        ],
+        "usesDirectAuth": true,
+        "file": "20251003164948_55b711c2-caaa-4b80-8f33-93f70099d890.sql"
+      }
+    ],
+    "potentialIssues": []
+  },
+  "recommendations": [
+    {
+      "priority": "medium",
+      "category": "authentication",
+      "title": "Optimize Authentication Patterns",
+      "description": "Found 6 policies that could benefit from direct auth.uid() usage",
+      "action": "Consider simplifying policies to use direct authentication where appropriate"
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+graph TD
+    profiles[profiles]:::table
+    customers[customers]:::table
+    services[services]:::table
+    jobs[jobs]:::table
+    quotes[quotes]:::table
+    invoices[invoices]:::table
+    settings[settings]:::table
+    quote_responses[quote_responses]:::table
+    user_permissions[user_permissions]:::table
+    job_series[job_series]:::table
+    job_occurrences[job_occurrences]:::table
+    jobs_calendar_upcoming[jobs_calendar_upcoming]:::table
+    shared_content_access_logs[shared_content_access_logs]:::table
+    rate_limits[rate_limits]:::table
+    audit_logs[audit_logs]:::table
+    appointment_series[appointment_series]:::table
+    appointment_occurrences[appointment_occurrences]:::table
+    form_templates[form_templates]:::table
+    form_fields[form_fields]:::table
+    form_responses[form_responses]:::table
+    form_assignments[form_assignments]:::table
+    clinicians[clinicians]:::table
+    objects[objects]:::table
+    cliniclevel_license_types[cliniclevel_license_types]:::table
+    handle_new_user((handle_new_user)):::function
+    handle_user_update((handle_user_update)):::function
+    get_user_tenant_id((get_user_tenant_id)):::function
+    update_updated_at_column((update_updated_at_column)):::function
+    get_current_user_role((get_current_user_role)):::function
+    generate_quote_share_token((generate_quote_share_token)):::function
+    get_user_permissions((get_user_permissions)):::function
+    cleanup_expired_rate_limits((cleanup_expired_rate_limits)):::function
+    check_rate_limit((check_rate_limit)):::function
+    cleanup_expired_share_tokens((cleanup_expired_share_tokens)):::function
+    validate_share_token_expiration((validate_share_token_expiration)):::function
+    get_public_quote_by_token((get_public_quote_by_token)):::function
+    get_public_invoice_by_token((get_public_invoice_by_token)):::function
+    validate_quote_response_input((validate_quote_response_input)):::function
+    get_masked_customer_data((get_masked_customer_data)):::function
+    log_permission_changes((log_permission_changes)):::function
+    enhanced_rate_limit_check((enhanced_rate_limit_check)):::function
+    handle_client_signup((handle_client_signup)):::function
+    is_admin((is_admin)):::function
+    customers --> profiles
+    services --> profiles
+    jobs --> profiles
+    quotes --> profiles
+    quotes --> customers
+    invoices --> profiles
+    invoices --> customers
+    settings --> profiles
+    quote_responses --> quotes
+    user_permissions --> profiles
+    job_series --> profiles
+    job_series --> customers
+    job_occurrences --> profiles
+    job_occurrences --> customers
+    shared_content_access_logs --> invoices
+    shared_content_access_logs --> quotes
+    appointment_series --> customers
+    appointment_series --> profiles
+    appointment_occurrences --> customers
+    appointment_occurrences --> profiles
+    form_templates --> profiles
+    form_fields --> form_templates
+    form_fields --> profiles
+    form_responses --> form_templates
+    form_responses --> profiles
+    form_responses --> customers
+    form_assignments --> profiles
+    form_assignments --> customers
+    clinicians --> profiles
+    cliniclevel_license_types --> profiles
+
+    classDef table fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef function fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef error fill:#ffebee,stroke:#b71c1c,stroke-width:3px

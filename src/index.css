@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* FieldFlow Material Design System - All colors MUST be HSL */
+
+@layer base {
+  :root {
+    /* Material Design Blue Color Palette */
+    --primary: 207 90% 54%;       /* Material Blue 500 */
+    --primary-dark: 210 100% 45%; /* Material Blue 700 */
+    --primary-light: 207 82% 66%; /* Material Blue 300 */
+    --primary-foreground: 0 0% 100%;
+
+    /* Material Background System */
+    --background: 210 25% 98%;    /* Light Material Background */
+    --surface: 0 0% 100%;         /* Pure white for cards */
+    --surface-variant: 210 25% 96%;
+    --foreground: 220 20% 14%;    /* Material Dark Text */
+
+    /* Material Card System */
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 14%;
+
+    /* Material Semantic Colors */
+    --secondary: 210 25% 96%;
+    --secondary-foreground: 220 20% 14%;
+
+    --muted: 210 25% 92%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 207 90% 96%;        /* Very light blue accent */
+    --accent-foreground: 210 100% 45%;
+
+    /* Material Status Colors */
+    --success: 122 72% 51%;       /* Material Green 500 */
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 36 100% 50%;       /* Material Amber 500 */
+    --warning-foreground: 0 0% 100%;
+    
+    --destructive: 4 90% 58%;     /* Material Red 500 */
+    --destructive-foreground: 0 0% 100%;
+
+    /* Material Surface Elements */
+    --border: 210 25% 88%;
+    --input: 210 25% 96%;
+    --ring: 207 90% 54%;
+
+    /* Popover/Dropdown Elements */
+    --popover: 0 0% 100%;           /* Pure white for dropdowns */
+    --popover-foreground: 220 20% 14%;
+
+    /* Material Elevation Shadows */
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    /* Material Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+
+    /* Material Border Radius */
+    --radius: 0.5rem;
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+
+    /* Material Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Sidebar tokens */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --surface: 217.2 32.6% 17.5%;
+    --surface-variant: 217.2 32.6% 15.5%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 207 82% 66%;
+    --primary-dark: 207 90% 54%;
+    --primary-light: 207 82% 76%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --success: 122 72% 51%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 36 100% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --destructive: 4 90% 58%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 207 82% 66%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* React Big Calendar Styles */
+@import '../styles/react-big-calendar.css';

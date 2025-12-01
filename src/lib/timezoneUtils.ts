@@ -1,0 +1,132 @@
+import { format, parseISO } from 'date-fns';
+import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
+
+/**
+ * Default timezone fallback
+ */
+export const DEFAULT_TIMEZONE = 'America/New_York';
+
+/**
+ * Convert a date/time from user's timezone to UTC for storage
+ */
+export function convertToUTC(dateTime: Date | string, userTimezone: string): Date {
+  const date = typeof dateTime === 'string' ? parseISO(dateTime) : dateTime;
+  return fromZonedTime(date, userTimezone);
+}
+
+/**
+ * Convert a UTC date/time to user's timezone for display
+ */
+export function convertFromUTC(utcDateTime: Date | string, userTimezone: string): Date {
+  const date = typeof utcDateTime === 'string' ? parseISO(utcDateTime) : utcDateTime;
+  return toZonedTime(date, userTimezone);
+}
+
+/**
+ * Format a UTC date/time in user's timezone
+ */
+export function formatInUserTimezone(
+  utcDateTime: Date | string, 
+  userTimezone: string, 
+  formatStr: string = 'yyyy-MM-dd HH:mm:ss'
+): string {
+  const date = typeof utcDateTime === 'string' ? parseISO(utcDateTime) : utcDateTime;
+  return formatInTimeZone(date, userTimezone, formatStr);
+}
+
+/**
+ * Combine a date and time string in user's timezone, then convert to UTC
+ * Used for form inputs where user enters date/time in their local timezone
+ */
+export function combineDateTimeToUTC(
+  date: string, // YYYY-MM-DD format
+  time: string, // HH:mm format
+  userTimezone: string
+): Date {
+  // Validate inputs
+  if (!date || !time) {
+    throw new Error('Date and time are required');
+  }
+  
+  // Validate date format (YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(date)) {
+    throw new Error(`Invalid date format: ${date}. Expected YYYY-MM-DD`);
+  }
+  
+  // Validate time format (HH:mm or HH:mm:ss)
+  const timeRegex = /^\d{1,2}:\d{2}(:\d{2})?$/;
+  if (!timeRegex.test(time)) {
+    throw new Error(`Invalid time format: ${time}. Expected HH:mm or HH:mm:ss`);
+  }
+  
+  // Normalize time to HH:mm:ss format (append :00 if needed)
+  const normalizedTime = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
+  
+  // Create ISO-compliant datetime string with T separator
+  const isoDateTimeString = `${date}T${normalizedTime}`;
+  
+  // Use fromZonedTime to interpret the datetime as being IN the user's timezone and convert to UTC
+  const utcDateTime = fromZonedTime(isoDateTimeString, userTimezone);
+  
+  // Check if the conversion result is valid
+  if (isNaN(utcDateTime.getTime())) {
+    throw new Error(`Invalid date/time combination or timezone: ${isoDateTimeString} in ${userTimezone}`);
+  }
+  
+  return utcDateTime;
+}
+
+/**
+ * Convert UTC datetime to user's local date and time strings
+ * Returns object with separate date and time strings
+ */
+export function splitUTCToLocalDateTime(
+  utcDateTime: Date | string,
+  userTimezone: string
+): { date: string; time: string } {
+  const localDateTime = convertFromUTC(utcDateTime, userTimezone);
+  
+  return {
+    date: format(localDateTime, 'yyyy-MM-dd'),
+    time: format(localDateTime, 'HH:mm')
+  };
+}
+
+/**
+ * Get current date/time in user's timezone
+ */
+export function getCurrentInTimezone(userTimezone: string): Date {
+  return toZonedTime(new Date(), userTimezone);
+}
+
+/**
+ * Convert datetime to ISO string for calendar compatibility
+ * Ensures proper format with timezone information
+ */
+export function toCalendarFormat(dateTime: Date | string): string {
+  const date = typeof dateTime === 'string' ? parseISO(dateTime) : dateTime;
+  return date.toISOString();
+}
+
+/**
+ * Convert user local datetime to calendar format (via UTC)
+ */
+export function localToCalendar(
+  dateTime: Date | string,
+  userTimezone: string
+): string {
+  const utcDate = convertToUTC(dateTime, userTimezone);
+  return toCalendarFormat(utcDate);
+}
+
+/**
+ * Convert UTC datetime to user timezone and format for calendar
+ */
+export function utcToCalendarInTimezone(
+  utcDateTime: Date | string,
+  userTimezone: string
+): string {
+  const localDate = convertFromUTC(utcDateTime, userTimezone);
+  return toCalendarFormat(localDate);
+}

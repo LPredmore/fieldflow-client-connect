@@ -1,0 +1,152 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Eye, MapPin, Clock, Briefcase } from "lucide-react";
+import { useUnifiedAppointments } from "@/hooks/useUnifiedAppointments";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useUserTimezone } from "@/hooks/useUserTimezone";
+import { formatInUserTimezone } from "@/lib/timezoneUtils";
+import { GracefulDataWrapper } from "@/components/ui/graceful-data-wrapper";
+
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'completed':
+      return 'bg-success text-success-foreground';
+    case 'in progress':
+    case 'in_progress':
+      return 'bg-warning text-warning-foreground';
+    case 'scheduled':
+      return 'bg-primary text-primary-foreground';
+    case 'cancelled':
+      return 'bg-destructive text-destructive-foreground';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+};
+
+const getPriorityColor = (priority: string) => {
+  switch (priority.toLowerCase()) {
+    case 'urgent':
+      return 'bg-destructive text-destructive-foreground';
+    case 'high':
+      return 'bg-destructive text-destructive-foreground';
+    case 'medium':
+      return 'bg-warning text-warning-foreground';
+    case 'low':
+      return 'bg-success text-success-foreground';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+};
+
+interface RecentJobsProps {
+  enabled?: boolean;
+}
+
+export default function RecentJobs({ enabled = true }: RecentJobsProps) {
+  const location = useLocation();
+  const isDashboardRoute = location.pathname === '/staff/dashboard';
+  
+  const { 
+    upcomingJobs, 
+    loading, 
+    error, 
+    refetchJobs,
+    isStale,
+    isCircuitBreakerOpen,
+    lastUpdated,
+    errorType
+  } = useUnifiedAppointments({ 
+    enabled: enabled && isDashboardRoute 
+  });
+  const navigate = useNavigate();
+  const userTimezone = useUserTimezone();
+
+  const jobsContent = (
+    <div className="space-y-4">
+      {upcomingJobs.map((job) => (
+        <div 
+          key={job.id}
+          className="border border-border rounded-lg p-4 hover:shadow-material-sm transition-shadow duration-fast"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+               <div className="flex items-center gap-2 mb-1">
+                 <h4 className="font-medium text-foreground">{job.customer_name}</h4>
+               <Badge variant="outline" className="text-xs">
+                 {job.id.slice(0, 8)}
+               </Badge>
+               {job.appointment_type === 'recurring_instance' && (
+                   <Badge variant="secondary" className="text-xs">
+                     Recurring
+                   </Badge>
+                 )}
+               </div>
+               <p className="text-sm font-medium text-primary">{job.title}</p>
+              {job.description && (
+                <p className="text-xs text-muted-foreground mt-1">{job.description}</p>
+              )}
+            </div>
+            <Button variant="ghost" size="sm">
+              <Eye className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Badge className={`text-xs ${getStatusColor(job.status.replace('_', ' '))}`}>
+                {job.status.replace('_', ' ')}
+              </Badge>
+              <Badge variant="outline" className={`text-xs ${getPriorityColor(job.priority)}`}>
+                {job.priority}
+              </Badge>
+            </div>
+             <div className="flex items-center gap-1 text-xs text-muted-foreground">
+               <Clock className="h-3 w-3" />
+               {formatInUserTimezone(job.start_at, userTimezone, 'h:mm a')}
+             </div>
+          </div>
+          
+           <div className="mt-2 text-xs text-muted-foreground">
+             Scheduled: <span className="font-medium">{formatInUserTimezone(job.start_at, userTimezone, 'MMM d, yyyy')}</span>
+           </div>
+        </div>
+      ))}
+      
+      <div className="pt-2">
+        <Button 
+          variant="outline" 
+          className="w-full"
+          onClick={() => navigate('/staff/appointments')}
+        >
+          View All Appointments
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <Card className="shadow-material-md">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold">Upcoming Appointments</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <GracefulDataWrapper
+          loading={loading}
+          error={error}
+          errorType={errorType}
+          data={upcomingJobs}
+          isStale={isStale}
+          isCircuitBreakerOpen={isCircuitBreakerOpen}
+          lastUpdated={lastUpdated}
+          onRetry={refetchJobs}
+          onRefresh={refetchJobs}
+          emptyStateTitle="No appointments found"
+          emptyStateDescription="Create your first appointment to get started"
+        >
+          {jobsContent}
+        </GracefulDataWrapper>
+      </CardContent>
+    </Card>
+  );
+}
