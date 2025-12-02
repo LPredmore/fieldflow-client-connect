@@ -37,7 +37,7 @@ export interface SelfRegistrationData {
 export function useSelfRegistration() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tenantId } = useAuth();
+  const { tenantId, refreshUserData } = useAuth();
   const queryClient = useQueryClient();
 
   const registerSelf = async (data: SelfRegistrationData) => {
@@ -88,6 +88,7 @@ export function useSelfRegistration() {
         prov_accepting_new_clients: data.professionalDetails.acceptingNewClients === 'Yes',
         prov_min_client_age: data.professionalDetails.minClientAge || null,
         prov_bio: data.professionalDetails.bio || null,
+        prov_status: 'Active',  // Mark registration as complete
       };
 
       const { data: staffRecord, error: staffError } = await supabase
@@ -131,6 +132,9 @@ export function useSelfRegistration() {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       queryClient.invalidateQueries({ queryKey: ['user_roles'] });
       queryClient.invalidateQueries({ queryKey: ['staff'] });
+
+      // 6. Refresh auth context so routing logic gets updated prov_status
+      await refreshUserData();
 
       setLoading(false);
       return { success: true };

@@ -167,6 +167,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       profile_id: userId,
       prov_name_f: firstName,
       prov_name_l: lastName,
+      prov_status: 'Invited',  // New staff start as Invited until they complete registration
     };
 
     // Add specialty if provided (for clinical roles)

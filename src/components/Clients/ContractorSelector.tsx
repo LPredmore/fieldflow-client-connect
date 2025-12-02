@@ -29,7 +29,7 @@ export function ContractorSelector({ value, onValueChange, disabled }: Contracto
     select: 'id, prov_name_f, prov_name_l, prov_status',
     filters: {
       tenant_id: tenantId,
-      prov_status: 'active',
+      prov_status: 'Active',
     },
     enabled: !!tenantId,
   });
