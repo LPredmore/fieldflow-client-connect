@@ -25,6 +25,12 @@ interface LicenseManagementProps {
 export function LicenseManagement({ staffId, specialty, readOnly = false }: LicenseManagementProps) {
   const { licenses, loading, createLicense, updateLicense, deleteLicense } = useStaffLicenses({ staffId });
   const { licenseTypes } = useLicenseTypes({ specialty });
+
+  // Helper to get human-readable label from license code
+  const getLicenseLabel = (code: string) => {
+    const found = licenseTypes.find(lt => lt.license_code === code);
+    return found?.license_label || code;
+  };
   
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -229,7 +235,7 @@ export function LicenseManagement({ staffId, specialty, readOnly = false }: Lice
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{license.license_state}</span>
-                      <Badge variant="outline">{license.license_type}</Badge>
+                      <Badge variant="outline">{getLicenseLabel(license.license_type)}</Badge>
                       {isExpired(license.expiration_date) && (
                         <Badge variant="destructive" className="flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />

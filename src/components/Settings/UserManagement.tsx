@@ -9,7 +9,6 @@ import { UserPermissions } from "@/utils/permissionUtils";
 import { UserTable } from "./UserManagement/UserTable";
 import { UserRow } from "./UserManagement/UserRow";
 import { AddStaffDialog } from "./UserManagement/AddStaffDialog";
-import { LicenseManagementSimple } from "./UserManagement/LicenseManagementSimple";
 import { supabase } from '@/integrations/supabase/client';
 
 export default function UserManagement() {
@@ -161,9 +160,6 @@ export default function UserManagement() {
           </Tabs>
         </CardContent>
       </Card>
-
-      {/* License Management */}
-      <LicenseManagementSimple />
 
       {/* Explanation Note */}
       <Card>

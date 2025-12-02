@@ -11,12 +11,14 @@ interface StaffMember {
   prov_name_l?: string | null;
   prov_name_m?: string | null;
   prov_title?: string | null;
+  prov_field?: string | null;
+  /** @deprecated Use staff_licenses table for license management. Retained for claims compatibility. */
   prov_license_type?: string | null;
+  /** @deprecated Use staff_licenses table for license management. Retained for claims compatibility. */
   prov_license_number?: string | null;
   prov_npi?: string | null;
   prov_taxonomy?: string | null;
   prov_accepting_new_clients?: 'Yes' | 'No' | null;
-  [key: string]: any;
 }
 
 interface UseStaffProfileOptions {

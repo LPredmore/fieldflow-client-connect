@@ -13,7 +13,16 @@ export interface StaffMember {
   prov_name_l?: string | null;
   prov_name_m?: string | null;
   prov_title?: string | null;
+  prov_field?: string | null;
+  /**
+   * @deprecated Use staff_licenses table for license management.
+   * This field is retained for backward compatibility with claims processing (CMS-1500 forms).
+   */
   prov_license_type?: string | null;
+  /**
+   * @deprecated Use staff_licenses table for license management.
+   * This field is retained for backward compatibility with claims processing (CMS-1500 forms).
+   */
   prov_license_number?: string | null;
   prov_npi?: string | null;
   prov_taxonomy?: string | null;
@@ -22,7 +31,6 @@ export interface StaffMember {
   prov_image_url?: string | null;
   prov_min_client_age?: number | null;
   prov_accepting_new_clients?: 'Yes' | 'No' | null;
-  prov_field?: string | null;
   created_at: string;
   updated_at: string;
 }
