@@ -267,13 +267,15 @@ export const DB_RELATIONSHIPS = {
     profile_id: { references: 'profiles.id' },
   },
   
+  // NOTE: treatment_approaches has NO tenant_id - it's global reference data
+  // Filtered by specialty column (specialty_enum)
   treatment_approaches: {
-    tenant_id: { references: 'tenants.id' },
+    // No foreign keys - standalone reference table
   },
   
   cliniclevel_license_types: {
-    tenant_id: { references: 'tenants.id' },
-    created_by_user_id: { references: 'profiles.id' },
+    // No tenant_id - global reference data
+    // Filtered by specialty column
   },
 } as const;
 

@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { LicenseManagement } from '@/components/Staff/LicenseManagement';
 import { US_STATES } from '@/constants/usStates';
+import { useTreatmentApproachOptions } from '@/hooks/useTreatmentApproachOptions';
+import { MultiSelectCombobox } from '@/components/ui/multi-select-combobox';
 
 export default function Profile() {
   const { profile, loading: profileLoading, updatePassword } = useProfile();
@@ -27,6 +29,12 @@ export default function Profile() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Fetch treatment approach options based on specialty
+  const { 
+    options: treatmentApproachOptions, 
+    loading: treatmentApproachesLoading 
+  } = useTreatmentApproachOptions({ specialty: staff?.prov_field });
 
   // Professional Information form state
   const [professionalInfo, setProfessionalInfo] = useState({
@@ -54,6 +62,7 @@ export default function Profile() {
     prov_bio: '',
     prov_min_client_age: 18,
     prov_accepting_new_clients: false,
+    prov_treatment_approaches: [] as string[],
   });
 
   // Password form state
@@ -98,6 +107,7 @@ export default function Profile() {
         prov_bio: staff.prov_bio || '',
         prov_min_client_age: staff.prov_min_client_age ?? 18,
         prov_accepting_new_clients: staff.prov_accepting_new_clients ?? false,
+        prov_treatment_approaches: staff.prov_treatment_approaches || [],
       });
     }
   }, [staff]);
@@ -181,6 +191,7 @@ export default function Profile() {
       prov_bio: clientInfo.prov_bio,
       prov_min_client_age: clientInfo.prov_min_client_age,
       prov_accepting_new_clients: clientInfo.prov_accepting_new_clients,
+      prov_treatment_approaches: clientInfo.prov_treatment_approaches,
     });
 
     setIsUpdating(false);
@@ -615,12 +626,36 @@ export default function Profile() {
                     />
                   </div>
 
-                  {/* Treatment Approaches placeholder - will be implemented separately */}
+                  {/* Treatment Approaches */}
                   <div className="space-y-2">
                     <Label>Treatment Approaches</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Treatment approaches will be configured in a future update.
-                    </p>
+                    {!staff.prov_field ? (
+                      <p className="text-sm text-muted-foreground">
+                        Set your specialty to see available treatment approaches.
+                      </p>
+                    ) : treatmentApproachOptions.length === 0 && !treatmentApproachesLoading ? (
+                      <p className="text-sm text-muted-foreground">
+                        No treatment approaches configured for {staff.prov_field}.
+                      </p>
+                    ) : (
+                      <>
+                        <MultiSelectCombobox
+                          options={treatmentApproachOptions}
+                          value={clientInfo.prov_treatment_approaches}
+                          onChange={(approaches) => setClientInfo(prev => ({ 
+                            ...prev, 
+                            prov_treatment_approaches: approaches 
+                          }))}
+                          placeholder="Search and select treatment approaches..."
+                          searchPlaceholder="Search approaches..."
+                          emptyMessage="No approaches found."
+                          loading={treatmentApproachesLoading}
+                        />
+                        <p className="text-sm text-muted-foreground">
+                          Select the therapeutic approaches you use with clients
+                        </p>
+                      </>
+                    )}
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">

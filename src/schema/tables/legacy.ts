@@ -68,16 +68,23 @@ export const LEGACY_TABLES = {
     },
   },
 
+  /**
+   * Treatment Approaches Reference Table
+   * Actual schema from database:
+   * - id: bigint (auto-increment, NOT uuid)
+   * - created_at: timestamptz
+   * - approaches: text (the approach name)
+   * - specialty: specialty_enum ('Mental Health', 'Speech Therapy', 'Occupational Therapy')
+   * 
+   * NOTE: This table has NO tenant_id - it's global reference data
+   */
   treatment_approaches: {
     name: 'treatment_approaches',
     columns: {
-      id: { type: 'uuid', nullable: false, default: 'gen_random_uuid()' },
-      tenant_id: { type: 'uuid', nullable: false },
-      name: { type: 'text', nullable: false },
-      description: { type: 'text', nullable: true },
-      is_active: { type: 'boolean', nullable: false, default: 'true' },
+      id: { type: 'bigint', nullable: false, autoIncrement: true },
       created_at: { type: 'timestamptz', nullable: false, default: 'now()' },
-      updated_at: { type: 'timestamptz', nullable: false, default: 'now()' },
+      approaches: { type: 'text', nullable: true },
+      specialty: { type: 'specialty_enum', nullable: true },
     },
   },
 } as const;
