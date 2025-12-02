@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenantBranding } from "@/hooks/useTenantBranding";
-import { PermissionProvider } from "@/contexts/PermissionContext";
 import { usePermissionChecks } from "@/hooks/permissions/usePermissionChecks";
 import { getRoleDisplayName, canAccessSettings, UserRole } from "@/utils/roleUtils";
 import { STAFF_NAVIGATION, BILLING_NAVIGATION } from "@/config/navigation";
@@ -197,9 +196,5 @@ function NavigationContent() {
 }
 
 export default function Navigation() {
-  return (
-    <PermissionProvider>
-      <NavigationContent />
-    </PermissionProvider>
-  );
+  return <NavigationContent />;
 }
