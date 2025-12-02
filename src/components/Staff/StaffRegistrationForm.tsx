@@ -53,8 +53,8 @@ export const StaffRegistrationForm = () => {
   const personalForm = useForm<PersonalInfoForm>({
     resolver: zodResolver(personalInfoSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      firstName: user?.user_metadata?.first_name || user?.staffAttributes?.staffData?.prov_name_f || "",
+      lastName: user?.user_metadata?.last_name || user?.staffAttributes?.staffData?.prov_name_l || "",
       phone: "",
       email: user?.email || "",
     },
