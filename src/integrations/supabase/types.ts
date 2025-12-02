@@ -2544,28 +2544,22 @@ export type Database = {
       }
       cliniclevel_license_types: {
         Row: {
-          created_at: string
-          created_by_user_id: string | null
-          id: number
-          license: string | null
+          id: string
+          license_code: string
+          license_label: string
           specialty: string | null
-          tenant_id: string | null
         }
         Insert: {
-          created_at?: string
-          created_by_user_id?: string | null
-          id?: number
-          license?: string | null
+          id?: string
+          license_code: string
+          license_label: string
           specialty?: string | null
-          tenant_id?: string | null
         }
         Update: {
-          created_at?: string
-          created_by_user_id?: string | null
-          id?: number
-          license?: string | null
+          id?: string
+          license_code?: string
+          license_label?: string
           specialty?: string | null
-          tenant_id?: string | null
         }
         Relationships: []
       }
@@ -3932,6 +3926,10 @@ export type Database = {
         | "severe"
       risk_level_enum: "none" | "low" | "moderate" | "high" | "imminent"
       sex_enum: "M" | "F"
+      specialty_enum:
+        | "Mental Health"
+        | "Speech Therapy"
+        | "Occupational Therapy"
       state_code_enum:
         | "AL"
         | "AK"
@@ -4153,6 +4151,11 @@ export const Constants = {
       ],
       risk_level_enum: ["none", "low", "moderate", "high", "imminent"],
       sex_enum: ["M", "F"],
+      specialty_enum: [
+        "Mental Health",
+        "Speech Therapy",
+        "Occupational Therapy",
+      ],
       state_code_enum: [
         "AL",
         "AK",

@@ -19,7 +19,6 @@ export interface Profile {
     prov_name_l: string | null;
     prov_status: string | null;
   };
-  user_roles?: Array<{ role: string }>;
   display_name?: string;
 }
 
@@ -34,7 +33,8 @@ export function useProfiles() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
 
-  // Query profiles with staff data and roles
+  // Query profiles with staff data
+  // Note: user_roles join removed - no explicit FK relationship between profiles and user_roles
   const {
     data: rawProfiles,
     loading,
@@ -45,8 +45,7 @@ export function useProfiles() {
     select: `
       *,
       tenant_memberships!inner(tenant_id),
-      staff(prov_name_f, prov_name_l, prov_status),
-      user_roles(role)
+      staff(prov_name_f, prov_name_l, prov_status)
     `,
     filters: tenantId ? {
       'tenant_memberships.tenant_id': tenantId,
