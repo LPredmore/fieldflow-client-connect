@@ -10,7 +10,6 @@ import { UserTable } from "./UserManagement/UserTable";
 import { UserRow } from "./UserManagement/UserRow";
 import { AddStaffDialog } from "./UserManagement/AddStaffDialog";
 import { LicenseManagementSimple } from "./UserManagement/LicenseManagementSimple";
-import { RoleSyncDashboard } from "./UserManagement/RoleSyncDashboard";
 import { supabase } from '@/integrations/supabase/client';
 
 export default function UserManagement() {
@@ -165,9 +164,6 @@ export default function UserManagement() {
 
       {/* License Management */}
       <LicenseManagementSimple />
-
-      {/* Role Sync Dashboard */}
-      <RoleSyncDashboard />
 
       {/* Explanation Note */}
       <Card>
