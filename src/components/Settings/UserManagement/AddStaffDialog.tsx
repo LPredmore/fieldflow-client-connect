@@ -55,16 +55,7 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
   const { registerStaff, loading } = useStaffRegistration();
   const { licenseTypes, uniqueSpecialties, loading: licenseTypesLoading } = useLicenseTypes();
 
-  // Add null guard and use correct field name (license_code, not license)
-  const uniqueLicenses = Array.from(
-    new Set((licenseTypes ?? []).map((lt) => lt.license_code).filter(Boolean))
-  ) as string[];
-
-  // Add loading guard
-  if (licenseTypesLoading && !licenseTypes) {
-    return null; // Dialog won't open while loading
-  }
-
+  // All hooks must be called before any conditional returns
   const form = useForm<AddStaffFormData>({
     resolver: zodResolver(addStaffSchema),
     defaultValues: {
@@ -79,6 +70,16 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
       taxonomy: "",
     },
   });
+
+  // Extract data after all hooks are called
+  const uniqueLicenses = Array.from(
+    new Set((licenseTypes ?? []).map((lt) => lt.license_code).filter(Boolean))
+  ) as string[];
+
+  // Loading guard - now safe after all hooks are called
+  if (licenseTypesLoading && !licenseTypes) {
+    return null; // Dialog won't open while loading
+  }
 
   const onSubmit = async (data: AddStaffFormData) => {
     // Transform form data to match registration format
