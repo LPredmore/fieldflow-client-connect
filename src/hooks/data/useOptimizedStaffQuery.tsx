@@ -143,13 +143,13 @@ class StaffPreloadManager {
   }
   
   private async preloadAvailableStaff(tenantId: string): Promise<void> {
-    const cacheKey = `staff-*-{"prov_status":"Active"}-undefined-preload`;
+    const cacheKey = `staff-*-{"prov_status":["Active","New"]}-undefined-preload`;
     
     try {
       const { data, error } = await supabase
         .from('staff')
         .select('*')
-        .eq('prov_status', 'Active')
+        .in('prov_status', ['Active', 'New'])
         .eq('tenant_id', tenantId);
       
       if (error) throw error;
@@ -159,7 +159,7 @@ class StaffPreloadManager {
           table: 'staff',
           select: '*',
           filters: { 
-            prov_status: 'Active'
+            prov_status: ['Active', 'New']
           },
           userId: 'preload',
           tenantId
@@ -328,16 +328,29 @@ export function useOptimizedUserStaff<T = any>() {
 
 /**
  * Hook for available staff with optimized caching
+ * Includes both 'Active' and 'New' status staff (newly registered)
  */
 export function useOptimizedAvailableStaff<T = any>() {
-  return useOptimizedStaffQuery<T>({
+  const { tenantId } = useAuth();
+  
+  const result = useOptimizedStaffQuery<T>({
     select: '*',
     filters: {
-      prov_status: 'Active'
+      tenant_id: tenantId,
     },
     preload: true,
     backgroundRefresh: true
   });
+  
+  // Filter client-side to include both Active and New staff
+  const filteredData = (result.data as any[])?.filter(
+    (s: any) => s.prov_status === 'Active' || s.prov_status === 'New'
+  ) as T | undefined;
+  
+  return {
+    ...result,
+    data: filteredData
+  };
 }
 
 /**
