@@ -204,14 +204,8 @@ export const StaffRegistrationForm = () => {
         description: result.error,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Registration Complete",
-        description: "Your staff profile has been created successfully.",
-      });
-      // Force full page reload to ensure auth context gets fresh prov_status from DB
-      window.location.href = '/staff/dashboard';
     }
+    // Success case: hook handles cache clearing and redirect to /staff/dashboard
   });
 
   const addLicenseEntry = () => {
