@@ -22,6 +22,7 @@ export interface StaffMember {
   prov_image_url?: string | null;
   prov_min_client_age?: number | null;
   prov_accepting_new_clients?: 'Yes' | 'No' | null;
+  prov_field?: string | null;
   created_at: string;
   updated_at: string;
 }

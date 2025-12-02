@@ -7,18 +7,9 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stethoscope } from 'lucide-react';
 import { useStaffProfile } from '@/hooks/useStaffProfile';
-import { useLicenseTypes } from '@/hooks/useLicenseTypes';
-
-interface LicenseType {
-  id: string;
-  license_code: string;
-  license_label: string;
-  specialty: string | null;
-}
+import { LicenseManagement } from '@/components/Staff/LicenseManagement';
 
 interface ProfessionalData {
-  prov_license_type?: string;
-  prov_license_number?: string;
   prov_npi?: string;
   prov_taxonomy?: string;
   prov_status?: string;
@@ -32,11 +23,8 @@ interface ProfessionalSettingsProps {
 
 export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSettingsProps) {
   const { staff, loading: staffLoading } = useStaffProfile({ profileId: userId });
-  const { licenseTypes, loading: licenseTypesLoading } = useLicenseTypes();
   
   const [formData, setFormData] = useState<ProfessionalData>({
-    prov_license_type: '',
-    prov_license_number: '',
     prov_npi: '',
     prov_taxonomy: '',
     prov_status: '',
@@ -47,8 +35,6 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
   useEffect(() => {
     if (staff) {
       setFormData({
-        prov_license_type: staff.prov_license_type || '',
-        prov_license_number: staff.prov_license_number || '',
         prov_npi: staff.prov_npi || '',
         prov_taxonomy: staff.prov_taxonomy || '',
         prov_status: staff.prov_status || '',
@@ -71,7 +57,7 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
   };
 
   // Show loading state while data is being fetched
-  if ((staffLoading || licenseTypesLoading) && !staff) {
+  if (staffLoading && !staff) {
     return (
       <Card>
         <CardHeader>
@@ -108,35 +94,13 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
           Manage provider credentials and professional details
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* License Type */}
+      <CardContent className="space-y-6">
+        {/* License Management - uses staff_licenses table */}
         <div className="space-y-2">
-          <Label htmlFor="license-type">License Type</Label>
-          <Select
-            value={formData.prov_license_type}
-            onValueChange={(value) => handleChange('prov_license_type', value)}
-          >
-            <SelectTrigger id="license-type">
-              <SelectValue placeholder="Select license type" />
-            </SelectTrigger>
-            <SelectContent>
-              {(licenseTypes ?? []).map((type) => (
-                <SelectItem key={type.id} value={type.license_code}>
-                  {type.license_label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* License Number */}
-        <div className="space-y-2">
-          <Label htmlFor="license-number">License Number</Label>
-          <Input
-            id="license-number"
-            value={formData.prov_license_number}
-            onChange={(e) => handleChange('prov_license_number', e.target.value)}
-            placeholder="Enter license number"
+          <Label>State Licenses</Label>
+          <LicenseManagement 
+            staffId={staff.id} 
+            specialty={staff.prov_field}
           />
         </div>
 

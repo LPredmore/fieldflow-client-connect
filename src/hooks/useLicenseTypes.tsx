@@ -1,20 +1,26 @@
+import { useMemo } from 'react';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useAuth } from '@/hooks/useAuth';
 
 // Match actual database schema for cliniclevel_license_types
-type LicenseType = {
+export type LicenseType = {
   id: string; // uuid in database
   license_code: string;
   license_label: string;
   specialty: string | null;
 };
 
-export function useLicenseTypes() {
+interface UseLicenseTypesOptions {
+  specialty?: string | null;
+}
+
+export function useLicenseTypes(options: UseLicenseTypesOptions = {}) {
   const { user } = useAuth();
+  const { specialty } = options;
 
   // Query for license types - this is reference data (not tenant-scoped)
   const {
-    data: licenseTypes,
+    data: allLicenseTypes,
     loading,
     error,
     refetch,
@@ -24,13 +30,23 @@ export function useLicenseTypes() {
     enabled: !!user,
   });
 
+  // Filter by specialty if provided
+  const licenseTypes = useMemo(() => {
+    if (!allLicenseTypes) return [];
+    if (!specialty) return allLicenseTypes;
+    return allLicenseTypes.filter(lt => lt.specialty === specialty);
+  }, [allLicenseTypes, specialty]);
+
   // Get unique specialties for dropdown
-  const uniqueSpecialties = Array.from(
-    new Set((licenseTypes ?? []).map((lt) => lt.specialty).filter(Boolean))
-  ) as string[];
+  const uniqueSpecialties = useMemo(() => {
+    return Array.from(
+      new Set((allLicenseTypes ?? []).map((lt) => lt.specialty).filter(Boolean))
+    ) as string[];
+  }, [allLicenseTypes]);
 
   return {
     licenseTypes,
+    allLicenseTypes: allLicenseTypes ?? [],
     uniqueSpecialties,
     loading,
     error,

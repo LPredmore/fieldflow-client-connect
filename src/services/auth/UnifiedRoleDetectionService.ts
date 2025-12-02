@@ -48,6 +48,7 @@ export interface StaffData {
   prov_title: string | null;
   prov_license_type: string | null;
   prov_license_number: string | null;
+  prov_field: string | null;
 }
 
 export interface UserPermissions {

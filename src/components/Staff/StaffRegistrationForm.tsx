@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,11 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { useSelfRegistration, type PersonalInfo, type ProfessionalDetails } from "@/hooks/useSelfRegistration";
+import { useSelfRegistration, type PersonalInfo, type ProfessionalDetails, type LicenseEntry } from "@/hooks/useSelfRegistration";
 import { useAuth } from "@/hooks/useAuth";
-import { STAFF_CLINICAL_SPECIALTIES } from "@/constants/staffFields";
-import { Loader2 } from "lucide-react";
-
+import { useLicenseTypes } from "@/hooks/useLicenseTypes";
+import { US_STATES } from "@/constants/usStates";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 
 // Step 1: Personal Information
 const personalInfoSchema = z.object({
@@ -25,17 +25,23 @@ const personalInfoSchema = z.object({
   email: z.string().email("Valid email required"),
 });
 
-// Step 2: Professional Details (with optional single license)
+// License entry schema
+const licenseEntrySchema = z.object({
+  state: z.string().min(1, "State is required"),
+  licenseNumber: z.string().min(1, "License number is required"),
+  issuedOn: z.string().optional(),
+  expiresOn: z.string().optional(),
+});
+
+// Step 2: Professional Details with multi-license support
 const professionalDetailsSchema = z.object({
   isStaff: z.boolean(),
-  clinicalSpecialty: z.string().optional(),
   npiNumber: z.string().optional(),
   taxonomyCode: z.string().optional(),
   bio: z.string().optional(),
   minClientAge: z.number().min(0).max(100).optional(),
-  acceptingNewClients: z.enum(['Yes', 'No']).optional(),
-  licenseType: z.string().optional(),
-  licenseNumber: z.string().optional(),
+  licenseType: z.string().min(1, "License type is required"),
+  licenses: z.array(licenseEntrySchema).min(1, "At least one state license is required"),
 });
 
 type PersonalInfoForm = z.infer<typeof personalInfoSchema>;
@@ -49,6 +55,10 @@ export const StaffRegistrationForm = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { registerSelf, loading } = useSelfRegistration();
+
+  // Get user's specialty (prov_field) to filter license types
+  const userSpecialty = user?.staffAttributes?.staffData?.prov_field || null;
+  const { licenseTypes, loading: licenseTypesLoading } = useLicenseTypes({ specialty: userSpecialty });
 
   const personalForm = useForm<PersonalInfoForm>({
     resolver: zodResolver(personalInfoSchema),
@@ -64,10 +74,28 @@ export const StaffRegistrationForm = () => {
     resolver: zodResolver(professionalDetailsSchema),
     defaultValues: {
       isStaff: true,
-      acceptingNewClients: 'Yes',
       minClientAge: 18,
+      licenseType: "",
+      licenses: [{ state: "", licenseNumber: "", issuedOn: "", expiresOn: "" }],
     },
   });
+
+  const { fields, append, remove } = useFieldArray({
+    control: professionalForm.control,
+    name: "licenses",
+  });
+
+  // Update form defaults when user data loads
+  useEffect(() => {
+    if (user) {
+      personalForm.reset({
+        firstName: user?.user_metadata?.first_name || user?.staffAttributes?.staffData?.prov_name_f || "",
+        lastName: user?.user_metadata?.last_name || user?.staffAttributes?.staffData?.prov_name_l || "",
+        phone: "",
+        email: user?.email || "",
+      });
+    }
+  }, [user, personalForm]);
 
   const handlePersonalInfoSubmit = personalForm.handleSubmit((data) => {
     setPersonalInfo(data);
@@ -87,6 +115,27 @@ export const StaffRegistrationForm = () => {
       return;
     }
 
+    // Validate that license type is selected
+    if (!data.licenseType) {
+      toast({
+        title: "Missing License Type",
+        description: "Please select your primary license type.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate that at least one license has state and number
+    const validLicenses = data.licenses.filter(l => l.state && l.licenseNumber);
+    if (validLicenses.length === 0) {
+      toast({
+        title: "Missing License Information",
+        description: "Please add at least one state license with a license number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Create validated registration data
     const validatedPersonalInfo: PersonalInfo = {
       firstName: personalInfo.firstName!,
@@ -95,16 +144,22 @@ export const StaffRegistrationForm = () => {
       email: personalInfo.email!,
     };
 
+    // Transform licenses to the format expected by useSelfRegistration
+    const licenseEntries: LicenseEntry[] = validLicenses.map(l => ({
+      state: l.state,
+      licenseNumber: l.licenseNumber,
+      issuedOn: l.issuedOn || null,
+      expiresOn: l.expiresOn || null,
+    }));
+
     const validatedProfessionalDetails: ProfessionalDetails = {
       isStaff: data.isStaff,
-      clinicalSpecialty: data.clinicalSpecialty,
       npiNumber: data.npiNumber,
       taxonomyCode: data.taxonomyCode,
       bio: data.bio,
       minClientAge: data.minClientAge,
-      acceptingNewClients: data.acceptingNewClients,
       licenseType: data.licenseType,
-      licenseNumber: data.licenseNumber,
+      licenses: licenseEntries,
     };
 
     const result = await registerSelf({
@@ -127,6 +182,16 @@ export const StaffRegistrationForm = () => {
       navigate('/staff/dashboard');
     }
   });
+
+  const addLicenseEntry = () => {
+    append({ state: "", licenseNumber: "", issuedOn: "", expiresOn: "" });
+  };
+
+  const removeLicenseEntry = (index: number) => {
+    if (fields.length > 1) {
+      remove(index);
+    }
+  };
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -190,20 +255,128 @@ export const StaffRegistrationForm = () => {
 
             {professionalForm.watch("isStaff") && (
               <>
+                {/* Primary License Type - Required, filtered by specialty */}
                 <div className="space-y-2">
-                  <Label htmlFor="clinicalSpecialty">Clinical Specialty *</Label>
-                  <Select
-                    onValueChange={(value) => professionalForm.setValue("clinicalSpecialty", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your specialty" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STAFF_CLINICAL_SPECIALTIES.map((field) => (
-                        <SelectItem key={field} value={field}>{field}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="licenseType">Primary License Type *</Label>
+                  {licenseTypesLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading license types...
+                    </div>
+                  ) : (
+                    <Select
+                      value={professionalForm.watch("licenseType")}
+                      onValueChange={(value) => professionalForm.setValue("licenseType", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your license type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {licenseTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.license_code}>
+                            {type.license_label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {professionalForm.formState.errors.licenseType && (
+                    <p className="text-sm text-destructive">{professionalForm.formState.errors.licenseType.message}</p>
+                  )}
+                  {userSpecialty && (
+                    <p className="text-xs text-muted-foreground">
+                      Showing license types for: {userSpecialty}
+                    </p>
+                  )}
+                </div>
+
+                {/* State Licenses - Multi-entry */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label>State Licenses *</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addLicenseEntry}
+                      className="flex items-center gap-1"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Another State
+                    </Button>
+                  </div>
+
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">License {index + 1}</span>
+                        {fields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeLicenseEntry(index)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* State and License Number - Same Row */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor={`licenses.${index}.state`}>State *</Label>
+                          <Select
+                            value={professionalForm.watch(`licenses.${index}.state`)}
+                            onValueChange={(value) => professionalForm.setValue(`licenses.${index}.state`, value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select state" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                              {US_STATES.map((state) => (
+                                <SelectItem key={state.value} value={state.value}>
+                                  {state.value} - {state.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`licenses.${index}.licenseNumber`}>License Number *</Label>
+                          <Input
+                            {...professionalForm.register(`licenses.${index}.licenseNumber`)}
+                            placeholder="Enter license number"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Issue and Expiration Dates - Same Row */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor={`licenses.${index}.issuedOn`}>Issued On</Label>
+                          <Input
+                            type="date"
+                            {...professionalForm.register(`licenses.${index}.issuedOn`)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`licenses.${index}.expiresOn`}>Expires On</Label>
+                          <Input
+                            type="date"
+                            {...professionalForm.register(`licenses.${index}.expiresOn`)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {professionalForm.formState.errors.licenses && (
+                    <p className="text-sm text-destructive">
+                      {professionalForm.formState.errors.licenses.message || "Please add valid license information"}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -228,32 +401,6 @@ export const StaffRegistrationForm = () => {
                     type="number"
                     {...professionalForm.register("minClientAge", { valueAsNumber: true })}
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="acceptingNewClients">Accepting New Clients</Label>
-                  <Select
-                    onValueChange={(value: 'Yes' | 'No') => professionalForm.setValue("acceptingNewClients", value)}
-                    defaultValue="Yes"
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Yes">Yes</SelectItem>
-                      <SelectItem value="No">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="licenseType">Primary License Type (Optional)</Label>
-                  <Input id="licenseType" {...professionalForm.register("licenseType")} placeholder="e.g., LCSW, LPC" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="licenseNumber">Primary License Number (Optional)</Label>
-                  <Input id="licenseNumber" {...professionalForm.register("licenseNumber")} />
                 </div>
               </>
             )}
