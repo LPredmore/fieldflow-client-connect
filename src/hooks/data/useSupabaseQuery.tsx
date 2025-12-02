@@ -70,6 +70,10 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
   const filtersKey = JSON.stringify(filters);
   const stableFilters = useMemo(() => filters, [filtersKey]);
 
+  // Stabilize orderBy to prevent infinite loops from object reference changes
+  const orderByKey = JSON.stringify(orderBy);
+  const stableOrderBy = useMemo(() => orderBy, [orderByKey]);
+
   // Keep callback refs current without triggering re-renders
   useEffect(() => {
     onSuccessRef.current = onSuccess;
@@ -146,8 +150,8 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
       }
 
       // Apply ordering
-      if (orderBy) {
-        query = query.order(orderBy.column, { ascending: orderBy.ascending ?? true });
+      if (stableOrderBy) {
+        query = query.order(stableOrderBy.column, { ascending: stableOrderBy.ascending ?? true });
       }
 
       // Execute query
@@ -202,7 +206,7 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
       }
       abortControllerRef.current = null;
     }
-  }, [table, select, stableFilters, orderBy, enabled, userId, tenantId]);
+  }, [table, select, stableFilters, stableOrderBy, enabled, userId, tenantId]);
 
   const refetch = useCallback(async () => {
     await fetchData(true);
