@@ -24,15 +24,19 @@ export function ContractorSelector({ value, onValueChange, disabled }: Contracto
   const [open, setOpen] = useState(false);
   const { tenantId } = useAuth();
   
-  const { data: staff, loading } = useSupabaseQuery<Staff>({
+  const { data: allStaff, loading } = useSupabaseQuery<Staff>({
     table: 'staff',
     select: 'id, prov_name_f, prov_name_l, prov_status',
     filters: {
       tenant_id: tenantId,
-      prov_status: 'Active',
     },
     enabled: !!tenantId,
   });
+
+  // Filter client-side to include both Active and New staff (newly registered)
+  const staff = allStaff?.filter(s => 
+    s.prov_status === 'Active' || s.prov_status === 'New'
+  ) || [];
 
   const selectedStaff = staff?.find(s => s.id === value);
   const staffName = selectedStaff 

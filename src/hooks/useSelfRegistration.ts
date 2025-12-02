@@ -92,7 +92,7 @@ export function useSelfRegistration() {
         prov_taxonomy: data.professionalDetails.taxonomyCode || null,
         prov_min_client_age: data.professionalDetails.minClientAge || null,
         prov_bio: data.professionalDetails.bio || null,
-        prov_status: 'Active',  // Mark registration as complete
+        prov_status: 'New',  // Mark as new staff member (completed registration)
         // Store license_type on staff for quick reference (used in claims)
         prov_license_type: data.professionalDetails.licenseType || null,
       };
@@ -163,9 +163,7 @@ export function useSelfRegistration() {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       queryClient.invalidateQueries({ queryKey: ['staff_licenses'] });
 
-      // 7. Refresh auth context so routing logic gets updated prov_status
-      await refreshUserData();
-
+      // 7. Return success - form component will handle navigation via full page reload
       setLoading(false);
       return { success: true };
     } catch (err: unknown) {
