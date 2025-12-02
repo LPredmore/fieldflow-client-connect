@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { CustomerSelector } from '@/components/Customers/CustomerSelector';
+import { ClientSelector } from '@/components/Clients/ClientSelector';
 import { FormTemplate } from '../types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -89,8 +89,8 @@ export function AssignFormDialog({ open, onOpenChange, template, tenantId }: Ass
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="customer">Customer *</Label>
-            <CustomerSelector
+            <Label htmlFor="client">Patient *</Label>
+            <ClientSelector
               value={customerId}
               onValueChange={(id) => setCustomerId(id)}
             />

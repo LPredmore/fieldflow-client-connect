@@ -17,8 +17,8 @@ import { TimePicker } from '@/components/ui/time-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ContractorSelector } from '@/components/Customers/ContractorSelector';
-import { CustomerSelector } from '@/components/Customers/CustomerSelector';
+import { ContractorSelector } from '@/components/Clients/ContractorSelector';
+import { ClientSelector } from '@/components/Clients/ClientSelector';
 import { ServiceSelector } from '@/components/Appointments/ServiceSelector';
 import { RRuleBuilder } from './RRuleBuilder';
 import { useToast } from '@/hooks/use-toast';
@@ -263,9 +263,9 @@ export default function JobForm({ job, onSubmit, onCancel, loading }: JobFormPro
                 name="customer_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer</FormLabel>
+                    <FormLabel>Patient</FormLabel>
                     <FormControl>
-                      <CustomerSelector
+                      <ClientSelector
                         value={field.value}
                         onValueChange={(customerId, customerName) => {
                           field.onChange(customerId);

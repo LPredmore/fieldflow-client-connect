@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useAppointmentCreation } from '@/hooks/useAppointmentCreation';
 import { useAppointmentSeries } from '@/hooks/useAppointmentSeries';
 import { useCalendarAppointments } from '@/hooks/useCalendarAppointments';
-import { useCustomers } from '@/hooks/useCustomers';
+import { useClients } from '@/hooks/useClients';
 import { useUserTimezone } from '@/hooks/useUserTimezone';
-import { getCustomerDisplayName } from '@/utils/customerDisplayName';
+import { getClientDisplayName } from '@/utils/clientDisplayName';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ export function CreateAppointmentDialog({
   const { createOneTimeAppointment } = useAppointmentCreation();
   const { createJobSeries } = useAppointmentSeries();
   const { refetch: refetchCalendar } = useCalendarAppointments();
-  const { customers } = useCustomers();
+  const { clients } = useClients();
   const { toast } = useToast();
   const timezone = useUserTimezone();
 
@@ -185,9 +185,9 @@ export function CreateAppointmentDialog({
                       <SelectValue placeholder="Select customer" />
                     </SelectTrigger>
                     <SelectContent>
-                      {customers.map(customer => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {getCustomerDisplayName(customer)}
+                      {(clients || []).map(client => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {getClientDisplayName(client)}
                         </SelectItem>
                       ))}
                     </SelectContent>

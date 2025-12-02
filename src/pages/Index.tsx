@@ -15,9 +15,9 @@ import MetricCard from "@/components/Dashboard/MetricCard";
 import RecentJobs from "@/components/Dashboard/RecentJobs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useCustomers } from "@/hooks/useCustomers";
+import { useClients } from "@/hooks/useClients";
 import { useUnifiedAppointments } from "@/hooks/useUnifiedAppointments";
-import { CustomerForm } from "@/components/Customers/CustomerForm";
+import { ClientForm } from "@/components/Clients/ClientForm";
 import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -25,7 +25,7 @@ const Index = () => {
   const location = useLocation();
   const isDashboardRoute = location.pathname === '/staff/dashboard';
   
-  const { stats: customerStats, createCustomer } = useCustomers();
+  const { stats: clientStats, createClient } = useClients();
   const { 
     unifiedJobs: appointments,
     error: appointmentsError,
@@ -77,9 +77,9 @@ const Index = () => {
       urgentJobs,
       todaysJobs,
       completionRate,
-      totalCustomers: customerStats.total,
+      totalCustomers: clientStats.total,
     };
-  }, [appointments, customerStats]);
+  }, [appointments, clientStats]);
 
   // Get today's scheduled jobs
   const todaysSchedule = useMemo(() => {
@@ -147,8 +147,8 @@ const Index = () => {
             <MetricCard
               title="Total Patients"
               value={dashboardMetrics.totalCustomers}
-              subtitle={customerStats.active > 0 || customerStats.new > 0 
-                ? `${customerStats.active} active, ${customerStats.new} new`
+              subtitle={clientStats.active > 0 || clientStats.new > 0 
+                ? `${clientStats.active} active, ${clientStats.new} new`
                 : "No patients yet"
               }
               icon={Users}
@@ -251,11 +251,11 @@ const Index = () => {
       </ErrorBoundary>
 
       {/* Modals */}
-      <CustomerForm
+      <ClientForm
         open={isCustomerModalOpen}
         onOpenChange={setIsCustomerModalOpen}
         onSubmit={async (data) => {
-          await createCustomer(data);
+          await createClient(data);
         }}
         title="Add New Patient"
       />
