@@ -7,7 +7,7 @@
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 8.1, 8.2, 8.3
  */
 
-import { useState, useCallback, useEffect, ReactNode } from 'react';
+import { useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthenticationContext, User, StaffAttributes } from '@/contexts/AuthenticationContext';
@@ -27,6 +27,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Load user data after authentication
@@ -322,7 +323,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
         // This catches any hang that escapes the lock function timeout
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
+          safetyTimeoutRef.current = setTimeout(() => {
             console.error('[AuthenticationProvider] SAFETY TIMEOUT: Session initialization exceeded 8s');
             reject(new Error('Session initialization timeout after 8 seconds'));
           }, 8000);  // 8s - lock timeout (5s) + 3s buffer, no longer need 15s with fast-fail
@@ -332,6 +333,12 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
           sessionPromise,
           timeoutPromise as any
         ]);
+        
+        // Clear the timeout since we completed successfully
+        if (safetyTimeoutRef.current) {
+          clearTimeout(safetyTimeoutRef.current);
+          safetyTimeoutRef.current = null;
+        }
         
         console.log('[AuthenticationProvider] Session initialization completed', { 
           duration: Date.now() - startTime,
@@ -389,6 +396,11 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
 
     return () => {
       mounted = false;
+      // Clear safety timeout on unmount
+      if (safetyTimeoutRef.current) {
+        clearTimeout(safetyTimeoutRef.current);
+        safetyTimeoutRef.current = null;
+      }
     };
   }, [loadUserData]);
 
@@ -445,6 +457,11 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
                 console.debug('[AuthenticationProvider] Refreshing user data after update');
                 await loadUserData(session.user.id, session.user.email || '');
               }
+              break;
+
+            case 'INITIAL_SESSION':
+              // Handled by initializeSession, no action needed here
+              console.debug('[AuthenticationProvider] Initial session event (handled by initialization)');
               break;
 
             default:
