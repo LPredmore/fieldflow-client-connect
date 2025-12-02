@@ -70,7 +70,6 @@ export function useAddStaff() {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
 
-      setLoading(false);
       return {
         success: true,
         userId: response.userId,
@@ -85,8 +84,9 @@ export function useAddStaff() {
         description: errorMessage,
         variant: 'destructive',
       });
-      setLoading(false);
       return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   };
 
