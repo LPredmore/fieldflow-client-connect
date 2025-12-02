@@ -7,13 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Lock, MapPin, X, Upload, Camera } from 'lucide-react';
+import { Loader2, User, Lock, MapPin, X, Upload, Camera, Shield } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useStaffData } from '@/hooks/useStaffData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { US_STATES } from '@/constants/usStates';
+import { LicenseManagement } from '@/components/Staff/LicenseManagement';
 
 export default function Profile() {
   const { profile, loading, updatePersonalInfo, updatePassword } = useProfile();
@@ -45,8 +45,6 @@ export default function Profile() {
     staff_treatment_approaches: [] as string[],
     staff_min_client_age: 18,
     staff_accepting_new_clients: 'Yes' as 'Yes' | 'No',
-    staff_license_type: '',
-    staff_licensed_states: [] as string[],
     prov_npi: '',
     staff_taxonomy_code: '',
   });
@@ -75,8 +73,6 @@ export default function Profile() {
         staff_treatment_approaches: staff.prov_treatment_approaches || [],
         staff_min_client_age: staff.prov_min_client_age || 18,
         staff_accepting_new_clients: staff.prov_accepting_new_clients || 'Yes',
-        staff_license_type: staff.prov_license_type || '',
-        staff_licensed_states: [],
         prov_npi: staff.prov_npi || '',
         staff_taxonomy_code: staff.prov_taxonomy || '',
       });
@@ -218,7 +214,6 @@ export default function Profile() {
       prov_treatment_approaches: staffForm.staff_treatment_approaches,
       prov_min_client_age: staffForm.staff_min_client_age,
       prov_accepting_new_clients: staffForm.staff_accepting_new_clients,
-      prov_license_type: staffForm.staff_license_type,
       prov_npi: staffForm.prov_npi,
       prov_taxonomy: staffForm.staff_taxonomy_code,
     });
@@ -248,22 +243,6 @@ export default function Profile() {
     setStaffForm(prev => ({
       ...prev,
       staff_treatment_approaches: prev.staff_treatment_approaches.filter(a => a !== approach)
-    }));
-  };
-
-  const addLicensedState = (stateCode: string) => {
-    if (!staffForm.staff_licensed_states.includes(stateCode)) {
-      setStaffForm(prev => ({
-        ...prev,
-        staff_licensed_states: [...prev.staff_licensed_states, stateCode].sort()
-      }));
-    }
-  };
-
-  const removeLicensedState = (stateCode: string) => {
-    setStaffForm(prev => ({
-      ...prev,
-      staff_licensed_states: prev.staff_licensed_states.filter(s => s !== stateCode)
     }));
   };
 
@@ -615,56 +594,14 @@ export default function Profile() {
                   {/* Licensing & Credentials */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Licensing & Credentials</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="staff_license_type">License Type</Label>
-                      <Input
-                        id="staff_license_type"
-                        value={staffForm.staff_license_type}
-                        onChange={(e) => setStaffForm(prev => ({ ...prev, staff_license_type: e.target.value }))}
-                        placeholder="e.g., LCSW, LMFT, PhD"
+                    
+                    {/* License Management - uses staff_licenses table */}
+                    {staff && (
+                      <LicenseManagement 
+                        staffId={staff.id} 
+                        specialty={staff.prov_field}
                       />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="licensed-states">States Licensed In</Label>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {staffForm.staff_licensed_states.length > 0 ? (
-                          staffForm.staff_licensed_states.map(stateCode => {
-                            const stateName = US_STATES.find(s => s.value === stateCode)?.label || stateCode;
-                            return (
-                              <Badge key={stateCode} variant="secondary" className="flex items-center gap-1">
-                                {stateName}
-                                <X
-                                  className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                  onClick={() => removeLicensedState(stateCode)}
-                                />
-                              </Badge>
-                            );
-                          })
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No states selected</p>
-                        )}
-                      </div>
-                      <Select
-                        value=""
-                        onValueChange={addLicensedState}
-                      >
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Add a state..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px] bg-background z-50">
-                          {US_STATES.map(state => (
-                            <SelectItem
-                              key={state.value}
-                              value={state.value}
-                              disabled={staffForm.staff_licensed_states.includes(state.value)}
-                            >
-                              {state.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    )}
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
