@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useSelfRegistration, type PersonalInfo, type ProfessionalDetails, type LicenseEntry } from "@/hooks/useSelfRegistration";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,19 +31,45 @@ const licenseEntrySchema = z.object({
   expiresOn: z.string().optional(),
 });
 
-// Step 2: Professional Details with multi-license support
-const professionalDetailsSchema = z.object({
-  isStaff: z.boolean(),
-  npiNumber: z.string().optional(),
-  taxonomyCode: z.string().optional(),
-  bio: z.string().optional(),
-  minClientAge: z.number().min(0).max(100).optional(),
-  licenseType: z.string().min(1, "License type is required"),
-  licenses: z.array(licenseEntrySchema).min(1, "At least one state license is required"),
-});
+// Step 2: Professional Details - dynamic schema based on clinical status
+const createProfessionalDetailsSchema = (isClinician: boolean) => {
+  if (isClinician) {
+    // Clinicians MUST provide license information
+    return z.object({
+      npiNumber: z.string().optional(),
+      taxonomyCode: z.string().optional(),
+      bio: z.string().optional(),
+      minClientAge: z.number().min(0).max(100).optional(),
+      licenseType: z.string().min(1, "License type is required"),
+      licenses: z.array(licenseEntrySchema).min(1, "At least one state license is required"),
+    });
+  } else {
+    // Non-clinical staff - license fields are optional
+    return z.object({
+      npiNumber: z.string().optional(),
+      taxonomyCode: z.string().optional(),
+      bio: z.string().optional(),
+      minClientAge: z.number().min(0).max(100).optional(),
+      licenseType: z.string().optional(),
+      licenses: z.array(licenseEntrySchema).optional(),
+    });
+  }
+};
 
 type PersonalInfoForm = z.infer<typeof personalInfoSchema>;
-type ProfessionalDetailsForm = z.infer<typeof professionalDetailsSchema>;
+type ProfessionalDetailsForm = {
+  npiNumber?: string;
+  taxonomyCode?: string;
+  bio?: string;
+  minClientAge?: number;
+  licenseType?: string;
+  licenses?: Array<{
+    state: string;
+    licenseNumber: string;
+    issuedOn?: string;
+    expiresOn?: string;
+  }>;
+};
 
 export const StaffRegistrationForm = () => {
   const [step, setStep] = useState(1);
@@ -53,6 +78,9 @@ export const StaffRegistrationForm = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { registerSelf, loading } = useSelfRegistration();
+
+  // Determine if user is a clinician from auth context (set by admin during invitation)
+  const isClinician = user?.staffAttributes?.is_clinician ?? false;
 
   // Get user's specialty (prov_field) to filter license types
   const userSpecialty = user?.staffAttributes?.staffData?.prov_field || null;
@@ -68,13 +96,15 @@ export const StaffRegistrationForm = () => {
     },
   });
 
+  // Create schema based on clinical status
+  const professionalDetailsSchema = createProfessionalDetailsSchema(isClinician);
+
   const professionalForm = useForm<ProfessionalDetailsForm>({
     resolver: zodResolver(professionalDetailsSchema),
     defaultValues: {
-      isStaff: true,
       minClientAge: 18,
       licenseType: "",
-      licenses: [{ state: "", licenseNumber: "", issuedOn: "", expiresOn: "" }],
+      licenses: isClinician ? [{ state: "", licenseNumber: "", issuedOn: "", expiresOn: "" }] : [],
     },
   });
 
@@ -113,25 +143,26 @@ export const StaffRegistrationForm = () => {
       return;
     }
 
-    // Validate that license type is selected
-    if (!data.licenseType) {
-      toast({
-        title: "Missing License Type",
-        description: "Please select your primary license type.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // For clinicians, validate license requirements
+    if (isClinician) {
+      if (!data.licenseType) {
+        toast({
+          title: "Missing License Type",
+          description: "Please select your primary license type.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    // Validate that at least one license has state and number
-    const validLicenses = data.licenses.filter(l => l.state && l.licenseNumber);
-    if (validLicenses.length === 0) {
-      toast({
-        title: "Missing License Information",
-        description: "Please add at least one state license with a license number.",
-        variant: "destructive",
-      });
-      return;
+      const validLicenses = (data.licenses || []).filter(l => l.state && l.licenseNumber);
+      if (validLicenses.length === 0) {
+        toast({
+          title: "Missing License Information",
+          description: "Please add at least one state license with a license number.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Create validated registration data
@@ -143,15 +174,16 @@ export const StaffRegistrationForm = () => {
     };
 
     // Transform licenses to the format expected by useSelfRegistration
-    const licenseEntries: LicenseEntry[] = validLicenses.map(l => ({
-      state: l.state,
-      licenseNumber: l.licenseNumber,
-      issuedOn: l.issuedOn || null,
-      expiresOn: l.expiresOn || null,
-    }));
+    const licenseEntries: LicenseEntry[] = (data.licenses || [])
+      .filter(l => l.state && l.licenseNumber)
+      .map(l => ({
+        state: l.state,
+        licenseNumber: l.licenseNumber,
+        issuedOn: l.issuedOn || null,
+        expiresOn: l.expiresOn || null,
+      }));
 
     const validatedProfessionalDetails: ProfessionalDetails = {
-      isStaff: data.isStaff,
       npiNumber: data.npiNumber,
       taxonomyCode: data.taxonomyCode,
       bio: data.bio,
@@ -197,7 +229,7 @@ export const StaffRegistrationForm = () => {
       <CardHeader>
         <CardTitle>Staff Registration</CardTitle>
         <CardDescription>
-          Step {step} of 2
+          Step {step} of 2 {isClinician && "• Clinical Staff"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -243,18 +275,10 @@ export const StaffRegistrationForm = () => {
         {/* Step 2: Professional Details */}
         {step === 2 && (
           <form onSubmit={handleProfessionalDetailsSubmit} className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isStaff"
-                checked={professionalForm.watch("isStaff")}
-                onCheckedChange={(checked) => professionalForm.setValue("isStaff", checked)}
-              />
-              <Label htmlFor="isStaff">I am a licensed clinical staff member</Label>
-            </div>
-
-            {professionalForm.watch("isStaff") && (
+            {/* Clinical staff see license requirements */}
+            {isClinician && (
               <>
-                {/* Primary License Type - Required, filtered by specialty */}
+                {/* Primary License Type - Required for clinicians */}
                 <div className="space-y-2">
                   <Label htmlFor="licenseType">Primary License Type *</Label>
                   {licenseTypesLoading ? (
@@ -289,7 +313,7 @@ export const StaffRegistrationForm = () => {
                   )}
                 </div>
 
-                {/* State Licenses - Multi-entry */}
+                {/* State Licenses - Multi-entry for clinicians */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label>State Licenses *</Label>
@@ -387,21 +411,35 @@ export const StaffRegistrationForm = () => {
                   <Label htmlFor="taxonomyCode">Taxonomy Code</Label>
                   <Input id="taxonomyCode" {...professionalForm.register("taxonomyCode")} />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Professional Bio</Label>
-                  <Textarea id="bio" {...professionalForm.register("bio")} rows={4} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="minClientAge">Minimum Client Age</Label>
-                  <Input
-                    id="minClientAge"
-                    type="number"
-                    {...professionalForm.register("minClientAge", { valueAsNumber: true })}
-                  />
-                </div>
               </>
+            )}
+
+            {/* Bio available for all staff */}
+            <div className="space-y-2">
+              <Label htmlFor="bio">Professional Bio</Label>
+              <Textarea id="bio" {...professionalForm.register("bio")} rows={4} />
+            </div>
+
+            {/* Min client age only for clinicians */}
+            {isClinician && (
+              <div className="space-y-2">
+                <Label htmlFor="minClientAge">Minimum Client Age</Label>
+                <Input
+                  id="minClientAge"
+                  type="number"
+                  {...professionalForm.register("minClientAge", { valueAsNumber: true })}
+                />
+              </div>
+            )}
+
+            {/* Non-clinical staff info message */}
+            {!isClinician && (
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  As a non-clinical staff member, license information is not required.
+                  You can add a professional bio above.
+                </p>
+              </div>
             )}
 
             <div className="flex gap-2">
