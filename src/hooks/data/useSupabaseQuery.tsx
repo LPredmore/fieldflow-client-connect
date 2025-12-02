@@ -41,6 +41,11 @@ export interface QueryResult<T = any> {
 
 export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult<T> {
   const { user } = useAuth();
+  
+  // Extract stable primitives to prevent infinite loops from user object reference changes
+  const userId = user?.id;
+  const tenantId = user?.roleContext?.tenantId;
+  
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -67,7 +72,7 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
       console.log('⏸️ [useSupabaseQuery] Query skipped', {
         table,
         enabled,
-        hasUser: !!user,
+        hasUser: !!userId,
         reason: 'Query not enabled'
       });
       if (!isRefetch) {
@@ -78,7 +83,7 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
 
     // Check if we need user/tenant for this query
     const needsUser = stableFilters?.user_id !== undefined || stableFilters?.tenant_id !== undefined;
-    if (needsUser && !user) {
+    if (needsUser && !userId) {
       console.log('⏸️ [useSupabaseQuery] Query skipped - waiting for user', { table });
       if (!isRefetch) {
         setLoading(false);
@@ -89,9 +94,9 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
     console.log('🔍 [useSupabaseQuery] fetchData called', {
       table,
       enabled,
-      hasUser: !!user,
-      userId: user?.id,
-      tenantId: user?.roleContext?.tenantId,
+      hasUser: !!userId,
+      userId,
+      tenantId,
       isRefetch
     });
 
@@ -121,9 +126,9 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
             // Replace special user/tenant placeholders
             let filterValue = value;
             if (key === 'user_id' && value === 'current') {
-              filterValue = user?.id;
+              filterValue = userId;
             } else if (key === 'tenant_id' && value === 'current') {
-              filterValue = user?.roleContext?.tenantId;
+              filterValue = tenantId;
             }
             query = query.eq(key, filterValue);
           }
@@ -187,7 +192,7 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
       }
       abortControllerRef.current = null;
     }
-  }, [table, select, stableFilters, orderBy, enabled, user, onSuccess, onError]);
+  }, [table, select, stableFilters, orderBy, enabled, userId, tenantId, onSuccess, onError]);
 
   const refetch = useCallback(async () => {
     await fetchData(true);
