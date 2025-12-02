@@ -3840,19 +3840,19 @@ export type Database = {
           approaches: string | null
           created_at: string
           id: number
-          specialty: string | null
+          specialty: Database["public"]["Enums"]["specialty_enum"] | null
         }
         Insert: {
           approaches?: string | null
           created_at?: string
           id?: number
-          specialty?: string | null
+          specialty?: Database["public"]["Enums"]["specialty_enum"] | null
         }
         Update: {
           approaches?: string | null
           created_at?: string
           id?: number
-          specialty?: string | null
+          specialty?: Database["public"]["Enums"]["specialty_enum"] | null
         }
         Relationships: []
       }
