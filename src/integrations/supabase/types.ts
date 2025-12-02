@@ -3508,7 +3508,7 @@ export type Database = {
           prov_addr_2: string | null
           prov_bio: string | null
           prov_city: string | null
-          prov_field: string | null
+          prov_field: Database["public"]["Enums"]["specialty_enum"] | null
           prov_image_url: string | null
           prov_license_number: string | null
           prov_license_type: string | null
@@ -3521,7 +3521,9 @@ export type Database = {
           prov_phone: string | null
           prov_qualifier: string | null
           prov_state: Database["public"]["Enums"]["state_code_enum"] | null
-          prov_status: string | null
+          prov_status:
+            | Database["public"]["Enums"]["clinician_status_enum"]
+            | null
           prov_taxid: string | null
           prov_taxid_type: string | null
           prov_taxonomy: string | null
@@ -3539,7 +3541,7 @@ export type Database = {
           prov_addr_2?: string | null
           prov_bio?: string | null
           prov_city?: string | null
-          prov_field?: string | null
+          prov_field?: Database["public"]["Enums"]["specialty_enum"] | null
           prov_image_url?: string | null
           prov_license_number?: string | null
           prov_license_type?: string | null
@@ -3552,7 +3554,9 @@ export type Database = {
           prov_phone?: string | null
           prov_qualifier?: string | null
           prov_state?: Database["public"]["Enums"]["state_code_enum"] | null
-          prov_status?: string | null
+          prov_status?:
+            | Database["public"]["Enums"]["clinician_status_enum"]
+            | null
           prov_taxid?: string | null
           prov_taxid_type?: string | null
           prov_taxonomy?: string | null
@@ -3570,7 +3574,7 @@ export type Database = {
           prov_addr_2?: string | null
           prov_bio?: string | null
           prov_city?: string | null
-          prov_field?: string | null
+          prov_field?: Database["public"]["Enums"]["specialty_enum"] | null
           prov_image_url?: string | null
           prov_license_number?: string | null
           prov_license_type?: string | null
@@ -3583,7 +3587,9 @@ export type Database = {
           prov_phone?: string | null
           prov_qualifier?: string | null
           prov_state?: Database["public"]["Enums"]["state_code_enum"] | null
-          prov_status?: string | null
+          prov_status?:
+            | Database["public"]["Enums"]["clinician_status_enum"]
+            | null
           prov_taxid?: string | null
           prov_taxid_type?: string | null
           prov_taxonomy?: string | null
@@ -3912,7 +3918,7 @@ export type Database = {
       client_ideation_enum: "none" | "passive" | "active"
       client_status_enum: "New" | "Registered" | "Active" | "Inactive"
       client_substance_abuse_risk_enum: "none" | "low" | "medium" | "high"
-      clinician_status_enum: "New" | "Active" | "Inactive"
+      clinician_status_enum: "Invited" | "New" | "Active" | "Inactive"
       form_type_enum: "signup" | "intake" | "session_notes"
       gad7_severity_enum: "minimal" | "mild" | "moderate" | "severe"
       gender_identity_enum: "Female" | "Male" | "Non-Binary" | "Other"
@@ -4136,7 +4142,7 @@ export const Constants = {
       client_ideation_enum: ["none", "passive", "active"],
       client_status_enum: ["New", "Registered", "Active", "Inactive"],
       client_substance_abuse_risk_enum: ["none", "low", "medium", "high"],
-      clinician_status_enum: ["New", "Active", "Inactive"],
+      clinician_status_enum: ["Invited", "New", "Active", "Inactive"],
       form_type_enum: ["signup", "intake", "session_notes"],
       gad7_severity_enum: ["minimal", "mild", "moderate", "severe"],
       gender_identity_enum: ["Female", "Male", "Non-Binary", "Other"],
