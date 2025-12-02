@@ -62,9 +62,19 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
     onError
   } = options;
 
+  // Create refs for callbacks to prevent dependency array changes
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+
   // Stabilize filters to prevent infinite loops from object reference changes
   const filtersKey = JSON.stringify(filters);
   const stableFilters = useMemo(() => filters, [filtersKey]);
+
+  // Keep callback refs current without triggering re-renders
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+    onErrorRef.current = onError;
+  });
 
   const fetchData = useCallback(async (isRefetch: boolean = false) => {
     // Skip if disabled or no user/tenant when filters require them
@@ -162,8 +172,8 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
       setError(null);
 
       // Call success callback
-      if (onSuccess && result) {
-        onSuccess(result as T[]);
+      if (onSuccessRef.current && result) {
+        onSuccessRef.current(result as T[]);
       }
     } catch (err) {
       // Ignore abort errors
@@ -181,8 +191,8 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
       setData(null);
 
       // Call error callback
-      if (onError && err instanceof Error) {
-        onError(err);
+      if (onErrorRef.current && err instanceof Error) {
+        onErrorRef.current(err);
       }
     } finally {
       if (isRefetch) {
@@ -192,7 +202,7 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
       }
       abortControllerRef.current = null;
     }
-  }, [table, select, stableFilters, orderBy, enabled, userId, tenantId, onSuccess, onError]);
+  }, [table, select, stableFilters, orderBy, enabled, userId, tenantId]);
 
   const refetch = useCallback(async () => {
     await fetchData(true);
