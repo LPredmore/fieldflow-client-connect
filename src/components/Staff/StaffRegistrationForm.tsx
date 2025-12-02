@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { useStaffRegistration, type PersonalInfo, type ProfessionalDetails } from "@/hooks/useStaffRegistration";
+import { useSelfRegistration, type PersonalInfo, type ProfessionalDetails } from "@/hooks/useSelfRegistration";
 import { useAuth } from "@/hooks/useAuth";
 import { STAFF_CLINICAL_SPECIALTIES } from "@/constants/staffFields";
 import { Loader2 } from "lucide-react";
@@ -46,7 +46,7 @@ export const StaffRegistrationForm = () => {
   
   const { user } = useAuth();
   const { toast } = useToast();
-  const { registerStaff, loading } = useStaffRegistration();
+  const { registerSelf, loading } = useSelfRegistration();
 
   const personalForm = useForm<PersonalInfoForm>({
     resolver: zodResolver(personalInfoSchema),
@@ -105,7 +105,7 @@ export const StaffRegistrationForm = () => {
       licenseNumber: data.licenseNumber,
     };
 
-    const result = await registerStaff({
+    const result = await registerSelf({
       personalInfo: validatedPersonalInfo,
       professionalDetails: validatedProfessionalDetails,
       profileId: user.id,
