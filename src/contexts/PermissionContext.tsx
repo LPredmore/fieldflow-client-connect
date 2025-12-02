@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { usePermissionsData } from '@/hooks/permissions/usePermissionsData';
+import { useAuth } from '@/hooks/useAuth';
 import { UserPermissions } from '@/utils/permissionUtils';
 
 interface PermissionContextValue {
@@ -19,25 +19,23 @@ interface PermissionProviderProps {
 /**
  * Permission Provider
  * 
- * Provides derived permissions based on user_roles and staff_role_assignments.
- * Permissions are READ-ONLY as they are computed from roles.
+ * Reads permissions directly from AuthenticationContext to avoid duplicate queries.
+ * Permissions are READ-ONLY as they are computed from roles during authentication.
  * To change permissions, modify role assignments instead.
  */
 export function PermissionProvider({ children }: PermissionProviderProps) {
-  const {
-    data: permissions,
-    loading,
-    error,
-    hasCustomPermissions,
-    refetch,
-  } = usePermissionsData();
-
+  const { user, isLoading } = useAuth();
+  
+  // Get permissions from already-loaded user data
+  // No additional database queries needed!
+  const permissions = user?.permissions as UserPermissions | null;
+  
   const value: PermissionContextValue = {
     permissions,
-    loading,
-    error,
-    hasCustomPermissions,
-    refetch,
+    loading: isLoading,
+    error: null,
+    hasCustomPermissions: !!user?.roleContext?.isClinician || !!user?.roleContext?.isAdmin,
+    refetch: () => {}, // No-op since permissions come from auth context
   };
 
   return (
