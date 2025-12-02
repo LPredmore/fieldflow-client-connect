@@ -1,7 +1,15 @@
 /**
  * Self-Registration Hook
  * For existing authenticated users to complete their staff profile.
- * This is different from useAddStaff which creates new users via admin.
+ * 
+ * IMPORTANT: This hook ONLY updates user-editable data:
+ * - staff table (professional details)
+ * - staff_licenses table (license entries)
+ * 
+ * Admin-controlled tables are NOT touched here (already created by edge function):
+ * - tenant_memberships
+ * - user_roles
+ * - staff_role_assignments
  */
 
 import { useState } from 'react';
@@ -27,13 +35,13 @@ export interface LicenseEntry {
 }
 
 export interface ProfessionalDetails {
-  isStaff: boolean;
+  // Note: isStaff removed - clinical status is determined by admin via staff_role_assignments
   npiNumber?: string;
   taxonomyCode?: string;
   bio?: string;
   minClientAge?: number;
-  licenseType: string; // Required - primary license type (license_code from cliniclevel_license_types)
-  licenses: LicenseEntry[]; // Required - at least one state license
+  licenseType?: string; // Optional - only required for clinicians
+  licenses?: LicenseEntry[]; // Optional - only required for clinicians
 }
 
 export interface SelfRegistrationData {
@@ -45,7 +53,7 @@ export interface SelfRegistrationData {
 export function useSelfRegistration() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tenantId, refreshUserData } = useAuth();
+  const { tenantId } = useAuth();
   const queryClient = useQueryClient();
 
   const registerSelf = async (data: SelfRegistrationData) => {
@@ -57,113 +65,71 @@ export function useSelfRegistration() {
         throw new Error('No tenant ID found');
       }
 
-      // 1. Upsert tenant membership
-      const { error: membershipError } = await supabase
-        .from('tenant_memberships')
-        .upsert({
-          tenant_id: tenantId,
-          profile_id: data.profileId,
-          tenant_role: 'member',
-        }, {
-          onConflict: 'tenant_id,profile_id'
-        });
-
-      if (membershipError) throw membershipError;
-
-      // 2. Upsert user_roles entry for staff role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .upsert({
-          user_id: data.profileId,
-          role: 'staff',
-        }, {
-          onConflict: 'user_id,role'
-        });
-
-      if (roleError) throw roleError;
-
-      // 3. Create/update staff record (without legacy license fields)
-      const staffData = {
-        tenant_id: tenantId,
-        profile_id: data.profileId,
+      // 1. UPDATE staff record (not upsert - record already exists from admin invitation)
+      // Only update user-editable professional details
+      const staffUpdateData = {
         prov_name_f: data.personalInfo.firstName,
         prov_name_l: data.personalInfo.lastName,
         prov_npi: data.professionalDetails.npiNumber || null,
         prov_taxonomy: data.professionalDetails.taxonomyCode || null,
         prov_min_client_age: data.professionalDetails.minClientAge || null,
         prov_bio: data.professionalDetails.bio || null,
-        prov_status: 'New',  // Mark as new staff member (completed registration)
+        prov_status: 'New',  // Mark as completed registration (was 'Invited')
         // Store license_type on staff for quick reference (used in claims)
         prov_license_type: data.professionalDetails.licenseType || null,
       };
 
       const { data: staffRecord, error: staffError } = await supabase
         .from('staff')
-        .upsert(staffData, { onConflict: 'profile_id,tenant_id' })
-        .select()
+        .update(staffUpdateData)
+        .eq('profile_id', data.profileId)
+        .eq('tenant_id', tenantId)
+        .select('id')
         .single();
 
-      if (staffError) throw staffError;
-
-      // 4. Insert licenses into staff_licenses table
-      if (staffRecord && data.professionalDetails.licenses.length > 0) {
-        const licensesToInsert = data.professionalDetails.licenses.map(license => ({
-          tenant_id: tenantId,
-          staff_id: staffRecord.id,
-          license_type: data.professionalDetails.licenseType,
-          license_number: license.licenseNumber,
-          license_state: license.state as StateCodeEnum,
-          issue_date: license.issuedOn || null,
-          expiration_date: license.expiresOn || null,
-          is_active: true,
-        }));
-
-        const { error: licensesError } = await supabase
-          .from('staff_licenses')
-          .insert(licensesToInsert);
-
-        if (licensesError) {
-          console.error('Failed to insert licenses:', licensesError);
-          // Don't throw - staff record was created, licenses can be added later
-        }
+      if (staffError) {
+        console.error('Staff update error:', staffError);
+        throw new Error(`Failed to update staff profile: ${staffError.message}`);
       }
 
-      // 5. If clinical staff, create staff_role_assignments for CLINICIAN role
-      if (data.professionalDetails.isStaff && staffRecord) {
-        // Get CLINICIAN role ID
-        const { data: clinicianRole, error: roleQueryError } = await supabase
-          .from('staff_roles')
-          .select('id')
-          .eq('code', 'CLINICIAN')
-          .single();
+      if (!staffRecord) {
+        throw new Error('Staff record not found. Please contact your administrator.');
+      }
 
-        if (roleQueryError) {
-          console.error('Failed to find CLINICIAN role:', roleQueryError);
-        } else if (clinicianRole) {
-          // Assign CLINICIAN role
-          const { error: assignmentError } = await supabase
-            .from('staff_role_assignments')
-            .upsert({
-              staff_id: staffRecord.id,
-              staff_role_id: clinicianRole.id,
-              tenant_id: tenantId,
-            }, {
-              onConflict: 'tenant_id,staff_id,staff_role_id'
-            });
+      // 2. Insert licenses into staff_licenses table (if provided)
+      const licenses = data.professionalDetails.licenses || [];
+      if (staffRecord && licenses.length > 0) {
+        const licensesToInsert = licenses
+          .filter(license => license.state && license.licenseNumber) // Only valid entries
+          .map(license => ({
+            tenant_id: tenantId,
+            staff_id: staffRecord.id,
+            license_type: data.professionalDetails.licenseType || null,
+            license_number: license.licenseNumber,
+            license_state: license.state as StateCodeEnum,
+            issue_date: license.issuedOn || null,
+            expiration_date: license.expiresOn || null,
+            is_active: true,
+          }));
 
-          if (assignmentError) {
-            console.error('Failed to assign CLINICIAN role:', assignmentError);
+        if (licensesToInsert.length > 0) {
+          const { error: licensesError } = await supabase
+            .from('staff_licenses')
+            .insert(licensesToInsert);
+
+          if (licensesError) {
+            console.error('Failed to insert licenses:', licensesError);
+            // Don't throw - staff record was updated, licenses can be added later
           }
         }
       }
 
-      // 6. Invalidate queries to refresh data
+      // 3. Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
-      queryClient.invalidateQueries({ queryKey: ['user_roles'] });
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       queryClient.invalidateQueries({ queryKey: ['staff_licenses'] });
 
-      // 7. Return success - form component will handle navigation via full page reload
+      // 4. Return success - form component will handle navigation via full page reload
       setLoading(false);
       return { success: true };
     } catch (err: unknown) {
