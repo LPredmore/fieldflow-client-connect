@@ -16,6 +16,8 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
+import { sessionCacheService } from '@/services/auth/SessionCacheService';
+import { unifiedRoleDetectionService } from '@/services/auth/UnifiedRoleDetectionService';
 import type { Database } from '@/integrations/supabase/types';
 
 type StateCodeEnum = Database['public']['Enums']['state_code_enum'];
@@ -124,12 +126,21 @@ export function useSelfRegistration() {
         }
       }
 
-      // 3. Invalidate queries to refresh data
+      // 3. Clear auth caches to ensure fresh data on page reload
+      // This is critical - without this, the page reload will use cached 'Invited' status
+      sessionCacheService.clear();
+      unifiedRoleDetectionService.invalidateCache(data.profileId);
+
+      // 4. Invalidate React Query cache
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       queryClient.invalidateQueries({ queryKey: ['staff_licenses'] });
 
-      // 4. Return success - form component will handle navigation via full page reload
+      // 5. Full page reload to /staff/dashboard
+      // This forces AuthenticationProvider to fetch fresh user data with new prov_status
+      window.location.href = '/staff/dashboard';
+      
+      // Return success (though redirect will happen before this is used)
       setLoading(false);
       return { success: true };
     } catch (err: unknown) {
