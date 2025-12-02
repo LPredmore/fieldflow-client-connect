@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useSupabaseUpdate } from '@/hooks/data/useSupabaseMutation';
@@ -136,8 +136,8 @@ export function useProfile() {
       }
 
       return result;
-    } catch (error: any) {
-      return { error };
+    } catch (error: unknown) {
+      return { error: error as Error };
     }
   };
 
@@ -147,12 +147,17 @@ export function useProfile() {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
+      // Call edge function to update both auth.users AND profiles.password
+      const { data, error } = await supabase.functions.invoke('update-staff-password', {
+        body: { newPassword },
       });
 
       if (error) {
         return { error };
+      }
+
+      if (data?.error) {
+        return { error: { message: data.error } };
       }
 
       toast({
@@ -161,8 +166,8 @@ export function useProfile() {
       });
 
       return { error: null };
-    } catch (error: any) {
-      return { error };
+    } catch (error: unknown) {
+      return { error: error as Error };
     }
   };
 

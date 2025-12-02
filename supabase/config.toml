@@ -6,5 +6,8 @@ verify_jwt = true
 [functions.update-clinician]
 verify_jwt = true
 
+[functions.update-staff-password]
+verify_jwt = true
+
 [functions.extract-insurance-card]
 verify_jwt = false
