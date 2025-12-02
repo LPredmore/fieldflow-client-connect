@@ -92,15 +92,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const userId = authData.user.id;
     console.log("Created auth user:", userId);
 
-    // Step 4: Insert into profiles (with plain text password as requested)
+    // Step 4: UPSERT into profiles (handles trigger race condition)
+    // The handle_new_user trigger may have already created a profile with empty password
+    // UPSERT ensures we update it with the correct password regardless of timing
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .insert({
+      .upsert({
         id: userId,
         email: email,
         password: password,
         is_active: true,
         email_verified: true,
+      }, { 
+        onConflict: 'id',
+        ignoreDuplicates: false
       });
 
     if (profileError) {
