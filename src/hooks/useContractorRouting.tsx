@@ -38,14 +38,11 @@ export const useContractorRouting = () => {
       return lastStableState.current;
     }
 
-    // Check if staff profile is complete
-    const hasStaffData = user.staffAttributes?.staffData;
-    const hasName = hasStaffData && 
-                    user.staffAttributes.staffData.prov_name_f && 
-                    user.staffAttributes.staffData.prov_name_l;
-    
-    // If no staff data with name, needs onboarding
-    if (!hasName) {
+    // Check if staff member is invited (needs to complete registration)
+    const provStatus = user.staffAttributes?.staffData?.prov_status;
+
+    // Invited status means user needs to complete onboarding
+    if (provStatus === 'Invited') {
       lastStableState.current = 'needs_onboarding';
       return 'needs_onboarding';
     }
