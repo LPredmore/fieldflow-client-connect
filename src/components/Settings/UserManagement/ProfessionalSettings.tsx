@@ -13,7 +13,8 @@ interface ProfessionalData {
   prov_npi?: string;
   prov_taxonomy?: string;
   prov_status?: string;
-  prov_accepting_new_clients?: 'Yes' | 'No';
+  /** Boolean - true for accepting, false for not accepting */
+  prov_accepting_new_clients?: boolean;
 }
 
 interface ProfessionalSettingsProps {
@@ -28,7 +29,7 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
     prov_npi: '',
     prov_taxonomy: '',
     prov_status: '',
-    prov_accepting_new_clients: 'No',
+    prov_accepting_new_clients: false,
   });
 
   // Initialize form data when staff data loads
@@ -38,20 +39,13 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
         prov_npi: staff.prov_npi || '',
         prov_taxonomy: staff.prov_taxonomy || '',
         prov_status: staff.prov_status || '',
-        prov_accepting_new_clients: staff.prov_accepting_new_clients || 'No',
+        prov_accepting_new_clients: staff.prov_accepting_new_clients ?? false,
       });
     }
   }, [staff]);
 
   const handleChange = (field: keyof ProfessionalData, value: string | boolean) => {
-    let dbValue: string | 'Yes' | 'No' = value as string;
-    
-    // Convert boolean to 'Yes'/'No' for prov_accepting_new_clients
-    if (field === 'prov_accepting_new_clients' && typeof value === 'boolean') {
-      dbValue = value ? 'Yes' : 'No';
-    }
-    
-    const newData = { ...formData, [field]: dbValue };
+    const newData = { ...formData, [field]: value };
     setFormData(newData);
     onDataChange(newData);
   };
@@ -154,7 +148,7 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
           </div>
           <Switch
             id="accepting-clients"
-            checked={formData.prov_accepting_new_clients === 'Yes'}
+            checked={formData.prov_accepting_new_clients ?? false}
             onCheckedChange={(checked) => handleChange('prov_accepting_new_clients', checked)}
           />
         </div>

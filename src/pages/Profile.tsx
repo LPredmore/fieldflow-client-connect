@@ -6,91 +6,189 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Lock, MapPin, X, Upload, Camera, Shield } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, Briefcase, Award, Camera, Users, Lock, Upload } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useStaffData } from '@/hooks/useStaffData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { LicenseManagement } from '@/components/Staff/LicenseManagement';
+import { US_STATES } from '@/constants/usStates';
 
 export default function Profile() {
-  const { profile, loading, updatePersonalInfo, updatePassword } = useProfile();
-  const { staff, updateStaffInfo } = useStaffData();
+  const { profile, loading: profileLoading, updatePassword } = useProfile();
+  const { staff, loading: staffLoading, updateStaffInfo, refetchStaff } = useStaffData();
   const { user } = useAuth();
   const { toast } = useToast();
+  
   const [isUpdating, setIsUpdating] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  const [personalInfo, setPersonalInfo] = useState({
-    first_name: '',
-    last_name: '',
-    phone: '',
+  // Professional Information form state
+  const [professionalInfo, setProfessionalInfo] = useState({
+    prov_name_f: '',
+    prov_name_m: '',
+    prov_name_l: '',
+    prov_phone: '',
     email: '',
+    prov_addr_1: '',
+    prov_addr_2: '',
+    prov_city: '',
+    prov_state: '',
+    prov_zip: '',
   });
 
+  // Licensing & Credentials form state
+  const [credentials, setCredentials] = useState({
+    prov_npi: '',
+    prov_taxonomy: '',
+  });
+
+  // Client Facing Information form state
+  const [clientInfo, setClientInfo] = useState({
+    prov_name_for_clients: '',
+    prov_bio: '',
+    prov_min_client_age: 18,
+    prov_accepting_new_clients: false,
+  });
+
+  // Password form state
   const [passwordForm, setPasswordForm] = useState({
     newPassword: '',
     confirmPassword: '',
   });
 
-  const [staffForm, setStaffForm] = useState({
-    prov_name_f: '',
-    prov_name_last: '',
-    staff_bio: '',
-    staff_treatment_approaches: [] as string[],
-    staff_min_client_age: 18,
-    staff_accepting_new_clients: 'Yes' as 'Yes' | 'No',
-    prov_npi: '',
-    staff_taxonomy_code: '',
-  });
-
-  const [treatmentApproachInput, setTreatmentApproachInput] = useState('');
-
-  // Sync profile data from staff table
+  // Sync professional info from staff and profile
   useEffect(() => {
-    if (profile && staff) {
-      setPersonalInfo({
-        first_name: staff.prov_name_f || '',
-        last_name: staff.prov_name_l || '',
-        phone: '', // Phone not stored in current schema
+    if (staff && profile) {
+      setProfessionalInfo({
+        prov_name_f: staff.prov_name_f || '',
+        prov_name_m: staff.prov_name_m || '',
+        prov_name_l: staff.prov_name_l || '',
+        prov_phone: staff.prov_phone || '',
         email: profile.email || '',
+        prov_addr_1: staff.prov_addr_1 || '',
+        prov_addr_2: staff.prov_addr_2 || '',
+        prov_city: staff.prov_city || '',
+        prov_state: staff.prov_state || '',
+        prov_zip: staff.prov_zip || '',
       });
     }
-  }, [profile, staff]);
+  }, [staff, profile]);
 
-  // Sync staff data
+  // Sync credentials from staff
   useEffect(() => {
     if (staff) {
-      setStaffForm({
-        prov_name_f: staff.prov_name_f || '',
-        prov_name_last: staff.prov_name_l || '',
-        staff_bio: staff.prov_bio || '',
-        staff_treatment_approaches: staff.prov_treatment_approaches || [],
-        staff_min_client_age: staff.prov_min_client_age || 18,
-        staff_accepting_new_clients: staff.prov_accepting_new_clients || 'Yes',
+      setCredentials({
         prov_npi: staff.prov_npi || '',
-        staff_taxonomy_code: staff.prov_taxonomy || '',
+        prov_taxonomy: staff.prov_taxonomy || '',
       });
     }
   }, [staff]);
 
-  const handlePersonalInfoSubmit = async (e: React.FormEvent) => {
+  // Sync client-facing info from staff
+  useEffect(() => {
+    if (staff) {
+      setClientInfo({
+        prov_name_for_clients: staff.prov_name_for_clients || '',
+        prov_bio: staff.prov_bio || '',
+        prov_min_client_age: staff.prov_min_client_age ?? 18,
+        prov_accepting_new_clients: staff.prov_accepting_new_clients ?? false,
+      });
+    }
+  }, [staff]);
+
+  const handleProfessionalInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!staff || !user) return;
+    
     setIsUpdating(true);
 
-    const result = await updatePersonalInfo(personalInfo);
-    
+    // Update staff table
+    const staffResult = await updateStaffInfo({
+      prov_name_f: professionalInfo.prov_name_f,
+      prov_name_m: professionalInfo.prov_name_m,
+      prov_name_l: professionalInfo.prov_name_l,
+      prov_phone: professionalInfo.prov_phone,
+      prov_addr_1: professionalInfo.prov_addr_1,
+      prov_addr_2: professionalInfo.prov_addr_2,
+      prov_city: professionalInfo.prov_city,
+      prov_state: professionalInfo.prov_state,
+      prov_zip: professionalInfo.prov_zip,
+    });
+
+    // Update email in profiles table if changed
+    if (professionalInfo.email !== profile?.email) {
+      const { error: emailError } = await supabase
+        .from('profiles')
+        .update({ email: professionalInfo.email })
+        .eq('id', user.id);
+
+      if (emailError) {
+        toast({
+          variant: "destructive",
+          title: "Error updating email",
+          description: emailError.message,
+        });
+      }
+    }
+
     setIsUpdating(false);
+
+    if (staffResult.error) {
+      toast({
+        variant: "destructive",
+        title: "Error updating professional information",
+        description: staffResult.error.message,
+      });
+    }
+  };
+
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staff) return;
     
+    setIsUpdating(true);
+
+    const result = await updateStaffInfo({
+      prov_npi: credentials.prov_npi,
+      prov_taxonomy: credentials.prov_taxonomy,
+    });
+
+    setIsUpdating(false);
+
     if (result.error) {
       toast({
         variant: "destructive",
-        title: "Error updating profile",
+        title: "Error updating credentials",
+        description: result.error.message,
+      });
+    }
+  };
+
+  const handleClientInfoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staff) return;
+    
+    setIsUpdating(true);
+
+    const result = await updateStaffInfo({
+      prov_name_for_clients: clientInfo.prov_name_for_clients,
+      prov_bio: clientInfo.prov_bio,
+      prov_min_client_age: clientInfo.prov_min_client_age,
+      prov_accepting_new_clients: clientInfo.prov_accepting_new_clients,
+    });
+
+    setIsUpdating(false);
+
+    if (result.error) {
+      toast({
+        variant: "destructive",
+        title: "Error updating client information",
         description: result.error.message,
       });
     }
@@ -114,24 +212,19 @@ export default function Profile() {
     setIsUploadingImage(true);
 
     try {
-      // Upload to storage
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('profile-images')
-        .upload(fileName, imageFile, {
-          upsert: true,
-        });
+        .upload(fileName, imageFile, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('profile-images')
         .getPublicUrl(fileName);
 
-      // Update staff image_url if staff exists
       if (staff) {
         const { error: staffError } = await supabase
           .from('staff')
@@ -146,15 +239,15 @@ export default function Profile() {
         description: "Your profile image has been uploaded successfully.",
       });
 
-      // Reset state
       setImageFile(null);
       setImagePreview(null);
-      window.location.reload(); // Refresh to show new image
-    } catch (error: any) {
+      refetchStaff();
+    } catch (error: unknown) {
+      const err = error as Error;
       toast({
         variant: "destructive",
         title: "Upload failed",
-        description: error.message,
+        description: err.message,
       });
     } finally {
       setIsUploadingImage(false);
@@ -195,66 +288,20 @@ export default function Profile() {
         description: result.error.message,
       });
     } else {
-      setPasswordForm({
-        newPassword: '',
-        confirmPassword: '',
-      });
+      setPasswordForm({ newPassword: '', confirmPassword: '' });
       setShowPasswordForm(false);
     }
   };
 
-  const handleStaffSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsUpdating(true);
-
-    const result = await updateStaffInfo({
-      prov_name_f: staffForm.prov_name_f,
-      prov_name_l: staffForm.prov_name_last,
-      prov_bio: staffForm.staff_bio,
-      prov_treatment_approaches: staffForm.staff_treatment_approaches,
-      prov_min_client_age: staffForm.staff_min_client_age,
-      prov_accepting_new_clients: staffForm.staff_accepting_new_clients,
-      prov_npi: staffForm.prov_npi,
-      prov_taxonomy: staffForm.staff_taxonomy_code,
-    });
-    
-    setIsUpdating(false);
-    
-    if (result.error) {
-      toast({
-        variant: "destructive",
-        title: "Error updating professional information",
-        description: result.error.message,
-      });
-    }
-  };
-
-  const addTreatmentApproach = () => {
-    if (treatmentApproachInput.trim() && !staffForm.staff_treatment_approaches.includes(treatmentApproachInput.trim())) {
-      setStaffForm(prev => ({
-        ...prev,
-        staff_treatment_approaches: [...prev.staff_treatment_approaches, treatmentApproachInput.trim()]
-      }));
-      setTreatmentApproachInput('');
-    }
-  };
-
-  const removeTreatmentApproach = (approach: string) => {
-    setStaffForm(prev => ({
-      ...prev,
-      staff_treatment_approaches: prev.staff_treatment_approaches.filter(a => a !== approach)
-    }));
-  };
+  const loading = profileLoading || staffLoading;
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="lg:ml-64">
-          <div className="p-6 lg:p-8 flex items-center justify-center min-h-[80vh]">
-            <div className="flex flex-col items-center space-y-4">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Loading profile...</p>
-            </div>
+        <div className="p-6 lg:p-8 flex items-center justify-center min-h-[80vh]">
+          <div className="flex flex-col items-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading profile...</p>
           </div>
         </div>
       </div>
@@ -265,6 +312,7 @@ export default function Profile() {
     <div className="min-h-screen bg-background">
       <div className="w-full">
         <div className="p-6 lg:p-8 space-y-6">
+          {/* Header */}
           <div className="flex items-center space-x-4">
             <Avatar className="h-16 w-16">
               <AvatarImage src={staff?.prov_image_url || ''} />
@@ -276,84 +324,204 @@ export default function Profile() {
             </Avatar>
             <div>
               <h1 className="text-3xl font-bold text-foreground">Profile Settings</h1>
-              <p className="text-muted-foreground">Manage your personal information and account settings</p>
+              <p className="text-muted-foreground">Manage your professional information and account settings</p>
             </div>
           </div>
 
-          {/* Personal Information Card */}
+          {/* Card 1: Professional Information */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-card-foreground">
-                <User className="h-5 w-5" />
-                Personal Information
+                <Briefcase className="h-5 w-5" />
+                Professional Information
               </CardTitle>
               <CardDescription>
-                Update your personal details and contact information
+                Your billing and insurance details
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handlePersonalInfoSubmit} className="space-y-4">
+              <form onSubmit={handleProfessionalInfoSubmit} className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_name_f">First Name</Label>
+                    <Input
+                      id="prov_name_f"
+                      value={professionalInfo.prov_name_f}
+                      onChange={(e) => setProfessionalInfo(prev => ({ ...prev, prov_name_f: e.target.value }))}
+                      placeholder="First name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_name_m">Middle Name</Label>
+                    <Input
+                      id="prov_name_m"
+                      value={professionalInfo.prov_name_m}
+                      onChange={(e) => setProfessionalInfo(prev => ({ ...prev, prov_name_m: e.target.value }))}
+                      placeholder="Middle name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_name_l">Last Name</Label>
+                    <Input
+                      id="prov_name_l"
+                      value={professionalInfo.prov_name_l}
+                      onChange={(e) => setProfessionalInfo(prev => ({ ...prev, prov_name_l: e.target.value }))}
+                      placeholder="Last name"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="first_name">First Name</Label>
+                    <Label htmlFor="prov_phone">Phone Number</Label>
                     <Input
-                      id="first_name"
-                      value={personalInfo.first_name}
-                      onChange={(e) => setPersonalInfo(prev => ({ ...prev, first_name: e.target.value }))}
-                      placeholder="Enter your first name"
+                      id="prov_phone"
+                      value={professionalInfo.prov_phone}
+                      onChange={(e) => setProfessionalInfo(prev => ({ ...prev, prov_phone: e.target.value }))}
+                      placeholder="Phone number"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="last_name">Last Name</Label>
+                    <Label htmlFor="email">Email Address</Label>
                     <Input
-                      id="last_name"
-                      value={personalInfo.last_name}
-                      onChange={(e) => setPersonalInfo(prev => ({ ...prev, last_name: e.target.value }))}
-                      placeholder="Enter your last name"
+                      id="email"
+                      type="email"
+                      value={professionalInfo.email}
+                      onChange={(e) => setProfessionalInfo(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="Email address"
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="prov_addr_1">Address Line 1</Label>
                   <Input
-                    id="phone"
-                    value={personalInfo.phone}
-                    onChange={(e) => setPersonalInfo(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="Enter your phone number"
+                    id="prov_addr_1"
+                    value={professionalInfo.prov_addr_1}
+                    onChange={(e) => setProfessionalInfo(prev => ({ ...prev, prov_addr_1: e.target.value }))}
+                    placeholder="Street address"
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="prov_addr_2">Address Line 2</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    value={personalInfo.email}
-                    onChange={(e) => setPersonalInfo(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Enter your email address"
+                    id="prov_addr_2"
+                    value={professionalInfo.prov_addr_2}
+                    onChange={(e) => setProfessionalInfo(prev => ({ ...prev, prov_addr_2: e.target.value }))}
+                    placeholder="Suite, unit, building, etc."
                   />
-                  <p className="text-sm text-muted-foreground">
-                    This will update your login email address
-                  </p>
                 </div>
-                <Button 
-                  type="submit" 
-                  disabled={isUpdating}
-                  className="w-full"
-                >
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_city">City</Label>
+                    <Input
+                      id="prov_city"
+                      value={professionalInfo.prov_city}
+                      onChange={(e) => setProfessionalInfo(prev => ({ ...prev, prov_city: e.target.value }))}
+                      placeholder="City"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_state">State</Label>
+                    <Select
+                      value={professionalInfo.prov_state}
+                      onValueChange={(value) => setProfessionalInfo(prev => ({ ...prev, prov_state: value }))}
+                    >
+                      <SelectTrigger id="prov_state">
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {US_STATES.map(state => (
+                          <SelectItem key={state.value} value={state.value}>
+                            {state.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_zip">ZIP Code</Label>
+                    <Input
+                      id="prov_zip"
+                      value={professionalInfo.prov_zip}
+                      onChange={(e) => setProfessionalInfo(prev => ({ ...prev, prov_zip: e.target.value }))}
+                      placeholder="ZIP code"
+                    />
+                  </div>
+                </div>
+
+                <Button type="submit" disabled={isUpdating} className="w-full">
                   {isUpdating ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Updating...
                     </>
                   ) : (
-                    'Update Personal Information'
+                    'Update Professional Information'
                   )}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
-          {/* Profile Image Upload Card */}
+          {/* Card 2: Licensing & Credentials */}
+          {staff && (
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-card-foreground">
+                  <Award className="h-5 w-5" />
+                  Licensing & Credentials
+                </CardTitle>
+                <CardDescription>
+                  Manage your professional licenses and credentials
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <LicenseManagement 
+                  staffId={staff.id} 
+                  specialty={staff.prov_field}
+                />
+
+                <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="prov_npi">NPI Number</Label>
+                      <Input
+                        id="prov_npi"
+                        value={credentials.prov_npi}
+                        onChange={(e) => setCredentials(prev => ({ ...prev, prov_npi: e.target.value }))}
+                        placeholder="National Provider Identifier"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="prov_taxonomy">Taxonomy Code</Label>
+                      <Input
+                        id="prov_taxonomy"
+                        value={credentials.prov_taxonomy}
+                        onChange={(e) => setCredentials(prev => ({ ...prev, prov_taxonomy: e.target.value }))}
+                        placeholder="Healthcare Provider Taxonomy Code"
+                      />
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={isUpdating} className="w-full">
+                    {isUpdating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Credentials'
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Card 3: Profile Image */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-card-foreground">
@@ -361,7 +529,7 @@ export default function Profile() {
                 Profile Image
               </CardTitle>
               <CardDescription>
-                Upload a profile picture
+                Upload a profile picture that will be visible to clients
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -408,7 +576,96 @@ export default function Profile() {
             </CardContent>
           </Card>
 
-          {/* Password Section */}
+          {/* Card 4: Client Facing Information */}
+          {staff && (
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-card-foreground">
+                  <Users className="h-5 w-5" />
+                  Client Facing Information
+                </CardTitle>
+                <CardDescription>
+                  Information that will be visible to your clients
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleClientInfoSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_name_for_clients">Display Name for Clients</Label>
+                    <Input
+                      id="prov_name_for_clients"
+                      value={clientInfo.prov_name_for_clients}
+                      onChange={(e) => setClientInfo(prev => ({ ...prev, prov_name_for_clients: e.target.value }))}
+                      placeholder="e.g., Dr. Smith or Jane Smith, LCSW"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      How you want your name to appear to clients
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_bio">Professional Bio</Label>
+                    <Textarea
+                      id="prov_bio"
+                      value={clientInfo.prov_bio}
+                      onChange={(e) => setClientInfo(prev => ({ ...prev, prov_bio: e.target.value }))}
+                      placeholder="Share your professional background, approach, and what clients can expect..."
+                      rows={6}
+                      className="resize-y"
+                    />
+                  </div>
+
+                  {/* Treatment Approaches placeholder - will be implemented separately */}
+                  <div className="space-y-2">
+                    <Label>Treatment Approaches</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Treatment approaches will be configured in a future update.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="prov_min_client_age">Minimum Client Age</Label>
+                      <Input
+                        id="prov_min_client_age"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={clientInfo.prov_min_client_age}
+                        onChange={(e) => setClientInfo(prev => ({ ...prev, prov_min_client_age: parseInt(e.target.value) || 0 }))}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="prov_accepting_new_clients">Accepting New Clients</Label>
+                        <p className="text-sm text-muted-foreground">
+                          {clientInfo.prov_accepting_new_clients ? 'Yes' : 'No'}
+                        </p>
+                      </div>
+                      <Switch
+                        id="prov_accepting_new_clients"
+                        checked={clientInfo.prov_accepting_new_clients}
+                        onCheckedChange={(checked) => setClientInfo(prev => ({ ...prev, prov_accepting_new_clients: checked }))}
+                      />
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={isUpdating} className="w-full">
+                    {isUpdating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Client Information'
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Card 5: Password & Security */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-card-foreground">
@@ -419,10 +676,7 @@ export default function Profile() {
             </CardHeader>
             <CardContent>
               {!showPasswordForm ? (
-                <Button 
-                  onClick={() => setShowPasswordForm(true)}
-                  variant="outline"
-                >
+                <Button onClick={() => setShowPasswordForm(true)} variant="outline">
                   Change Password
                 </Button>
               ) : (
@@ -448,10 +702,7 @@ export default function Profile() {
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button 
-                      type="submit" 
-                      disabled={isUpdating}
-                    >
+                    <Button type="submit" disabled={isUpdating}>
                       {isUpdating ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -466,10 +717,7 @@ export default function Profile() {
                       variant="outline"
                       onClick={() => {
                         setShowPasswordForm(false);
-                        setPasswordForm({
-                          newPassword: '',
-                          confirmPassword: '',
-                        });
+                        setPasswordForm({ newPassword: '', confirmPassword: '' });
                       }}
                     >
                       Cancel
@@ -479,170 +727,6 @@ export default function Profile() {
               )}
             </CardContent>
           </Card>
-
-          {/* Professional Information - Only for staff */}
-          {staff && (
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-card-foreground">
-                  <MapPin className="h-5 w-5" />
-                  Professional Licensing & Information
-                </CardTitle>
-                <CardDescription>Manage your professional credentials and client-facing information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleStaffSubmit} className="space-y-6">
-                  {/* Professional Identity */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Professional Identity</h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="prov_name_f">Provider First Name</Label>
-                        <Input
-                          id="prov_name_f"
-                          value={staffForm.prov_name_f}
-                          onChange={(e) => setStaffForm(prev => ({ ...prev, prov_name_f: e.target.value }))}
-                          placeholder="First name for professional use"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="prov_name_last">Provider Last Name</Label>
-                        <Input
-                          id="prov_name_last"
-                          value={staffForm.prov_name_last}
-                          onChange={(e) => setStaffForm(prev => ({ ...prev, prov_name_last: e.target.value }))}
-                          placeholder="Last name for professional use"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Biography & Approach */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Biography & Approach</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="staff_bio">Professional Bio</Label>
-                      <Textarea
-                        id="staff_bio"
-                        value={staffForm.staff_bio}
-                        onChange={(e) => setStaffForm(prev => ({ ...prev, staff_bio: e.target.value }))}
-                        placeholder="Share your professional background, approach, and what clients can expect..."
-                        rows={6}
-                        className="resize-y"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="treatment_approaches">Treatment Approaches</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="treatment_approaches"
-                          value={treatmentApproachInput}
-                          onChange={(e) => setTreatmentApproachInput(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTreatmentApproach())}
-                          placeholder="Add a treatment approach (e.g., CBT, DBT)"
-                        />
-                        <Button type="button" onClick={addTreatmentApproach}>Add</Button>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {staffForm.staff_treatment_approaches.map(approach => (
-                          <Badge key={approach} variant="secondary" className="flex items-center gap-1">
-                            {approach}
-                            <X
-                              className="h-3 w-3 cursor-pointer hover:text-destructive"
-                              onClick={() => removeTreatmentApproach(approach)}
-                            />
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Client Parameters */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Client Parameters</h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="staff_min_client_age">Client Minimum Age</Label>
-                        <Input
-                          id="staff_min_client_age"
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={staffForm.staff_min_client_age}
-                          onChange={(e) => setStaffForm(prev => ({ ...prev, staff_min_client_age: parseInt(e.target.value) || 0 }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="staff_accepting_new_clients">Accepting New Clients</Label>
-                        <Select
-                          value={staffForm.staff_accepting_new_clients}
-                          onValueChange={(value: 'Yes' | 'No') => setStaffForm(prev => ({ ...prev, staff_accepting_new_clients: value }))}
-                        >
-                          <SelectTrigger className="bg-background">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-background z-50">
-                            <SelectItem value="Yes">Yes</SelectItem>
-                            <SelectItem value="No">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Licensing & Credentials */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Licensing & Credentials</h3>
-                    
-                    {/* License Management - uses staff_licenses table */}
-                    {staff && (
-                      <LicenseManagement 
-                        staffId={staff.id} 
-                        specialty={staff.prov_field}
-                      />
-                    )}
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="prov_npi">NPI Number</Label>
-                        <Input
-                          id="prov_npi"
-                          value={staffForm.prov_npi}
-                          onChange={(e) => setStaffForm(prev => ({ ...prev, prov_npi: e.target.value }))}
-                          placeholder="National Provider Identifier"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="staff_taxonomy_code">Taxonomy Code</Label>
-                        <Input
-                          id="staff_taxonomy_code"
-                          value={staffForm.staff_taxonomy_code}
-                          onChange={(e) => setStaffForm(prev => ({ ...prev, staff_taxonomy_code: e.target.value }))}
-                          placeholder="Healthcare Provider Taxonomy Code"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    disabled={isUpdating}
-                    className="w-full"
-                  >
-                    {isUpdating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      'Update Professional Information'
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>
