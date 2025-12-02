@@ -102,20 +102,42 @@ function determineRoute(
 
   // Staff user
   if (user.role === 'staff') {
-    const isClinician = user.staffAttributes?.is_clinician === true;
+    const provStatus = user.staffAttributes?.prov_status;
     const isAdmin = user.staffAttributes?.is_admin === true;
+    const isInvited = provStatus === 'Invited';
     
     authLogger.logRouting('Staff routing decision', {
-      isClinician,
+      provStatus,
       isAdmin,
+      isInvited,
       hasStaffAttributes: !!user.staffAttributes,
       currentPath
     }, user.id);
     
-    // CRITICAL FIX: Admins always bypass registration, go to dashboard
+    // INVITED STAFF: Must complete registration first (regardless of admin status)
+    if (isInvited) {
+      if (currentPath === '/staff/registration') {
+        authLogger.logRouting('Invited staff on registration - no redirect', { currentPath }, user.id);
+        return {
+          shouldRedirect: false,
+          reason: 'Invited staff on registration page'
+        };
+      }
+      authLogger.logRouting('Invited staff redirecting to registration', {
+        from: currentPath,
+        to: '/staff/registration'
+      }, user.id);
+      return {
+        shouldRedirect: true,
+        redirectTo: '/staff/registration',
+        reason: 'Invited staff must complete registration'
+      };
+    }
+    
+    // ACTIVE STAFF: Route based on admin status
     if (isAdmin) {
-      // Allow admins on any staff route except registration
-      if (currentPath.startsWith('/staff/') && currentPath !== '/staff/registration') {
+      // Admins can access any staff route
+      if (currentPath.startsWith('/staff/')) {
         authLogger.logRouting('Admin on staff route - no redirect', { currentPath }, user.id);
         return {
           shouldRedirect: false,
@@ -133,46 +155,23 @@ function determineRoute(
       };
     }
     
-    // Clinical staff (non-admin) → registration page
-    if (isClinician) {
-      if (currentPath === '/staff/registration') {
-        authLogger.logRouting('Clinical staff on registration - no redirect', { currentPath }, user.id);
-        return {
-          shouldRedirect: false,
-          reason: 'Clinical staff on registration page'
-        };
-      }
-      authLogger.logRouting('Clinical staff redirecting to registration', {
-        from: currentPath,
-        to: '/staff/registration'
-      }, user.id);
+    // Regular active staff → dashboard or other staff routes
+    if (currentPath.startsWith('/staff/')) {
+      authLogger.logRouting('Active staff on staff route - no redirect', { currentPath }, user.id);
       return {
-        shouldRedirect: true,
-        redirectTo: '/staff/registration',
-        reason: 'Clinical staff redirected to registration'
+        shouldRedirect: false,
+        reason: 'Active staff accessing staff portal'
       };
     }
-    
-    // Non-clinical staff → dashboard or other staff routes
-    if (!isClinician) {
-      // Allow access to staff routes except registration
-      if (currentPath.startsWith('/staff/') && currentPath !== '/staff/registration') {
-        authLogger.logRouting('Non-clinical staff on staff route - no redirect', { currentPath }, user.id);
-        return {
-          shouldRedirect: false,
-          reason: 'Non-clinical staff accessing staff portal'
-        };
-      }
-      authLogger.logRouting('Non-clinical staff redirecting to dashboard', {
-        from: currentPath,
-        to: '/staff/dashboard'
-      }, user.id);
-      return {
-        shouldRedirect: true,
-        redirectTo: '/staff/dashboard',
-        reason: 'Non-clinical staff redirected to dashboard'
-      };
-    }
+    authLogger.logRouting('Active staff redirecting to dashboard', {
+      from: currentPath,
+      to: '/staff/dashboard'
+    }, user.id);
+    return {
+      shouldRedirect: true,
+      redirectTo: '/staff/dashboard',
+      reason: 'Active staff redirected to dashboard'
+    };
   }
 
   // Fallback for unknown scenarios

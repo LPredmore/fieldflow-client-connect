@@ -146,6 +146,10 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
         );
       }
 
+      // Invalidate cache before loading to ensure fresh data on login
+      unifiedRoleDetectionService.invalidateCache(data.user.id);
+      sessionCacheService.delete(`user:${data.user.id}`);
+
       // Load user data (with retry logic)
       await loadUserData(data.user.id, data.user.email || email);
 
