@@ -7,7 +7,7 @@ import { Layout } from "@/components/Layout/Layout";
 // Core pages - load immediately for better performance
 import Index from "@/pages/Index";
 import Appointments from "@/pages/Appointments";
-import Customers from "@/pages/Customers";
+import Clients from "@/pages/Clients";
 import Services from "@/pages/Services";
 import Settings from "@/pages/Settings";
 import Profile from "@/pages/Profile";
@@ -49,8 +49,11 @@ const StaffPortalApp = () => {
           
           {/* Core business functionality - available to all staff */}
           <Route path="/appointments" element={<Appointments />} />
-          <Route path="/customers" element={<Customers />} />
+          <Route path="/clients" element={<Clients />} />
           <Route path="/profile" element={<Profile />} />
+          
+          {/* Legacy route redirect */}
+          <Route path="/customers" element={<Navigate to="/staff/clients" replace />} />
           
           {/* Permission-protected routes */}
           <Route path="/services" element={

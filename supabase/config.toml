@@ -1,7 +1,4 @@
-project_id = "tizshsmrqqaharwpqocj"
-
-[functions.create-client-account]
-verify_jwt = true
+project_id = "ahqauomkgflopxgnlndd"
 
 [functions.create-staff-account]
 verify_jwt = true

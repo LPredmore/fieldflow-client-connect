@@ -8,135 +8,139 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Customer } from "@/hooks/useCustomers";
-import { CustomerFormData } from "@/types/customer";
-import { ContractorSelector } from "@/components/Customers/ContractorSelector";
+import { Client, ClientFormData } from "@/types/client";
+import { ContractorSelector } from "@/components/Clients/ContractorSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { US_STATES } from "@/constants/usStates";
 
-const customerSchema = z.object({
+const clientSchema = z.object({
   pat_name_f: z.string().min(1, "First name is required"),
   pat_name_l: z.string().min(1, "Last name is required"),
   pat_name_m: z.string().optional(),
-  preferred_name: z.string().optional(),
-  pat_phone: z.string().min(1, "Phone number is required"),
+  pat_name_preferred: z.string().optional(),
+  phone: z.string().min(1, "Phone number is required"),
   email: z.string().email("Invalid email format").optional().or(z.literal("")),
   pat_addr_1: z.string().optional(),
+  pat_addr_2: z.string().optional(),
   pat_city: z.string().optional(),
   pat_state: z.string().optional(),
   pat_zip: z.string().optional(),
   pat_country: z.string().optional(),
   pat_dob: z.string().optional(),
   pat_sex: z.string().optional(),
-  gender_identity: z.string().optional(),
-  timezone: z.string().optional(),
-  notes: z.string().optional(),
-  assigned_to_user_id: z.string().optional(),
+  pat_gender_identity: z.string().optional(),
+  pat_time_zone: z.string().optional(),
+  pat_goal: z.string().optional(),
+  primary_staff_id: z.string().optional(),
 });
 
-type CustomerFormValues = z.infer<typeof customerSchema>;
+type ClientFormValues = z.infer<typeof clientSchema>;
 
-interface CustomerFormProps {
+interface ClientFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: CustomerFormData) => Promise<void>;
-  customer?: Customer | null;
+  onSubmit: (data: ClientFormData) => Promise<any>;
+  client?: Client | null;
   title: string;
 }
 
-export function CustomerForm({ open, onOpenChange, onSubmit, customer, title }: CustomerFormProps) {
+export function ClientForm({ open, onOpenChange, onSubmit, client, title }: ClientFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { isAdmin } = useAuth();
 
-  const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerSchema),
+  const form = useForm<ClientFormValues>({
+    resolver: zodResolver(clientSchema),
     defaultValues: {
       pat_name_f: "",
       pat_name_l: "",
       pat_name_m: "",
-      preferred_name: "",
-      pat_phone: "",
+      pat_name_preferred: "",
+      phone: "",
       email: "",
       pat_addr_1: "",
+      pat_addr_2: "",
       pat_city: "",
       pat_state: "",
       pat_zip: "",
-      pat_country: "USA",
+      pat_country: "US",
       pat_dob: "",
       pat_sex: "",
-      gender_identity: "",
-      timezone: "America/New_York",
-      notes: "",
-      assigned_to_user_id: "",
+      pat_gender_identity: "",
+      pat_time_zone: "America/New_York",
+      pat_goal: "",
+      primary_staff_id: "",
     },
   });
 
   useEffect(() => {
-    if (customer) {
+    if (client) {
       form.reset({
-        pat_name_f: customer.pat_name_f || "",
-        pat_name_l: customer.pat_name_l || "",
-        pat_name_m: customer.pat_name_m || "",
-        preferred_name: customer.preferred_name || "",
-        pat_phone: customer.pat_phone || "",
-        email: customer.email || "",
-        pat_addr_1: customer.pat_addr_1 || "",
-        pat_city: customer.pat_city || "",
-        pat_state: customer.pat_state || "",
-        pat_zip: customer.pat_zip || "",
-        pat_country: customer.pat_country || "USA",
-        pat_dob: customer.pat_dob || "",
-        pat_sex: customer.pat_sex || "",
-        gender_identity: customer.gender_identity || "",
-        timezone: customer.timezone || "America/New_York",
-        notes: customer.notes || "",
-        assigned_to_user_id: customer.assigned_to_user_id || "",
+        pat_name_f: client.pat_name_f || "",
+        pat_name_l: client.pat_name_l || "",
+        pat_name_m: client.pat_name_m || "",
+        pat_name_preferred: client.pat_name_preferred || "",
+        phone: client.phone || "",
+        email: client.email || "",
+        pat_addr_1: client.pat_addr_1 || "",
+        pat_addr_2: client.pat_addr_2 || "",
+        pat_city: client.pat_city || "",
+        pat_state: client.pat_state || "",
+        pat_zip: client.pat_zip || "",
+        pat_country: client.pat_country || "US",
+        pat_dob: client.pat_dob || "",
+        pat_sex: client.pat_sex || "",
+        pat_gender_identity: client.pat_gender_identity || "",
+        pat_time_zone: client.pat_time_zone || "America/New_York",
+        pat_goal: client.pat_goal || "",
+        primary_staff_id: client.primary_staff_id || "",
       });
     } else {
       form.reset({
         pat_name_f: "",
         pat_name_l: "",
         pat_name_m: "",
-        preferred_name: "",
-        pat_phone: "",
+        pat_name_preferred: "",
+        phone: "",
         email: "",
         pat_addr_1: "",
+        pat_addr_2: "",
         pat_city: "",
         pat_state: "",
         pat_zip: "",
-        pat_country: "USA",
+        pat_country: "US",
         pat_dob: "",
         pat_sex: "",
-        gender_identity: "",
-        timezone: "America/New_York",
-        notes: "",
-        assigned_to_user_id: "",
+        pat_gender_identity: "",
+        pat_time_zone: "America/New_York",
+        pat_goal: "",
+        primary_staff_id: "",
       });
     }
-  }, [customer, form]);
+  }, [client, form]);
 
-  const handleSubmit = async (values: CustomerFormValues) => {
+  const handleSubmit = async (values: ClientFormValues) => {
     setIsSubmitting(true);
     try {
-    const formData: CustomerFormData = {
-      pat_name_f: values.pat_name_f || '',
-      pat_name_l: values.pat_name_l || '',
-      pat_name_m: values.pat_name_m || undefined,
-      preferred_name: values.preferred_name || undefined,
-      pat_phone: values.pat_phone || '',
-      email: values.email || undefined,
-      pat_addr_1: values.pat_addr_1 || undefined,
-      pat_city: values.pat_city || undefined,
-      pat_state: values.pat_state || undefined,
-      pat_zip: values.pat_zip || undefined,
-      pat_country: values.pat_country || 'USA',
-      pat_dob: values.pat_dob || undefined,
-      pat_sex: (values.pat_sex || undefined) as 'M' | 'F' | 'Other' | '' | undefined,
-      gender_identity: values.gender_identity || undefined,
-      timezone: values.timezone || 'America/New_York',
-      notes: values.notes || undefined,
-      assigned_to_user_id: values.assigned_to_user_id || undefined,
-    };
+      const formData: ClientFormData = {
+        pat_name_f: values.pat_name_f || '',
+        pat_name_l: values.pat_name_l || '',
+        pat_name_m: values.pat_name_m || undefined,
+        pat_name_preferred: values.pat_name_preferred || undefined,
+        phone: values.phone || '',
+        email: values.email || undefined,
+        pat_addr_1: values.pat_addr_1 || undefined,
+        pat_addr_2: values.pat_addr_2 || undefined,
+        pat_city: values.pat_city || undefined,
+        pat_state: values.pat_state || undefined,
+        pat_zip: values.pat_zip || undefined,
+        pat_country: values.pat_country || 'US',
+        pat_dob: values.pat_dob || undefined,
+        pat_sex: (values.pat_sex || undefined) as 'M' | 'F' | 'Other' | '' | undefined,
+        pat_gender_identity: values.pat_gender_identity || undefined,
+        pat_time_zone: values.pat_time_zone || 'America/New_York',
+        pat_goal: values.pat_goal || undefined,
+        primary_staff_id: values.primary_staff_id || undefined,
+      };
 
       await onSubmit(formData);
       onOpenChange(false);
@@ -201,7 +205,7 @@ export function CustomerForm({ open, onOpenChange, onSubmit, customer, title }: 
 
               <FormField
                 control={form.control}
-                name="preferred_name"
+                name="pat_name_preferred"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Preferred Name</FormLabel>
@@ -215,7 +219,7 @@ export function CustomerForm({ open, onOpenChange, onSubmit, customer, title }: 
 
               <FormField
                 control={form.control}
-                name="pat_phone"
+                name="phone"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone Number *</FormLabel>
@@ -266,7 +270,7 @@ export function CustomerForm({ open, onOpenChange, onSubmit, customer, title }: 
 
               <FormField
                 control={form.control}
-                name="assigned_to_user_id"
+                name="primary_staff_id"
                 render={({ field }) => (
                   <FormItem className="md:col-span-2">
                     <FormLabel>
@@ -362,7 +366,7 @@ export function CustomerForm({ open, onOpenChange, onSubmit, customer, title }: 
                   <FormItem>
                     <FormLabel>Country</FormLabel>
                     <FormControl>
-                      <Input placeholder="USA" {...field} />
+                      <Input placeholder="US" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -372,13 +376,13 @@ export function CustomerForm({ open, onOpenChange, onSubmit, customer, title }: 
 
             <FormField
               control={form.control}
-              name="notes"
+              name="pat_goal"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes</FormLabel>
+                  <FormLabel>Goals / Notes</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Additional notes about this patient..."
+                      placeholder="Treatment goals or notes about this patient..."
                       className="min-h-[100px]"
                       {...field}
                     />

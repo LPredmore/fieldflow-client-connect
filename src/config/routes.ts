@@ -12,13 +12,15 @@ export const STAFF_ROUTES = {
   ROOT: '/staff',
   DASHBOARD: '/staff/dashboard',
   APPOINTMENTS: '/staff/appointments',
-  CUSTOMERS: '/staff/customers',
+  CLIENTS: '/staff/clients',
   SERVICES: '/staff/services',
   INVOICES: '/staff/invoices',
   CALENDAR: '/staff/calendar',
   FORMS: '/staff/forms',
   PROFILE: '/staff/profile',
   SETTINGS: '/staff/settings',
+  // Legacy alias
+  CUSTOMERS: '/staff/clients',
 } as const;
 
 // Legacy routes - kept for backward compatibility (temporary)

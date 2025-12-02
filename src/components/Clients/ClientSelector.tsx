@@ -4,24 +4,24 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Check, ChevronsUpDown, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCustomers, Customer } from "@/hooks/useCustomers";
-import { getCustomerDisplayName } from "@/utils/customerDisplayName";
+import { useClients, Client } from "@/hooks/useClients";
+import { getClientDisplayName } from "@/utils/clientDisplayName";
 
-interface CustomerSelectorProps {
+interface ClientSelectorProps {
   value?: string;
-  onValueChange: (customerId: string, customerName: string) => void;
+  onValueChange: (clientId: string, clientName: string) => void;
   disabled?: boolean;
 }
 
-export function CustomerSelector({ value, onValueChange, disabled }: CustomerSelectorProps) {
+export function ClientSelector({ value, onValueChange, disabled }: ClientSelectorProps) {
   const [open, setOpen] = useState(false);
-  const { customers, loading } = useCustomers();
+  const { clients, loading } = useClients();
 
-  const selectedCustomer = customers.find(customer => customer.id === value);
+  const selectedClient = clients?.find(client => client.id === value);
 
-  const handleSelect = (customer: Customer) => {
-    const displayName = getCustomerDisplayName(customer);
-    onValueChange(customer.id, displayName);
+  const handleSelect = (client: Client) => {
+    const displayName = getClientDisplayName(client);
+    onValueChange(client.id, displayName);
     setOpen(false);
   };
 
@@ -49,10 +49,10 @@ export function CustomerSelector({ value, onValueChange, disabled }: CustomerSel
           disabled={disabled}
           className="w-full justify-between"
         >
-          {selectedCustomer ? (
+          {selectedClient ? (
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground" />
-              <span>{getCustomerDisplayName(selectedCustomer)}</span>
+              <span>{getClientDisplayName(selectedClient)}</span>
             </div>
           ) : (
             "Select patient..."
@@ -65,24 +65,24 @@ export function CustomerSelector({ value, onValueChange, disabled }: CustomerSel
           <CommandInput placeholder="Search patients..." />
           <CommandEmpty>No patients found.</CommandEmpty>
           <CommandGroup>
-            {customers.map((customer) => (
+            {(clients || []).map((client) => (
               <CommandItem
-                key={customer.id}
-                value={getCustomerDisplayName(customer)}
-                onSelect={() => handleSelect(customer)}
+                key={client.id}
+                value={getClientDisplayName(client)}
+                onSelect={() => handleSelect(client)}
               >
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
-                    value === customer.id ? "opacity-100" : "opacity-0"
+                    value === client.id ? "opacity-100" : "opacity-0"
                   )}
                 />
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span>{getCustomerDisplayName(customer)}</span>
-                    {customer.pat_phone && (
-                      <span className="text-xs text-muted-foreground">{customer.pat_phone}</span>
+                    <span>{getClientDisplayName(client)}</span>
+                    {client.phone && (
+                      <span className="text-xs text-muted-foreground">{client.phone}</span>
                     )}
                   </div>
                 </div>
