@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Loader2 } from "lucide-react";
 import { useLicenseTypes } from "@/hooks/useLicenseTypes";
 import { useToast } from "@/hooks/use-toast";
 
@@ -43,6 +43,16 @@ export default function ClinicalSettings() {
     addLicenseType,
     deleteLicenseType,
   } = useLicenseTypes();
+
+  if (loading && licenseTypes === null) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleAddLicenseType = async () => {
     if (!specialty || !license) {
@@ -155,7 +165,7 @@ export default function ClinicalSettings() {
         <div className="space-y-4">
           <h3 className="font-semibold text-lg">Current License Types</h3>
           
-          {licenseTypes.length === 0 ? (
+          {(licenseTypes?.length ?? 0) === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No license types added yet. Add your first one above.
             </div>
@@ -170,7 +180,7 @@ export default function ClinicalSettings() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {licenseTypes.map((licenseType) => (
+                  {(licenseTypes ?? []).map((licenseType) => (
                     <TableRow key={licenseType.id}>
                       <TableCell className="font-medium">
                         {licenseType.specialty || "N/A"}
