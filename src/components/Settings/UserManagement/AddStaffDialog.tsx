@@ -55,9 +55,15 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
   const { registerStaff, loading } = useStaffRegistration();
   const { licenseTypes, uniqueSpecialties, loading: licenseTypesLoading } = useLicenseTypes();
 
+  // Add null guard and use correct field name (license_code, not license)
   const uniqueLicenses = Array.from(
-    new Set(licenseTypes.map((lt) => lt.license).filter(Boolean))
+    new Set((licenseTypes ?? []).map((lt) => lt.license_code).filter(Boolean))
   ) as string[];
+
+  // Add loading guard
+  if (licenseTypesLoading && !licenseTypes) {
+    return null; // Dialog won't open while loading
+  }
 
   const form = useForm<AddStaffFormData>({
     resolver: zodResolver(addStaffSchema),
