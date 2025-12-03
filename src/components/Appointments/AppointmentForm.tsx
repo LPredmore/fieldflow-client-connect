@@ -19,6 +19,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ContractorSelector } from '@/components/Clients/ContractorSelector';
 import { ClientSelector } from '@/components/Clients/ClientSelector';
+import { ServiceSelector } from '@/components/Appointments/ServiceSelector';
 import { RRuleBuilder } from './RRuleBuilder';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle } from 'lucide-react';
@@ -256,25 +257,47 @@ export default function JobForm({ job, onSubmit, onCancel, loading }: JobFormPro
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="customer_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Patient</FormLabel>
-                  <FormControl>
-                    <ClientSelector
-                      value={field.value}
-                      onValueChange={(customerId, customerName) => {
-                        field.onChange(customerId);
-                        form.setValue("customer_name", customerName);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="customer_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Patient</FormLabel>
+                    <FormControl>
+                      <ClientSelector
+                        value={field.value}
+                        onValueChange={(customerId, customerName) => {
+                          field.onChange(customerId);
+                          form.setValue("customer_name", customerName);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="service_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Service (optional)</FormLabel>
+                    <FormControl>
+                      <ServiceSelector
+                        value={field.value || ''}
+                        onValueChange={(serviceId, serviceName) => {
+                          field.onChange(serviceId);
+                          form.setValue("service_name", serviceName);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </CardContent>
         </Card>
 
