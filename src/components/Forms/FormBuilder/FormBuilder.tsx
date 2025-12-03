@@ -13,15 +13,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Save, Rocket, Edit, Eye } from 'lucide-react';
-import { FormTemplate } from '../types';
+import { FormTemplate, FormType } from '../types';
 
 interface FormBuilderProps {
-  formType: 'signup' | 'intake' | 'session_notes';
+  formType?: FormType;
+  templateId?: string;
+  onSaveComplete?: () => void;
 }
 
-export function FormBuilder({ formType }: FormBuilderProps) {
-  const { user, userRole } = useAuth();
-  const { template, fields: loadedFields, loading, loadTemplate, saveTemplate } = useFormTemplate();
+export function FormBuilder({ formType = 'custom', templateId, onSaveComplete }: FormBuilderProps) {
+  const { user } = useAuth();
+  const { template, fields: loadedFields, loading, loadTemplate, loadTemplateById, saveTemplate } = useFormTemplate();
   const {
     fields,
     selectedFieldId,
@@ -56,12 +58,16 @@ export function FormBuilder({ formType }: FormBuilderProps) {
     fetchTenantId();
   }, [user]);
 
-  // Load existing template
+  // Load existing template by ID or by type
   useEffect(() => {
     if (tenantId) {
-      loadTemplate(formType, tenantId);
+      if (templateId) {
+        loadTemplateById(templateId);
+      } else {
+        loadTemplate(formType, tenantId);
+      }
     }
-  }, [formType, tenantId, loadTemplate]);
+  }, [formType, tenantId, templateId, loadTemplate, loadTemplateById]);
 
   // Update form builder when template loads
   useEffect(() => {
@@ -81,7 +87,7 @@ export function FormBuilder({ formType }: FormBuilderProps) {
       id: template?.id,
       tenant_id: tenantId,
       form_type: formType,
-      name: formName || `${formType} Form`,
+      name: formName || 'Untitled Form',
       description: formDescription,
       is_active: activate,
       version: template?.version || 1,
@@ -90,6 +96,7 @@ export function FormBuilder({ formType }: FormBuilderProps) {
 
     await saveTemplate(templateData, fields);
     setSaving(false);
+    onSaveComplete?.();
   };
 
   if (loading && !template) {

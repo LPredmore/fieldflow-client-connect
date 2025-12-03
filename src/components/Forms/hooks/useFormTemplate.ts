@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useFormTemplatesData, useFormFieldsData } from '@/hooks/forms';
 import { useToast } from '@/hooks/use-toast';
-import { FormTemplate, FormField } from '../types';
+import { FormTemplate, FormField, FormType } from '../types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UseFormTemplateReturn {
   template: FormTemplate | null;
@@ -10,7 +10,8 @@ interface UseFormTemplateReturn {
   fields: FormField[];
   loading: boolean;
   error: string | null;
-  loadTemplate: (formType: 'signup' | 'intake' | 'session_notes', tenantId?: string) => Promise<void>;
+  loadTemplate: (formType: FormType, tenantId?: string) => Promise<void>;
+  loadTemplateById: (templateId: string) => Promise<void>;
   saveTemplate: (template: FormTemplate, fields: FormField[]) => Promise<boolean>;
 }
 
@@ -20,7 +21,6 @@ export function useFormTemplate(): UseFormTemplateReturn {
   const { toast } = useToast();
 
   // Use our new generic data hooks with optimized caching
-  // ✅ Phase 3 Optimization: useFormTemplatesData uses enhanced query cache with table-specific config
   const {
     data: templates,
     loading: templatesLoading,
@@ -33,9 +33,6 @@ export function useFormTemplate(): UseFormTemplateReturn {
   const templateRef = useRef<FormTemplate | null>(null);
   const fieldsRef = useRef<FormField[]>([]);
 
-  // ✅ Phase 3 Optimization: Fields query is disabled when no template selected
-  // This prevents unnecessary queries and reduces database load
-  // The 'enabled' flag in useFormFieldsData ensures query only runs when activeTemplateId exists
   const {
     data: fields,
     loading: fieldsLoading,
@@ -55,7 +52,7 @@ export function useFormTemplate(): UseFormTemplateReturn {
   const error = null; // Generic hooks handle errors internally
 
   const loadTemplate = useCallback(async (
-    formType: 'signup' | 'intake' | 'session_notes',
+    formType: FormType,
     tenantId?: string
   ) => {
     console.group(`🔍 [useFormTemplate] loadTemplate ${new Date().toISOString()}`);
@@ -93,7 +90,45 @@ export function useFormTemplate(): UseFormTemplateReturn {
       console.log('✅ setActiveTemplateId: null');
     }
     console.groupEnd();
-  }, []); // ✅ Empty dependency array - stable function identity
+  }, []); // Empty dependency array - stable function identity
+
+  const loadTemplateById = useCallback(async (templateId: string) => {
+    console.group(`🔍 [useFormTemplate] loadTemplateById ${new Date().toISOString()}`);
+    console.log('templateId:', templateId);
+    
+    try {
+      const { data, error } = await supabase
+        .from('form_templates')
+        .select('*')
+        .eq('id', templateId)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        const foundTemplate: FormTemplate = {
+          id: data.id,
+          tenant_id: data.tenant_id,
+          form_type: data.form_type as FormType,
+          name: data.name,
+          description: data.description,
+          is_active: data.is_active,
+          version: data.version,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          created_by_user_id: data.created_by_user_id,
+        };
+        setTemplate(foundTemplate);
+        setActiveTemplateId(foundTemplate.id!);
+        console.log('✅ Template FOUND by ID:', foundTemplate.id);
+      }
+    } catch (err) {
+      console.error('Error loading template by ID:', err);
+      setTemplate(null);
+      setActiveTemplateId(null);
+    }
+    console.groupEnd();
+  }, []);
 
   const saveTemplate = useCallback(async (
     templateData: FormTemplate,
@@ -102,13 +137,19 @@ export function useFormTemplate(): UseFormTemplateReturn {
     try {
       let savedTemplate;
       
+      // Prepare data for database (ensure form_type is set)
+      const dataToSave = {
+        ...templateData,
+        form_type: templateData.form_type || 'custom',
+      };
+      
       if (templateData.id) {
         // Update existing template
-        const result = await updateTemplate({ id: templateData.id, ...templateData });
+        const result = await updateTemplate({ id: templateData.id, ...dataToSave });
         savedTemplate = result.data;
       } else {
         // Create new template
-        const result = await createTemplate(templateData);
+        const result = await createTemplate(dataToSave);
         savedTemplate = result.data;
       }
 
@@ -176,6 +217,7 @@ export function useFormTemplate(): UseFormTemplateReturn {
     loading,
     error,
     loadTemplate,
+    loadTemplateById,
     saveTemplate,
-  }), [template, templates, fields, loading, error, loadTemplate, saveTemplate]);
+  }), [template, templates, fields, loading, error, loadTemplate, loadTemplateById, saveTemplate]);
 }
