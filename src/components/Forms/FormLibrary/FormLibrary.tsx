@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { FormBuilder } from '../FormBuilder/FormBuilder';
 import { FormTemplate } from '../types';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Edit, Trash2, Copy, FileText, Loader2, Sparkles, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Copy, FileText, Loader2, Eye, Library } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ResponseViewer } from '../Responses/ResponseViewer';
@@ -23,47 +23,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const TEMPLATE_PRESETS = [
-  {
-    name: 'SOAP Note',
-    description: 'Subjective, Objective, Assessment, Plan format',
-    fields: [
-      { label: 'Subjective', field_type: 'textarea', help_text: "Client's report of symptoms and concerns" },
-      { label: 'Objective', field_type: 'textarea', help_text: 'Observable data and measurements' },
-      { label: 'Assessment', field_type: 'textarea', help_text: 'Clinical impression and diagnosis' },
-      { label: 'Plan', field_type: 'textarea', help_text: 'Treatment plan and next steps' },
-    ],
-  },
-  {
-    name: 'Progress Note',
-    description: 'Track client progress and interventions',
-    fields: [
-      { label: 'Session Goals', field_type: 'textarea', is_required: true },
-      { label: 'Interventions Used', field_type: 'textarea', is_required: true },
-      { label: 'Client Response', field_type: 'textarea', is_required: true },
-      {
-        label: 'Progress Toward Goals',
-        field_type: 'select',
-        options: [
-          { label: 'Significant Progress', value: 'significant' },
-          { label: 'Moderate Progress', value: 'moderate' },
-          { label: 'Minimal Progress', value: 'minimal' },
-          { label: 'No Progress', value: 'none' },
-        ],
-        is_required: true,
-      },
-      { label: 'Next Session Plan', field_type: 'textarea', is_required: true },
-    ],
-  },
-];
-
-export function SessionNotesManager() {
+export function FormLibrary() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBuilder, setShowBuilder] = useState(false);
-  const [showPresets, setShowPresets] = useState(false);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState<FormTemplate | null>(null);
   const [viewingResponsesTemplate, setViewingResponsesTemplate] = useState<FormTemplate | null>(null);
@@ -89,7 +54,7 @@ export function SessionNotesManager() {
     fetchTenantId();
   }, [user]);
 
-  // Fetch session note templates
+  // Fetch all templates
   useEffect(() => {
     if (tenantId) {
       fetchTemplates();
@@ -103,7 +68,6 @@ export function SessionNotesManager() {
         .from('form_templates')
         .select('*')
         .eq('tenant_id', tenantId)
-        .eq('form_type', 'session_notes')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -128,7 +92,7 @@ export function SessionNotesManager() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to load session note templates',
+        description: 'Failed to load forms',
       });
     } finally {
       setLoading(false);
@@ -140,62 +104,6 @@ export function SessionNotesManager() {
     setShowBuilder(true);
   };
 
-  const handleCreateFromPreset = async (preset: typeof TEMPLATE_PRESETS[0]) => {
-    if (!user || !tenantId) return;
-
-    try {
-      // Create template
-      const { data: newTemplate, error: createError } = await supabase
-        .from('form_templates')
-        .insert({
-          tenant_id: tenantId,
-          form_type: 'session_notes',
-          name: preset.name,
-          description: preset.description,
-          is_active: false,
-          version: 1,
-          created_by_user_id: user.id,
-        })
-        .select()
-        .single();
-
-      if (createError) throw createError;
-
-      // Create fields
-      const fieldsToInsert = preset.fields.map((field, index) => ({
-        form_template_id: newTemplate.id,
-        field_type: field.field_type,
-        field_key: field.label.toLowerCase().replace(/\s+/g, '_'),
-        label: field.label,
-        help_text: field.help_text,
-        is_required: field.is_required || false,
-        order_index: index,
-        options: field.options,
-      }));
-
-      const { error: fieldsError } = await supabase
-        .from('form_fields')
-        .insert(fieldsToInsert);
-
-      if (fieldsError) throw fieldsError;
-
-      toast({
-        title: 'Success',
-        description: `${preset.name} template created successfully`,
-      });
-
-      setShowPresets(false);
-      fetchTemplates();
-    } catch (error: any) {
-      console.error('Error creating preset template:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to create template from preset',
-      });
-    }
-  };
-
   const handleEdit = (templateId: string) => {
     setEditingTemplateId(templateId);
     setShowBuilder(true);
@@ -203,19 +111,24 @@ export function SessionNotesManager() {
 
   const handleDuplicate = async (template: FormTemplate) => {
     try {
+      // Fetch the template with fields
       const { data: originalTemplate, error: fetchError } = await supabase
         .from('form_templates')
-        .select(`*, form_fields (*)`)
+        .select(`
+          *,
+          form_fields (*)
+        `)
         .eq('id', template.id)
         .single();
 
       if (fetchError) throw fetchError;
 
+      // Create new template
       const { data: newTemplate, error: createError } = await supabase
         .from('form_templates')
         .insert({
           tenant_id: template.tenant_id,
-          form_type: 'session_notes',
+          form_type: template.form_type || 'custom',
           name: `${template.name} (Copy)`,
           description: template.description,
           is_active: false,
@@ -227,6 +140,7 @@ export function SessionNotesManager() {
 
       if (createError) throw createError;
 
+      // Duplicate fields if they exist
       if (originalTemplate.form_fields && originalTemplate.form_fields.length > 0) {
         const fieldsToInsert = originalTemplate.form_fields.map((field: any) => ({
           form_template_id: newTemplate.id,
@@ -251,7 +165,7 @@ export function SessionNotesManager() {
 
       toast({
         title: 'Success',
-        description: 'Template duplicated successfully',
+        description: 'Form duplicated successfully',
       });
 
       fetchTemplates();
@@ -260,7 +174,7 @@ export function SessionNotesManager() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to duplicate template',
+        description: 'Failed to duplicate form',
       });
     }
   };
@@ -278,7 +192,7 @@ export function SessionNotesManager() {
 
       toast({
         title: 'Success',
-        description: 'Template deleted successfully',
+        description: 'Form deleted successfully',
       });
 
       fetchTemplates();
@@ -287,7 +201,7 @@ export function SessionNotesManager() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to delete template',
+        description: 'Failed to delete form',
       });
     } finally {
       setDeletingTemplate(null);
@@ -300,27 +214,36 @@ export function SessionNotesManager() {
     fetchTemplates();
   };
 
+  const getFormTypeBadge = (formType?: string) => {
+    switch (formType) {
+      case 'signup':
+        return <Badge variant="outline" className="bg-primary/10">Sign-Up</Badge>;
+      case 'intake':
+        return <Badge variant="outline" className="bg-secondary/10">Intake</Badge>;
+      case 'custom':
+      default:
+        return <Badge variant="outline">Custom</Badge>;
+    }
+  };
+
   return (
     <>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Session Note Templates</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Library className="h-5 w-5" />
+                Form Library
+              </CardTitle>
               <CardDescription>
-                Create templates for documenting therapy sessions and progress notes
+                View and manage all your custom forms
               </CardDescription>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowPresets(true)}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Use Preset
-              </Button>
-              <Button onClick={handleCreateNew}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Custom
-              </Button>
-            </div>
+            <Button onClick={handleCreateNew}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create New Form
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -331,20 +254,14 @@ export function SessionNotesManager() {
           ) : templates.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="font-medium text-lg mb-2">No session note templates yet</h3>
+              <h3 className="font-medium text-lg mb-2">No forms yet</h3>
               <p className="text-muted-foreground mb-4">
-                Create a template or use a preset to get started
+                Create your first form to start collecting data
               </p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowPresets(true)}>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Use Preset
-                </Button>
-                <Button onClick={handleCreateNew}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Custom
-                </Button>
-              </div>
+              <Button onClick={handleCreateNew}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create New Form
+              </Button>
             </div>
           ) : (
             <Table>
@@ -352,6 +269,7 @@ export function SessionNotesManager() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Responses</TableHead>
                   <TableHead>Last Updated</TableHead>
@@ -364,6 +282,9 @@ export function SessionNotesManager() {
                     <TableCell className="font-medium">{template.name}</TableCell>
                     <TableCell className="text-muted-foreground max-w-xs truncate">
                       {template.description || '-'}
+                    </TableCell>
+                    <TableCell>
+                      {getFormTypeBadge(template.form_type)}
                     </TableCell>
                     <TableCell>
                       {template.is_active ? (
@@ -394,6 +315,7 @@ export function SessionNotesManager() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEdit(template.id!)}
+                          title="Edit form"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -401,6 +323,7 @@ export function SessionNotesManager() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDuplicate(template)}
+                          title="Duplicate form"
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
@@ -408,6 +331,7 @@ export function SessionNotesManager() {
                           variant="ghost"
                           size="sm"
                           onClick={() => setDeletingTemplate(template)}
+                          title="Delete form"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -421,52 +345,13 @@ export function SessionNotesManager() {
         </CardContent>
       </Card>
 
-      {/* Preset Templates Dialog */}
-      <Dialog open={showPresets} onOpenChange={setShowPresets}>
-        <DialogContent>
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Choose a Preset Template</h2>
-              <p className="text-sm text-muted-foreground">
-                Start with a pre-built template that you can customize
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {TEMPLATE_PRESETS.map((preset) => (
-                <Card key={preset.name} className="cursor-pointer hover:border-primary transition-colors">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-base">{preset.name}</CardTitle>
-                        <CardDescription className="text-sm">
-                          {preset.description}
-                        </CardDescription>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleCreateFromPreset(preset)}
-                      >
-                        Use This
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xs text-muted-foreground">
-                      {preset.fields.length} fields included
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Form Builder Dialog */}
       <Dialog open={showBuilder} onOpenChange={handleBuilderClose}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-auto">
-          <FormBuilder formType="session_notes" />
+          <FormBuilder 
+            templateId={editingTemplateId || undefined}
+            onSaveComplete={handleBuilderClose}
+          />
         </DialogContent>
       </Dialog>
 
@@ -489,7 +374,7 @@ export function SessionNotesManager() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Template</AlertDialogTitle>
+            <AlertDialogTitle>Delete Form</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{deletingTemplate?.name}"? This action cannot be
               undone and will delete all associated fields and responses.

@@ -11,6 +11,8 @@ export type FieldType =
   | 'checkbox' 
   | 'file';
 
+export type FormType = 'signup' | 'intake' | 'custom';
+
 export interface ValidationRules {
   minLength?: number;
   maxLength?: number;
@@ -52,7 +54,7 @@ export interface FormField {
 export interface FormTemplate {
   id?: string;
   tenant_id: string;
-  form_type: 'signup' | 'intake' | 'session_notes';
+  form_type?: FormType;
   name: string;
   description?: string;
   is_active: boolean;

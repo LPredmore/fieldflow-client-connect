@@ -1,9 +1,9 @@
 import { useSupabaseTable } from '@/hooks/data/useSupabaseTable';
-import { FormTemplate } from '@/components/Forms/types';
+import { FormTemplate, FormType } from '@/components/Forms/types';
 
 export interface FormTemplateData {
   tenant_id: string;
-  form_type: 'signup' | 'intake' | 'session_notes';
+  form_type?: FormType;
   name: string;
   description?: string;
   is_active: boolean;
