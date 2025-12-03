@@ -1,22 +1,24 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, Loader2, Archive, Stethoscope, Briefcase, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Archive, Briefcase } from "lucide-react";
 import { Profile } from '@/hooks/useProfiles';
-import { AdminSettings } from './AdminSettings';
 import { PermissionSettings } from './PermissionSettings';
 import { ProfessionalSettings } from './ProfessionalSettings';
 import { ArchiveUserDialog } from './ArchiveUserDialog';
 import { UserPermissions } from '@/utils/permissionUtils';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useStaffProfile } from '@/hooks/useStaffProfile';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { format, isPast } from 'date-fns';
 import { useRoleCacheInvalidation } from '@/hooks/useRoleCacheInvalidation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
+interface RoleChanges {
+  rolesToAdd: string[];
+  rolesToRemove: string[];
+}
 
 interface UserRowProps {
   profile: Profile;
@@ -43,10 +45,10 @@ export function UserRow({
 }: UserRowProps) {
   const isUpdating = updatingUser === profile.id;
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { invalidateUserRole } = useRoleCacheInvalidation();
-  const { updatePermissions } = usePermissions();
   const { staff, updateStaffProfile } = useStaffProfile({ profileId: profile.id });
-  const { isAdmin } = useAuth();
+  const { user } = useAuth();
 
   // Fetch active roles from user_roles table
   const { data: activeRoles } = useQuery({
@@ -63,8 +65,8 @@ export function UserRow({
     enabled: isExpanded
   });
 
-  const [adminChanges, setAdminChanges] = useState<{ is_admin?: boolean }>({});
   const [professionalChanges, setProfessionalChanges] = useState<any>({});
+  const [roleChanges, setRoleChanges] = useState<RoleChanges>({ rolesToAdd: [], rolesToRemove: [] });
   const [isSaving, setIsSaving] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
 
@@ -72,30 +74,50 @@ export function UserRow({
   const displayRole = staff?.prov_status || 'Staff';
   const canArchive = !isCurrentUser && staff;
 
-  const hasUnsavedChanges = 
-    Object.keys(adminChanges).length > 0 || 
-    Object.keys(professionalChanges).length > 0;
-  
-  const handleAdminChange = (isAdmin: boolean) => {
-    setAdminChanges({ is_admin: isAdmin });
-  };
+  const hasRoleChanges = roleChanges.rolesToAdd.length > 0 || roleChanges.rolesToRemove.length > 0;
+  const hasUnsavedChanges = Object.keys(professionalChanges).length > 0 || hasRoleChanges;
 
   const handleProfessionalDataChange = (data: any) => {
     setProfessionalChanges(data);
   };
 
+  const handleRolesChanged = useCallback((changes: RoleChanges) => {
+    setRoleChanges(changes);
+  }, []);
+
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
-      // Combine admin and professional changes
-      const staffUpdates = { ...adminChanges, ...professionalChanges };
-      
-      // Save staff data if there are changes
-      if (Object.keys(staffUpdates).length > 0) {
-        const result = await updateStaffProfile(staffUpdates);
+      // Save professional data if there are changes
+      if (Object.keys(professionalChanges).length > 0) {
+        const result = await updateStaffProfile(professionalChanges);
         if (result.error) {
           throw new Error(result.error.message);
         }
+      }
+
+      // Save role changes if there are any
+      const tenantId = user?.roleContext?.tenantId;
+      if (hasRoleChanges && staff?.id && tenantId) {
+        const response = await supabase.functions.invoke('update-staff-roles', {
+          body: {
+            staffId: staff.id,
+            tenantId: tenantId,
+            rolesToAdd: roleChanges.rolesToAdd,
+            rolesToRemove: roleChanges.rolesToRemove,
+          }
+        });
+
+        if (response.error) {
+          throw new Error(response.error.message || 'Failed to update roles');
+        }
+
+        if (!response.data?.success) {
+          throw new Error(response.data?.message || 'Failed to update roles');
+        }
+
+        // Invalidate role assignments query to refresh the UI
+        queryClient.invalidateQueries({ queryKey: ['staff_role_assignments', staff.id] });
       }
 
       toast({
@@ -107,8 +129,8 @@ export function UserRow({
       invalidateUserRole(profile.id);
 
       // Clear pending changes
-      setAdminChanges({});
       setProfessionalChanges({});
+      setRoleChanges({ rolesToAdd: [], rolesToRemove: [] });
 
       // Refresh data
       onPermissionUpdate();
@@ -210,10 +232,13 @@ export function UserRow({
               />
             )}
             
-            {/* Permissions */}
+            {/* Role Assignments */}
             {staff && (
               <PermissionSettings
                 userId={profile.id}
+                staffId={staff.id}
+                tenantId={user?.roleContext?.tenantId ?? null}
+                onRolesChanged={handleRolesChanged}
               />
             )}
             
