@@ -23,6 +23,7 @@ export function useRoleCacheInvalidation() {
     queryClient.invalidateQueries({ queryKey: ['user_roles'] });
     queryClient.invalidateQueries({ queryKey: ['staff'] });
     queryClient.invalidateQueries({ queryKey: ['user_permissions'] });
+    queryClient.invalidateQueries({ queryKey: ['staff_role_assignments'] });
   };
 
   const invalidateAllRoles = () => {
@@ -34,6 +35,8 @@ export function useRoleCacheInvalidation() {
     queryClient.invalidateQueries({ queryKey: ['user_roles'] });
     queryClient.invalidateQueries({ queryKey: ['staff'] });
     queryClient.invalidateQueries({ queryKey: ['user_permissions'] });
+    queryClient.invalidateQueries({ queryKey: ['staff_role_assignments'] });
+    queryClient.invalidateQueries({ queryKey: ['staff_roles'] });
   };
 
   return {
