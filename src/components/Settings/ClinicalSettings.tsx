@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -44,6 +44,7 @@ export default function ClinicalSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn>('code');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Merge master CPT codes with tenant configurations
   const mergedState = useMemo(() => {
@@ -111,11 +112,12 @@ export default function ClinicalSettings() {
   }, [currentState]);
 
   // Initialize local state when merged state is ready
-  useMemo(() => {
-    if (mergedState && !localState) {
+  useEffect(() => {
+    if (mergedState && !isInitialized && !cptLoading && !tenantLoading) {
       setLocalState(mergedState);
+      setIsInitialized(true);
     }
-  }, [mergedState, localState]);
+  }, [mergedState, isInitialized, cptLoading, tenantLoading]);
 
   const handleToggle = useCallback((cptCodeId: string, checked: boolean) => {
     setLocalState(prev => {
@@ -203,9 +205,12 @@ export default function ClinicalSettings() {
           });
       }
       
-      // Reset local state to trigger re-merge with fresh data
-      setLocalState(null);
+      // Step 1: Await refetch to get fresh data from server
       await refetch();
+      
+      // Step 2: Reset initialization flag to allow useEffect to re-sync
+      setIsInitialized(false);
+      setLocalState(null);
       
       toast({
         title: "Settings saved",
