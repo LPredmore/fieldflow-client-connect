@@ -274,14 +274,13 @@ export default function ClinicalSettings() {
                 </TableHead>
                 <TableHead className="w-24">Code</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead className="w-32">Category</TableHead>
-                <TableHead className="w-32 text-right">Default Price</TableHead>
+                <TableHead className="w-40 text-right">Default Price</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredState.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                     {searchTerm ? "No CPT codes match your search." : "No CPT codes available."}
                   </TableCell>
                 </TableRow>
@@ -299,9 +298,6 @@ export default function ClinicalSettings() {
                     <TableCell className="max-w-md truncate" title={item.description}>
                       {item.description}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {item.category ?? "—"}
-                    </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
                         <span className="text-muted-foreground">$</span>
@@ -312,7 +308,7 @@ export default function ClinicalSettings() {
                           value={item.custom_rate ?? ""}
                           onChange={(e) => handlePriceChange(item.cpt_code_id, e.target.value)}
                           disabled={!item.is_enabled}
-                          className="w-20 text-right h-8"
+                          className="w-28 text-right h-8"
                           placeholder="0"
                         />
                       </div>
