@@ -11,11 +11,12 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, Save } from "lucide-react";
+import { Loader2, Search, Save, ChevronUp, ChevronDown, ChevronsUpDown, Trash2 } from "lucide-react";
 import { useCptCodes } from "@/hooks/useCptCodes";
 import { useTenantCptCodes } from "@/hooks/useTenantCptCodes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface CptCodeState {
   cpt_code_id: string;
@@ -30,6 +31,9 @@ interface CptCodeState {
   existing_record_id: string | null;
 }
 
+type SortColumn = 'code' | 'description' | 'custom_rate';
+type SortDirection = 'asc' | 'desc';
+
 export default function ClinicalSettings() {
   const { cptCodes, loading: cptLoading } = useCptCodes();
   const { tenantCptCodes, loading: tenantLoading, refetch, tenantId } = useTenantCptCodes();
@@ -38,6 +42,8 @@ export default function ClinicalSettings() {
   const [searchTerm, setSearchTerm] = useState("");
   const [localState, setLocalState] = useState<CptCodeState[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [sortColumn, setSortColumn] = useState<SortColumn>('code');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   // Merge master CPT codes with tenant configurations
   const mergedState = useMemo(() => {
@@ -67,17 +73,33 @@ export default function ClinicalSettings() {
   // Use local state if user has made changes, otherwise use merged state
   const currentState = localState ?? mergedState;
 
-  // Filter by search term
-  const filteredState = useMemo(() => {
-    if (!currentState) return [];
-    if (!searchTerm.trim()) return currentState;
+  // Available codes (not enabled) - filtered by search
+  const availableCodes = useMemo(() => {
+    const notEnabled = currentState?.filter(item => !item.is_enabled) ?? [];
+    if (!searchTerm.trim()) return notEnabled;
     
     const term = searchTerm.toLowerCase();
-    return currentState.filter(
+    return notEnabled.filter(
       item => item.code.toLowerCase().includes(term) || 
               item.description.toLowerCase().includes(term)
     );
   }, [currentState, searchTerm]);
+
+  // Selected codes (enabled) - sorted
+  const selectedCodes = useMemo(() => {
+    const enabled = currentState?.filter(item => item.is_enabled) ?? [];
+    return [...enabled].sort((a, b) => {
+      let comparison = 0;
+      if (sortColumn === 'code') {
+        comparison = a.code.localeCompare(b.code);
+      } else if (sortColumn === 'description') {
+        comparison = a.description.localeCompare(b.description);
+      } else if (sortColumn === 'custom_rate') {
+        comparison = (a.custom_rate ?? 0) - (b.custom_rate ?? 0);
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [currentState, sortColumn, sortDirection]);
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = useMemo(() => {
@@ -106,6 +128,17 @@ export default function ClinicalSettings() {
     });
   }, []);
 
+  const handleRemove = useCallback((cptCodeId: string) => {
+    setLocalState(prev => {
+      if (!prev) return prev;
+      return prev.map(item => 
+        item.cpt_code_id === cptCodeId 
+          ? { ...item, is_enabled: false }
+          : item
+      );
+    });
+  }, []);
+
   const handlePriceChange = useCallback((cptCodeId: string, value: string) => {
     const numValue = value === "" ? null : parseInt(value, 10);
     if (value !== "" && (isNaN(numValue!) || numValue! < 0)) return;
@@ -121,20 +154,17 @@ export default function ClinicalSettings() {
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    const allVisibleEnabled = filteredState.every(item => item.is_enabled);
-    const newValue = !allVisibleEnabled;
-    
-    const visibleIds = new Set(filteredState.map(item => item.cpt_code_id));
+    const availableIds = new Set(availableCodes.map(item => item.cpt_code_id));
     
     setLocalState(prev => {
       if (!prev) return prev;
       return prev.map(item => 
-        visibleIds.has(item.cpt_code_id)
-          ? { ...item, is_enabled: newValue }
+        availableIds.has(item.cpt_code_id)
+          ? { ...item, is_enabled: true }
           : item
       );
     });
-  }, [filteredState]);
+  }, [availableCodes]);
 
   const handleSave = useCallback(async () => {
     if (!currentState || !tenantId) return;
@@ -193,9 +223,41 @@ export default function ClinicalSettings() {
     }
   }, [currentState, tenantId, refetch, toast]);
 
+  const handleSort = useCallback((column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  }, [sortColumn]);
+
+  const SortableHeader = ({ column, label, className }: { 
+    column: SortColumn; 
+    label: string;
+    className?: string;
+  }) => {
+    const isActive = sortColumn === column;
+    return (
+      <TableHead 
+        className={cn("cursor-pointer select-none hover:bg-muted/50 transition-colors", className)}
+        onClick={() => handleSort(column)}
+      >
+        <div className="flex items-center gap-1">
+          {label}
+          {isActive ? (
+            sortDirection === 'asc' 
+              ? <ChevronUp className="h-4 w-4" />
+              : <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronsUpDown className="h-4 w-4 text-muted-foreground/50" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
+
   const isLoading = cptLoading || tenantLoading;
-  const allVisibleEnabled = filteredState.length > 0 && filteredState.every(item => item.is_enabled);
-  const someVisibleEnabled = filteredState.some(item => item.is_enabled);
 
   if (isLoading && !currentState) {
     return (
@@ -212,119 +274,164 @@ export default function ClinicalSettings() {
       <CardHeader>
         <CardTitle>CPT Code Management</CardTitle>
         <CardDescription>
-          Configure which CPT codes your clinic uses and set default pricing (in whole dollars)
+          Configure which CPT codes your clinic uses and set custom pricing
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Search and Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by code or description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
+      <CardContent className="space-y-6">
+        {/* Available CPT Codes Section */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <h3 className="text-lg font-medium">Available CPT Codes</h3>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by code or description..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                disabled={availableCodes.length === 0}
+              >
+                Select All
+              </Button>
+            </div>
           </div>
-          
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSelectAll}
-              disabled={filteredState.length === 0}
-            >
-              {allVisibleEnabled ? "Deselect All" : "Select All"}
-            </Button>
-            
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!hasUnsavedChanges || isSaving}
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Save Changes
-            </Button>
+
+          <div className="text-sm text-muted-foreground">
+            Showing {availableCodes.length} available codes
           </div>
-        </div>
 
-        {/* Results count */}
-        <div className="text-sm text-muted-foreground">
-          Showing {filteredState.length} of {currentState?.length ?? 0} CPT codes
-          {someVisibleEnabled && ` • ${filteredState.filter(i => i.is_enabled).length} enabled in view`}
-        </div>
-
-        {/* CPT Codes Table */}
-        <div className="border rounded-lg max-h-[500px] overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background">
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={allVisibleEnabled}
-                    onCheckedChange={() => handleSelectAll()}
-                    disabled={filteredState.length === 0}
-                    aria-label="Select all visible"
-                  />
-                </TableHead>
-                <TableHead className="w-24">Code</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="w-40 text-right">Default Price</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredState.length === 0 ? (
+          <div className="border rounded-lg max-h-[300px] overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background">
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? "No CPT codes match your search." : "No CPT codes available."}
-                  </TableCell>
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-24">Code</TableHead>
+                  <TableHead>Description</TableHead>
                 </TableRow>
-              ) : (
-                filteredState.map((item) => (
-                  <TableRow key={item.cpt_code_id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={item.is_enabled}
-                        onCheckedChange={(checked) => handleToggle(item.cpt_code_id, !!checked)}
-                        aria-label={`Enable ${item.code}`}
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono font-medium">{item.code}</TableCell>
-                    <TableCell className="max-w-md truncate" title={item.description}>
-                      {item.description}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <span className="text-muted-foreground">$</span>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={item.custom_rate ?? ""}
-                          onChange={(e) => handlePriceChange(item.cpt_code_id, e.target.value)}
-                          disabled={!item.is_enabled}
-                          className="w-28 text-right h-8"
-                          placeholder="0"
-                        />
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {availableCodes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      {searchTerm ? "No CPT codes match your search." : "All codes have been selected."}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  availableCodes.map((item) => (
+                    <TableRow key={item.cpt_code_id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={false}
+                          onCheckedChange={() => handleToggle(item.cpt_code_id, true)}
+                          aria-label={`Select ${item.code}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono font-medium">{item.code}</TableCell>
+                      <TableCell className="max-w-md truncate" title={item.description}>
+                        {item.description}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
-        {hasUnsavedChanges && (
-          <div className="text-sm text-amber-600 dark:text-amber-400">
-            You have unsaved changes.
+        {/* Selected CPT Codes Section */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-medium">Selected CPT Codes</h3>
+            <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              {selectedCodes.length} codes
+            </span>
           </div>
-        )}
+
+          <div className="border rounded-lg max-h-[400px] overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background">
+                <TableRow>
+                  <SortableHeader column="code" label="Code" className="w-24" />
+                  <SortableHeader column="description" label="Description" />
+                  <SortableHeader column="custom_rate" label="Price" className="w-40" />
+                  <TableHead className="w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedCodes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      No CPT codes selected. Select codes from the list above.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  selectedCodes.map((item) => (
+                    <TableRow key={item.cpt_code_id}>
+                      <TableCell className="font-mono font-medium">{item.code}</TableCell>
+                      <TableCell className="max-w-md truncate" title={item.description}>
+                        {item.description}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">$</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={item.custom_rate ?? ""}
+                            onChange={(e) => handlePriceChange(item.cpt_code_id, e.target.value)}
+                            className="w-28 text-right h-8"
+                            placeholder="0"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleRemove(item.cpt_code_id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-2">
+          {hasUnsavedChanges ? (
+            <div className="text-sm text-amber-600 dark:text-amber-400">
+              You have unsaved changes.
+            </div>
+          ) : (
+            <div />
+          )}
+          
+          <Button
+            onClick={handleSave}
+            disabled={!hasUnsavedChanges || isSaving}
+          >
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Save Changes
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
