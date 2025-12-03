@@ -3,7 +3,7 @@ import { AppointmentSeries } from '@/hooks/useAppointmentManagement';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, DollarSign, User, FileText, Wrench, Edit, AlertTriangle, Repeat } from 'lucide-react';
+import { Calendar, Clock, DollarSign, User, FileText, Edit, AlertTriangle, Repeat } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useUserTimezone } from '@/hooks/useUserTimezone';
 import { formatInUserTimezone } from '@/lib/timezoneUtils';
@@ -150,32 +150,8 @@ export default function JobSeriesView({ jobSeries, onUpdate }: JobSeriesViewProp
         </Card>
       </div>
 
-      {/* Service and Assignment */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Wrench className="h-4 w-4" />
-              Service Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div>
-              <span className="text-sm text-muted-foreground">Service:</span>
-              <p className="font-medium">{jobSeries.service_name || 'No service assigned'}</p>
-              {jobSeries.service_category && (
-                <p className="text-sm text-muted-foreground">Category: {jobSeries.service_category}</p>
-              )}
-            </div>
-            {jobSeries.description && (
-              <div>
-                <span className="text-sm text-muted-foreground">Description:</span>
-                <p className="font-medium">{jobSeries.description}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
+      {/* Assignment */}
+      <div className="grid grid-cols-1 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">

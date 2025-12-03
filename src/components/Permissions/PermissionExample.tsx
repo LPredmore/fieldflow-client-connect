@@ -8,17 +8,17 @@ import { Button } from '@/components/ui/button';
 // Example component showing different permission patterns
 function PermissionExampleContent() {
   const { 
-    canAccessServices, 
     canAccessInvoicing, 
+    canAccessForms,
     canSupervise,
     loading 
   } = usePermissionChecks();
   
   const { validatePermission } = usePermissionValidation();
 
-  const handleServiceAction = () => {
-    if (validatePermission('access_services', 'manage services')) {
-      console.log('Service action performed');
+  const handleFormsAction = () => {
+    if (validatePermission('access_forms', 'manage forms')) {
+      console.log('Forms action performed');
     }
   };
 
@@ -43,10 +43,10 @@ function PermissionExampleContent() {
         </CardHeader>
         <CardContent>
           <PermissionGuard 
-            permission="access_services"
-            fallback={<p className="text-muted-foreground">You need service access to see this content.</p>}
+            permission="access_forms"
+            fallback={<p className="text-muted-foreground">You need forms access to see this content.</p>}
           >
-            <p className="text-green-600">✅ You can access services!</p>
+            <p className="text-green-600">✅ You can access forms!</p>
           </PermissionGuard>
         </CardContent>
       </Card>
@@ -59,10 +59,10 @@ function PermissionExampleContent() {
         <CardContent className="space-y-4">
           <div className="flex gap-4">
             <PermissionButton 
-              permission="access_services"
-              onClick={handleServiceAction}
+              permission="access_forms"
+              onClick={handleFormsAction}
             >
-              Service Action
+              Forms Action
             </PermissionButton>
             
             <PermissionButton 
@@ -111,10 +111,10 @@ function PermissionExampleContent() {
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2">
-              <span className={canAccessServices ? 'text-green-600' : 'text-red-600'}>
-                {canAccessServices ? '✅' : '❌'}
+              <span className={canAccessForms ? 'text-green-600' : 'text-red-600'}>
+                {canAccessForms ? '✅' : '❌'}
               </span>
-              <span>Services Access</span>
+              <span>Forms Access</span>
             </div>
             <div className="flex items-center gap-2">
               <span className={canAccessInvoicing ? 'text-green-600' : 'text-red-600'}>

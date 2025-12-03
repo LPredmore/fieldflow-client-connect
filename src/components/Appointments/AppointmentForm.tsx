@@ -19,7 +19,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ContractorSelector } from '@/components/Clients/ContractorSelector';
 import { ClientSelector } from '@/components/Clients/ClientSelector';
-import { ServiceSelector } from '@/components/Appointments/ServiceSelector';
 import { RRuleBuilder } from './RRuleBuilder';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle } from 'lucide-react';
@@ -34,8 +33,6 @@ const jobSchema = z.object({
   scheduled_date: z.string().min(1, 'Start Date is required'),
   complete_date: z.string().transform((val) => val === '' ? null : val).optional(),
   assigned_to_user_id: z.string().optional(),
-  service_id: z.string().optional(),
-  service_name: z.string().optional(),
   actual_cost: z.coerce.number().optional(),
   additional_info: z.string().optional(),
   completion_notes: z.string().optional(),
@@ -106,8 +103,6 @@ export default function JobForm({ job, onSubmit, onCancel, loading }: JobFormPro
       scheduled_date: job?.scheduled_date || initialValues.date,
       complete_date: job?.complete_date || undefined, // Don't use empty string
       assigned_to_user_id: job?.assigned_to_user_id || user?.id,
-      service_id: job?.service_id || undefined,
-      service_name: job?.service_name || undefined,
       actual_cost: job?.actual_cost || undefined,
       additional_info: job?.additional_info || '',
       completion_notes: job?.completion_notes || '',
@@ -278,25 +273,6 @@ export default function JobForm({ job, onSubmit, onCancel, loading }: JobFormPro
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="service_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Service (optional)</FormLabel>
-                    <FormControl>
-                      <ServiceSelector
-                        value={field.value || ''}
-                        onValueChange={(serviceId, serviceName) => {
-                          field.onChange(serviceId);
-                          form.setValue("service_name", serviceName);
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
           </CardContent>
         </Card>
