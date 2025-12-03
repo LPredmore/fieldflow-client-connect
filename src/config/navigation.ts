@@ -17,7 +17,7 @@ import { STAFF_ROUTES, CLIENT_ROUTES, BILLING_ROUTES } from "./routes";
 export const STAFF_NAVIGATION = [
   { name: "Dashboard", href: STAFF_ROUTES.DASHBOARD, icon: Home },
   { name: "Appointments", href: STAFF_ROUTES.APPOINTMENTS, icon: Briefcase },
-  { name: "Patients", href: STAFF_ROUTES.CLIENTS, icon: Users },
+  { name: "Clients", href: STAFF_ROUTES.CLIENTS, icon: Users },
   { name: "Invoices", href: STAFF_ROUTES.INVOICES, icon: Receipt, permission: "access_invoicing" },
   { name: "Calendar", href: STAFF_ROUTES.CALENDAR, icon: Calendar },
   { name: "Forms", href: STAFF_ROUTES.FORMS, icon: FileText, permission: "access_forms" },

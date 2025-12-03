@@ -53,13 +53,13 @@ export function useClients() {
         };
       }),
     insertOptions: {
-      successMessage: 'Patient created successfully',
+      successMessage: 'Client created successfully',
     },
     updateOptions: {
-      successMessage: 'Patient updated successfully',
+      successMessage: 'Client updated successfully',
     },
     deleteOptions: {
-      successMessage: 'Patient deleted successfully',
+      successMessage: 'Client deleted successfully',
     },
   });
 
@@ -86,7 +86,7 @@ export function useClients() {
     if (result.data) {
       toast({
         title: "Success",
-        description: "Patient created successfully!",
+        description: "Client created successfully!",
       });
     }
     
