@@ -13,7 +13,6 @@ export const STAFF_ROUTES = {
   DASHBOARD: '/staff/dashboard',
   APPOINTMENTS: '/staff/appointments',
   CLIENTS: '/staff/clients',
-  SERVICES: '/staff/services',
   INVOICES: '/staff/invoices',
   CALENDAR: '/staff/calendar',
   FORMS: '/staff/forms',

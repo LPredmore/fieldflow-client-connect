@@ -8,7 +8,6 @@ import { Layout } from "@/components/Layout/Layout";
 import Index from "@/pages/Index";
 import Appointments from "@/pages/Appointments";
 import Clients from "@/pages/Clients";
-import Services from "@/pages/Services";
 import Settings from "@/pages/Settings";
 import Profile from "@/pages/Profile";
 import Forms from "@/pages/Forms";
@@ -56,15 +55,6 @@ const StaffPortalApp = () => {
           <Route path="/customers" element={<Navigate to="/staff/clients" replace />} />
           
           {/* Permission-protected routes */}
-          <Route path="/services" element={
-            <PermissionGuard 
-              requiredPermissions={['access_services']}
-              fallbackMessage="You need Services permission to access this page."
-            >
-              <Services />
-            </PermissionGuard>
-          } />
-          
           <Route path="/forms" element={
             <PermissionGuard 
               requiredPermissions={['access_forms']}
