@@ -2563,6 +2563,33 @@ export type Database = {
         }
         Relationships: []
       }
+      cpt_codes: {
+        Row: {
+          category: string | null
+          code: string
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+        }
+        Insert: {
+          category?: string | null
+          code: string
+          created_at?: string
+          description: string
+          id?: string
+          is_active?: boolean
+        }
+        Update: {
+          category?: string | null
+          code?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+        }
+        Relationships: []
+      }
       diagnosis_codes: {
         Row: {
           code: string
@@ -3750,6 +3777,54 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tenant_cpt_codes: {
+        Row: {
+          cpt_code_id: string
+          created_at: string
+          custom_rate: number | null
+          id: string
+          is_enabled: boolean
+          modifier: string[] | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          cpt_code_id: string
+          created_at?: string
+          custom_rate?: number | null
+          id?: string
+          is_enabled?: boolean
+          modifier?: string[] | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          cpt_code_id?: string
+          created_at?: string
+          custom_rate?: number | null
+          id?: string
+          is_enabled?: boolean
+          modifier?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_cpt_codes_cpt_code_id_fkey"
+            columns: ["cpt_code_id"]
+            isOneToOne: false
+            referencedRelation: "cpt_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_cpt_codes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tenant_memberships: {
         Row: {
