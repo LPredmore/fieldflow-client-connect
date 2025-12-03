@@ -22,7 +22,7 @@ export interface ClientDisplayData {
  */
 export function getClientDisplayName(client: ClientDisplayData): string {
   // If full_name already computed and valid, use it
-  if (client.full_name && client.full_name !== 'Unknown Patient') {
+  if (client.full_name && client.full_name !== 'Unknown Client') {
     return client.full_name;
   }
   
@@ -37,5 +37,5 @@ export function getClientDisplayName(client: ClientDisplayData): string {
   return patientName || 
          client.pat_name_preferred || 
          client.email || 
-         'Unnamed Patient';
+         'Unnamed Client';
 }

@@ -59,12 +59,12 @@ export default function Clients() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Patients</h1>
-          <p className="text-muted-foreground">Manage your patient records</p>
+          <h1 className="text-3xl font-bold text-foreground">Clients</h1>
+          <p className="text-muted-foreground">Manage your client records</p>
         </div>
         <Button onClick={() => setIsFormOpen(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
-          Add Patient
+          Add Client
         </Button>
       </div>
 
@@ -76,7 +76,7 @@ export default function Clients() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search patients..."
+            placeholder="Search clients..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -163,14 +163,14 @@ export default function Clients() {
           <CardContent className="py-12">
             <div className="text-center">
               <User className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-medium text-foreground">No patients found</h3>
+              <h3 className="mt-4 text-lg font-medium text-foreground">No clients found</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {searchTerm ? "Try adjusting your search" : "Get started by adding your first patient"}
+                {searchTerm ? "Try adjusting your search" : "Get started by adding your first client"}
               </p>
               {!searchTerm && (
                 <Button onClick={() => setIsFormOpen(true)} className="mt-4">
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Patient
+                  Add Client
                 </Button>
               )}
             </div>
@@ -200,7 +200,7 @@ export default function Clients() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         onSubmit={createClient}
-        title="Add New Patient"
+        title="Add New Client"
       />
 
       {/* Edit Form */}
@@ -209,14 +209,14 @@ export default function Clients() {
         onOpenChange={(open) => !open && setEditingClient(null)}
         onSubmit={handleEditClient}
         client={editingClient}
-        title="Edit Patient"
+        title="Edit Client"
       />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deletingClient} onOpenChange={(open) => !open && setDeletingClient(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Patient</AlertDialogTitle>
+            <AlertDialogTitle>Delete Client</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete {deletingClient && getClientDisplayName(deletingClient)}? 
               This action cannot be undone.

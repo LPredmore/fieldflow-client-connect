@@ -16,7 +16,7 @@ export function ClientStatsCards({ stats }: ClientStatsCardsProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Patients</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Clients</p>
               <h3 className="text-2xl font-bold text-foreground">{stats.total}</h3>
             </div>
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -30,7 +30,7 @@ export function ClientStatsCards({ stats }: ClientStatsCardsProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Active Patients</p>
+              <p className="text-sm font-medium text-muted-foreground">Active Clients</p>
               <h3 className="text-2xl font-bold text-foreground">{stats.active}</h3>
             </div>
             <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -44,7 +44,7 @@ export function ClientStatsCards({ stats }: ClientStatsCardsProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">New Patients</p>
+              <p className="text-sm font-medium text-muted-foreground">New Clients</p>
               <h3 className="text-2xl font-bold text-foreground">{stats.new}</h3>
             </div>
             <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center">
