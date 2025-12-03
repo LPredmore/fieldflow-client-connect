@@ -4,25 +4,14 @@ import {
   Home, 
   Menu,
   LogOut,
-  Briefcase, 
-  Users, 
-  FileText, 
-  Receipt, 
-  Calendar,
-  Settings,
-  Wrench,
-  User,
   DollarSign,
-  CheckCircle,
-  FileCheck,
-  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { usePermissionChecks } from "@/hooks/permissions/usePermissionChecks";
-import { getRoleDisplayName, canAccessSettings, UserRole } from "@/utils/roleUtils";
+import { getRoleDisplayName, UserRole } from "@/utils/roleUtils";
 import { STAFF_NAVIGATION, BILLING_NAVIGATION } from "@/config/navigation";
 
 function NavigationContent() {
@@ -31,7 +20,6 @@ function NavigationContent() {
   const { signOut, user, userRole, isAdmin } = useAuth();
   const { displayName, logoUrl, loading: brandingLoading } = useTenantBranding();
   const { 
-    canAccessServices, 
     canAccessInvoicing, 
     canAccessForms,
     loading: permissionsLoading 
@@ -100,10 +88,6 @@ function NavigationContent() {
               // Don't hide permission-gated items while permissions are loading
               if (!permissionsLoading) {
                 // Hide items based on permission requirements only after loading
-                if ('permission' in item && item.permission === 'access_services' && !canAccessServices) {
-                  return null;
-                }
-                
                 if ('permission' in item && item.permission === 'access_invoicing' && !canAccessInvoicing) {
                   return null;
                 }

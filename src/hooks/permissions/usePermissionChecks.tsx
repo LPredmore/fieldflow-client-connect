@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { usePermissionContext } from '@/contexts/PermissionContext';
 import { 
   canAccessAppointments, 
-  canAccessServices, 
   canAccessInvoicing, 
   canAccessForms, 
   canSupervise 
@@ -27,7 +26,6 @@ export function usePermissionChecks() {
 
   const checks = useMemo(() => ({
     canAccessAppointments: canAccessAppointments(permissions),
-    canAccessServices: canAccessServices(permissions),
     canAccessInvoicing: canAccessInvoicing(permissions),
     canAccessForms: canAccessForms(permissions),
     canSupervise: canSupervise(permissions),
@@ -35,13 +33,11 @@ export function usePermissionChecks() {
     // Convenience methods for common combinations
     canAccessAnyBusinessFeature: 
       canAccessAppointments(permissions) || 
-      canAccessServices(permissions) || 
       canAccessInvoicing(permissions) || 
       canAccessForms(permissions),
       
     canAccessAllBusinessFeatures:
       canAccessAppointments(permissions) && 
-      canAccessServices(permissions) && 
       canAccessInvoicing(permissions) && 
       canAccessForms(permissions),
       

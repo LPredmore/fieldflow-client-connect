@@ -4,7 +4,7 @@ import { AppointmentSeries, OneTimeAppointment } from '@/hooks/useAppointmentMan
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, DollarSign, User, FileText, Wrench, Edit, AlertTriangle, Plus, Eye } from 'lucide-react';
+import { Calendar, Clock, DollarSign, User, FileText, Edit, AlertTriangle, Plus, Eye } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import AppointmentForm from '@/components/Appointments/AppointmentForm';
 import AppointmentSeriesView from '@/components/Appointments/AppointmentSeriesView';
@@ -403,32 +403,8 @@ export default function JobView({ job, onUpdate }: JobViewProps) {
         </Card>
       </div>
 
-      {/* Service and Assignment */}
+      {/* Cost Information */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Wrench className="h-4 w-4" />
-              Service Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div>
-              <span className="text-sm text-muted-foreground">Service:</span>
-              <p className="font-medium">{unifiedJob.service_name || 'No service assigned'}</p>
-              {unifiedJob.service_category && (
-                <p className="text-sm text-muted-foreground">Category: {unifiedJob.service_category}</p>
-              )}
-            </div>
-            {unifiedJob.description && (
-              <div>
-                <span className="text-sm text-muted-foreground">Description:</span>
-                <p className="font-medium">{unifiedJob.description}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
