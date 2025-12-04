@@ -141,7 +141,7 @@ export function useSupabaseQuery<T = any>(options: QueryOptions<T>): QueryResult
             let filterValue = value;
             if (key === 'user_id' && value === 'current') {
               filterValue = userId;
-            } else if (key === 'tenant_id' && value === 'current') {
+            } else if (key === 'tenant_id' && (value === 'current' || value === 'auto')) {
               filterValue = tenantId;
             }
             query = query.eq(key, filterValue);

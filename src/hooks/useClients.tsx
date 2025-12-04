@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSupabaseTable } from '@/hooks/data/useSupabaseTable';
+import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useAuth } from '@/hooks/useAuth';
 import { Client, ClientFormData } from '@/types/client';
 import { toast } from '@/hooks/use-toast';
@@ -10,6 +11,9 @@ export type { Client, ClientFormData };
 export function useClients() {
   const { user, tenantId } = useAuth();
   const [createLoading, setCreateLoading] = useState(false);
+  
+  // Extract staff ID from auth context for filtering
+  const staffId = user?.staffAttributes?.staffData?.id;
   
   const {
     data: clients,
@@ -25,7 +29,9 @@ export function useClients() {
     select: '*, assigned_staff:staff!primary_staff_id(prov_name_f, prov_name_l)',
     filters: {
       tenant_id: 'auto',
+      ...(staffId ? { primary_staff_id: staffId } : {}),
     },
+    enabled: !!staffId,
     orderBy: { column: 'created_at', ascending: false },
     transform: (data: any[]) => 
       data.map((client: any) => {
@@ -60,16 +66,32 @@ export function useClients() {
     },
   });
 
+  // Fetch treatment plans to determine which clients have plans (for "New" stat)
+  const { data: treatmentPlans, loading: treatmentPlansLoading } = useSupabaseQuery<{ client_id: string }>({
+    table: 'client_treatment_plans',
+    select: 'client_id',
+    filters: {
+      tenant_id: 'auto',
+    },
+    enabled: !!staffId,
+  });
+
   // Statistics calculations
   const stats = useMemo(() => {
     const clientList = clients || [];
     
+    // Create a Set of client IDs that have treatment plans
+    const clientsWithPlans = new Set(
+      (treatmentPlans || []).map(tp => tp.client_id)
+    );
+    
     return {
       total: clientList.length,
       active: clientList.filter(c => c.pat_status === 'Active').length,
-      new: clientList.filter(c => c.pat_status === 'New').length,
+      // "New" = clients without any treatment plan entry
+      new: clientList.filter(c => !clientsWithPlans.has(c.id)).length,
     };
-  }, [clients]);
+  }, [clients, treatmentPlans]);
 
   // Create client via edge function (creates auth account + all related records)
   const createClientWithAccount = async (clientData: ClientFormData) => {
@@ -154,7 +176,7 @@ export function useClients() {
 
   return {
     clients,
-    loading: loading || createLoading || updateLoading || deleteLoading,
+    loading: loading || treatmentPlansLoading || createLoading || updateLoading || deleteLoading,
     error,
     stats,
     createClient: createClientWithAccount,
