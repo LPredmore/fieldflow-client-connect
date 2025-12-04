@@ -3,59 +3,71 @@ import { useAuth } from './useAuth';
 import { useUserTimezone } from './useUserTimezone';
 import { useToast } from '@/hooks/use-toast';
 import { combineDateTimeToUTC } from '@/lib/timezoneUtils';
-import { rrulestr } from 'rrule';
 import { addMinutes } from 'date-fns';
 
-export interface CreateOneTimeAppointmentInput {
-  title: string;
-  customer_id: string;
-  service_id?: string;
-  description?: string;
+export interface CreateAppointmentInput {
+  client_id: string;
+  service_id: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   duration_minutes: number;
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
-  assigned_to_user_id?: string;
-  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  is_telehealth?: boolean;
+  location_name?: string;
+  status?: 'scheduled' | 'completed' | 'cancelled';
 }
 
-export interface CreateRecurringAppointmentInput extends CreateOneTimeAppointmentInput {
-  rrule: string;
-  maxOccurrences?: number;
-}
-
+/**
+ * Hook for creating single appointments in the appointments table.
+ * Uses correct schema columns: client_id, staff_id, service_id, etc.
+ */
 export function useAppointmentCreation() {
   const { user, tenantId } = useAuth();
   const userTimezone = useUserTimezone();
   const { toast } = useToast();
 
-  const createOneTimeAppointment = async (data: CreateOneTimeAppointmentInput) => {
-    if (!user || !tenantId) throw new Error('User not authenticated');
+  // Get the current staff_id from auth context
+  const staffId = user?.staffAttributes?.staffData?.id;
+
+  const createAppointment = async (data: CreateAppointmentInput) => {
+    if (!user || !tenantId || !staffId) {
+      throw new Error('User not authenticated or staff ID not found');
+    }
 
     // Convert local time to UTC
     const utcStart = combineDateTimeToUTC(data.date, data.time, userTimezone);
     const utcEnd = addMinutes(utcStart, data.duration_minutes);
 
+    // Map time_zone string to the database enum value
+    // The database uses time_zones enum
+    const timeZoneMapping: Record<string, string> = {
+      'America/New_York': 'America/New_York',
+      'America/Chicago': 'America/Chicago',
+      'America/Denver': 'America/Denver',
+      'America/Los_Angeles': 'America/Los_Angeles',
+      'America/Phoenix': 'America/Phoenix',
+      'America/Anchorage': 'America/Anchorage',
+      'Pacific/Honolulu': 'Pacific/Honolulu',
+    };
+    
+    const dbTimezone = timeZoneMapping[userTimezone] || 'America/New_York';
+
     const appointmentData = {
       tenant_id: tenantId,
-      customer_id: data.customer_id,
-      service_id: data.service_id || null,
-      title: data.title,
-      description: data.description || null,
+      client_id: data.client_id,
+      staff_id: staffId,
+      service_id: data.service_id,
       start_at: utcStart.toISOString(),
       end_at: utcEnd.toISOString(),
-      duration: data.duration_minutes,
       status: data.status || 'scheduled',
-      priority: data.priority || 'medium',
-      is_recurring: false,
-      timezone: userTimezone,
-      created_by_user_id: user.id,
-      assigned_to_user_id: data.assigned_to_user_id || user.id, // Auto-assign to creator if not specified
-      original_start_at: utcStart.toISOString(),
+      is_telehealth: data.is_telehealth ?? false,
+      location_name: data.location_name || null,
+      time_zone: dbTimezone,
+      created_by_profile_id: user.id,
+      series_id: null, // Single appointment, not part of a series
     };
 
     const { data: appointment, error } = await supabase
-      .from('appointment_occurrences')
+      .from('appointments')
       .insert(appointmentData)
       .select()
       .single();
@@ -78,78 +90,8 @@ export function useAppointmentCreation() {
     return appointment;
   };
 
-  const createRecurringAppointments = async (data: CreateRecurringAppointmentInput) => {
-    if (!user || !tenantId) throw new Error('User not authenticated');
-
-    // Parse RRule and generate occurrences
-    const startDate = new Date(`${data.date}T${data.time}`);
-    const rule = rrulestr(data.rrule, { dtstart: startDate });
-    const maxOccurrences = data.maxOccurrences || 365; // Default to 1 year
-    const occurrences = rule.all().slice(0, maxOccurrences);
-
-    if (occurrences.length === 0) {
-      throw new Error('RRule generated no occurrences');
-    }
-
-    // Generate group ID for this recurring series
-    const groupId = crypto.randomUUID();
-
-    // Create all occurrence instances
-    const instances = occurrences.map(occurrenceDate => {
-      const utcStart = combineDateTimeToUTC(
-        occurrenceDate.toISOString().split('T')[0],
-        data.time,
-        userTimezone
-      );
-      const utcEnd = addMinutes(utcStart, data.duration_minutes);
-
-      return {
-        tenant_id: tenantId,
-        customer_id: data.customer_id,
-        service_id: data.service_id || null,
-        title: data.title,
-        description: data.description || null,
-        start_at: utcStart.toISOString(),
-        end_at: utcEnd.toISOString(),
-        duration: data.duration_minutes,
-        status: data.status || 'scheduled',
-        priority: data.priority || 'medium',
-        is_recurring: true,
-        recurrence_group_id: groupId,
-        recurrence_rule: data.rrule,
-        recurrence_edit_mode: 'none',
-        timezone: userTimezone,
-        original_start_at: utcStart.toISOString(),
-        created_by_user_id: user.id,
-        assigned_to_user_id: data.assigned_to_user_id || user.id, // Auto-assign to creator if not specified
-      };
-    });
-
-    const { data: appointments, error } = await supabase
-      .from('appointment_occurrences')
-      .insert(instances)
-      .select();
-
-    if (error) {
-      console.error('Error creating recurring appointments:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Failed to create recurring appointments',
-        description: error.message,
-      });
-      throw error;
-    }
-
-    toast({
-      title: 'Recurring appointments created',
-      description: `Successfully created ${appointments.length} appointment instances`,
-    });
-
-    return { appointments, groupId };
-  };
-
   return {
-    createOneTimeAppointment,
-    createRecurringAppointments,
+    createAppointment,
+    staffId,
   };
 }

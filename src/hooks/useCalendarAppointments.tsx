@@ -1,118 +1,103 @@
-// useCalendarJobs.tsx
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useAuth } from './useAuth';
 import { useUserTimezone } from './useUserTimezone';
 import { convertFromUTC } from '@/lib/timezoneUtils';
 import { useToast } from '@/hooks/use-toast';
 
-export interface CalendarJob {
+export interface CalendarAppointment {
   id: string;
-  series_id: string;
-  title: string;
-  description?: string;
+  series_id: string | null;
+  client_id: string;
+  client_name: string;
+  staff_id: string;
+  service_id: string;
+  service_name?: string;
   start_at: string; // UTC timestamp
   end_at: string;   // UTC timestamp
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  customer_id: string;
-  customer_name: string;
-  assigned_to_user_id?: string;
-  actual_cost?: number;
-  completion_notes?: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  is_telehealth: boolean;
+  location_name?: string;
   created_at: string;
   updated_at?: string;
   tenant_id: string;
+  time_zone: string;
   // Derived fields for display (local timezone Date objects)
   local_start?: Date;
   local_end?: Date;
 }
 
-// Export aliases for "Appointment" naming
-export type CalendarAppointment = CalendarJob;
-
-// Inclusive start (fromISO) and exclusive end (toISO)
 type CalendarRange = { fromISO: string; toISO: string };
 
 function iso(d: Date) {
-  return new Date(d.getTime() - (d.getMilliseconds())).toISOString();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, -1) + 'Z';
 }
 
 function defaultRange(): CalendarRange {
   const now = new Date();
   const from = new Date(now);
-  from.setDate(from.getDate() - 7);        // show 1 week back
+  from.setDate(from.getDate() - 7);
   const to = new Date(now);
-  to.setDate(to.getDate() + 90);           // and ~3 months ahead
-  return { fromISO: iso(from), toISO: iso(to) };
+  to.setDate(to.getDate() + 90);
+  return { fromISO: from.toISOString(), toISO: to.toISOString() };
 }
 
 /**
- * Hook to fetch calendar jobs from job_occurrences only.
- * All jobs (single and recurring) are materialized in job_occurrences.
+ * Hook to fetch calendar appointments from the appointments table.
+ * Queries the actual appointments table with correct schema.
  */
-export function useCalendarJobs() {
+export function useCalendarAppointments() {
   const { user, tenantId } = useAuth();
   const userTimezone = useUserTimezone();
   const { toast } = useToast();
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRangeRef = useRef<string>('');
-  
-  const [range, setRange] = useState<CalendarRange>(() => {
-    const initialRange = defaultRange();
-    return initialRange;
-  });
+  const isFetchingRef = useRef(false);
 
-  // Custom state for jobs since we need date range filtering
-  const [jobs, setJobs] = useState<CalendarJob[]>([]);
-  const [customLoading, setCustomLoading] = useState(true);
+  const [range, setRange] = useState<CalendarRange>(defaultRange);
+  const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const fetchJobs = useCallback(async () => {
+  const fetchAppointments = useCallback(async () => {
     if (!user || !tenantId) {
-      setJobs([]);
-      setCustomLoading(false);
+      setAppointments([]);
+      setLoading(false);
       return;
     }
 
     const rangeKey = `${range.fromISO}-${range.toISO}`;
     
-    // Prevent duplicate fetches for the same range
-    if (rangeKey === lastFetchRangeRef.current) {
+    // Prevent duplicate fetches
+    if (rangeKey === lastFetchRangeRef.current || isFetchingRef.current) {
       return;
     }
     
     lastFetchRangeRef.current = rangeKey;
+    isFetchingRef.current = true;
 
     try {
-      setCustomLoading(true);
+      setLoading(true);
 
-      // Pull occurrences for the tenant, bounded by date range - Single table query
+      // Query the appointments table with correct columns
       const { data, error } = await supabase
-        .from('appointment_occurrences')
+        .from('appointments')
         .select(`
           id,
           series_id,
+          client_id,
+          staff_id,
+          service_id,
           start_at,
           end_at,
           status,
-          priority,
-          customer_id,
-          assigned_to_user_id,
-          notes,
-          actual_cost,
-          title,
-          description,
-          service_id,
+          is_telehealth,
+          location_name,
+          time_zone,
           created_at,
           updated_at,
           tenant_id,
-          timezone,
-          is_recurring,
-          recurrence_group_id,
-          recurrence_rule,
-          customers!inner(pat_name_f, pat_name_l, pat_name_m, preferred_name),
-          services(id, name, category)
+          clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred),
+          services!inner(id, name)
         `)
         .eq('tenant_id', tenantId)
         .gte('start_at', range.fromISO)
@@ -120,160 +105,154 @@ export function useCalendarJobs() {
         .order('start_at', { ascending: true });
 
       if (error) {
-        console.error('Error fetching calendar jobs:', error);
+        console.error('Error fetching calendar appointments:', error);
         toast({
           variant: 'destructive',
           title: 'Error loading calendar',
           description: error.message,
         });
-        setJobs([]);
+        setAppointments([]);
         return;
       }
 
-      // Keep UTC for the calendar component; add local Date objects for other displays
-      const transformed: CalendarJob[] = (data || []).map((row: any) => {
+      // Transform to display format
+      const transformed: CalendarAppointment[] = (data || []).map((row: any) => {
         const localStart = convertFromUTC(row.start_at, userTimezone);
         const localEnd = convertFromUTC(row.end_at, userTimezone);
+
+        // Build client name
+        const clientName = row.clients?.pat_name_preferred || 
+          [row.clients?.pat_name_f, row.clients?.pat_name_m, row.clients?.pat_name_l]
+            .filter(Boolean).join(' ').trim() || 'Unknown Client';
 
         return {
           id: row.id,
           series_id: row.series_id,
-          title: row.title || 'Untitled Job',
-          description: row.description,
+          client_id: row.client_id,
+          client_name: clientName,
+          staff_id: row.staff_id,
+          service_id: row.service_id,
+          service_name: row.services?.name || 'Unknown Service',
           start_at: row.start_at,
           end_at: row.end_at,
           status: row.status,
-          priority: row.priority || 'medium',
-          customer_id: row.customer_id,
-          customer_name: [
-            row.customers?.pat_name_f,
-            row.customers?.pat_name_m,
-            row.customers?.pat_name_l
-          ].filter(Boolean).join(' ').trim() || row.customers?.preferred_name || 'Unknown Customer',
-          assigned_to_user_id: row.assigned_to_user_id,
-          actual_cost: row.actual_cost,
-          completion_notes: row.notes,
+          is_telehealth: row.is_telehealth,
+          location_name: row.location_name,
+          time_zone: row.time_zone,
           created_at: row.created_at,
           updated_at: row.updated_at,
           tenant_id: row.tenant_id,
           local_start: localStart,
           local_end: localEnd,
-          service_id: row.service_id,
-          service_name: row.services?.name,
-          service_category: row.services?.category,
-          is_recurring: row.is_recurring || false,
-          recurrence_group_id: row.recurrence_group_id,
         };
       });
 
-      setJobs(transformed);
+      setAppointments(transformed);
     } catch (err: any) {
-      console.error('Error in fetchJobs:', err);
+      console.error('Error in fetchAppointments:', err);
       toast({
         variant: 'destructive',
         title: 'Error loading calendar',
         description: err.message ?? String(err),
       });
-      setJobs([]);
+      setAppointments([]);
     } finally {
-      setCustomLoading(false);
+      setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [user, tenantId, userTimezone, range.fromISO, range.toISO, toast]);
 
+  // Manual refetch function
+  const refetch = useCallback(() => {
+    lastFetchRangeRef.current = ''; // Force refetch
+    isFetchingRef.current = false;
+    return fetchAppointments();
+  }, [fetchAppointments]);
 
-
-  const updateJob = useCallback(
-    async (jobId: string, updates: Partial<CalendarJob>) => {
+  // Update appointment
+  const updateAppointment = useCallback(
+    async (appointmentId: string, updates: Partial<CalendarAppointment>) => {
       if (!user || !tenantId) throw new Error('User not authenticated');
 
       // Strip display-only fields
-      const { local_start, local_end, ...dbUpdates } = updates;
+      const { local_start, local_end, client_name, service_name, ...dbUpdates } = updates;
 
       const { data, error } = await supabase
-        .from('appointment_occurrences')
+        .from('appointments')
         .update(dbUpdates)
-        .eq('id', jobId)
+        .eq('id', appointmentId)
         .eq('tenant_id', tenantId)
         .select()
         .single();
 
       if (error) {
-        console.error('Error updating job:', error);
+        console.error('Error updating appointment:', error);
         throw error;
       }
 
-      toast({ title: 'Job updated', description: 'The job has been successfully updated.' });
-      await fetchJobs();
+      toast({ title: 'Appointment updated', description: 'The appointment has been successfully updated.' });
+      await refetch();
       return data;
     },
-    [user, tenantId, toast, fetchJobs]
+    [user, tenantId, toast, refetch]
   );
 
-  const deleteJob = useCallback(
-    async (jobId: string) => {
+  // Delete appointment
+  const deleteAppointment = useCallback(
+    async (appointmentId: string) => {
       if (!user || !tenantId) throw new Error('User not authenticated');
 
       const { error } = await supabase
-        .from('appointment_occurrences')
+        .from('appointments')
         .delete()
-        .eq('id', jobId)
+        .eq('id', appointmentId)
         .eq('tenant_id', tenantId);
 
       if (error) {
-        console.error('Error deleting job:', error);
+        console.error('Error deleting appointment:', error);
         throw error;
       }
 
-      toast({ title: 'Job deleted', description: 'The job has been successfully deleted.' });
-      await fetchJobs();
+      toast({ title: 'Appointment deleted', description: 'The appointment has been successfully deleted.' });
+      await refetch();
     },
-    [user, tenantId, toast, fetchJobs]
+    [user, tenantId, toast, refetch]
   );
 
-  // Debounced effect to prevent rapid-fire fetches
-  useEffect(() => {
-    // Clear any existing timeout
-    if (fetchTimeoutRef.current) {
-      clearTimeout(fetchTimeoutRef.current);
-    }
-    
-    // Set a new timeout to debounce the fetch
-    fetchTimeoutRef.current = setTimeout(() => {
-      fetchJobs();
-    }, 300); // 300ms debounce
-    
-    // Cleanup timeout on unmount
-    return () => {
-      if (fetchTimeoutRef.current) {
-        clearTimeout(fetchTimeoutRef.current);
-      }
-    };
-  }, [fetchJobs]);
-
-  // Enhanced setRange with duplicate prevention
+  // Debounced range setter
   const setRangeDebounced = useCallback((newRange: CalendarRange) => {
     const newRangeKey = `${newRange.fromISO}-${newRange.toISO}`;
     const currentRangeKey = `${range.fromISO}-${range.toISO}`;
     
-    if (newRangeKey === currentRangeKey) {
-      return;
+    if (newRangeKey === currentRangeKey) return;
+    
+    // Clear existing timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
     }
     
     setRange(newRange);
-  }, [range.fromISO, range.toISO]);
+    
+    // Debounce the fetch
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchAppointments();
+    }, 300);
+  }, [range.fromISO, range.toISO, fetchAppointments]);
+
+  // Initial fetch
+  useMemo(() => {
+    if (user && tenantId && !isFetchingRef.current) {
+      fetchAppointments();
+    }
+  }, [user, tenantId]);
 
   return {
-    jobs,
-    appointments: jobs, // Alias for consistency
-    loading: customLoading,
-    refetch: fetchJobs,
-    updateJob,
-    deleteJob,
-    // Optional range control for callers (e.g., wire to calendar visible window)
+    appointments,
+    loading,
+    refetch,
+    updateAppointment,
+    deleteAppointment,
     range,
     setRange: setRangeDebounced,
   };
 }
-
-// Export alias for "Appointment" naming
-export const useCalendarAppointments = useCalendarJobs;
