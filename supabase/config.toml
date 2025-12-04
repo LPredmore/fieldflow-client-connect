@@ -3,10 +3,16 @@ project_id = "ahqauomkgflopxgnlndd"
 [functions.create-staff-account]
 verify_jwt = true
 
+[functions.create-client-account]
+verify_jwt = true
+
 [functions.update-clinician]
 verify_jwt = true
 
 [functions.update-staff-password]
+verify_jwt = true
+
+[functions.update-staff-roles]
 verify_jwt = true
 
 [functions.extract-insurance-card]

@@ -60,13 +60,7 @@ export interface ClientFormData {
   pat_zip?: string;
   pat_country?: string;
   // Demographics
-  pat_dob?: string;
   pat_sex?: 'M' | 'F' | 'Other' | '';
-  pat_gender_identity?: string;
-  pat_time_zone?: string;
-  pat_marital_status?: string;
   // Assignment
   primary_staff_id?: string;
-  // Goals
-  pat_goal?: string;
 }

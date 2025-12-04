@@ -5,7 +5,6 @@ import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Client, ClientFormData } from "@/types/client";
@@ -19,18 +18,14 @@ const clientSchema = z.object({
   pat_name_m: z.string().optional(),
   pat_name_preferred: z.string().optional(),
   phone: z.string().min(1, "Phone number is required"),
-  email: z.string().email("Invalid email format").optional().or(z.literal("")),
+  email: z.string().email("Invalid email format").min(1, "Email is required"),
   pat_addr_1: z.string().optional(),
   pat_addr_2: z.string().optional(),
   pat_city: z.string().optional(),
   pat_state: z.string().optional(),
   pat_zip: z.string().optional(),
   pat_country: z.string().optional(),
-  pat_dob: z.string().optional(),
   pat_sex: z.string().optional(),
-  pat_gender_identity: z.string().optional(),
-  pat_time_zone: z.string().optional(),
-  pat_goal: z.string().optional(),
   primary_staff_id: z.string().optional(),
 });
 
@@ -63,11 +58,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
       pat_state: "",
       pat_zip: "",
       pat_country: "US",
-      pat_dob: "",
       pat_sex: "",
-      pat_gender_identity: "",
-      pat_time_zone: "America/New_York",
-      pat_goal: "",
       primary_staff_id: "",
     },
   });
@@ -87,11 +78,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
         pat_state: client.pat_state || "",
         pat_zip: client.pat_zip || "",
         pat_country: client.pat_country || "US",
-        pat_dob: client.pat_dob || "",
         pat_sex: client.pat_sex || "",
-        pat_gender_identity: client.pat_gender_identity || "",
-        pat_time_zone: client.pat_time_zone || "America/New_York",
-        pat_goal: client.pat_goal || "",
         primary_staff_id: client.primary_staff_id || "",
       });
     } else {
@@ -108,11 +95,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
         pat_state: "",
         pat_zip: "",
         pat_country: "US",
-        pat_dob: "",
         pat_sex: "",
-        pat_gender_identity: "",
-        pat_time_zone: "America/New_York",
-        pat_goal: "",
         primary_staff_id: "",
       });
     }
@@ -134,11 +117,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
         pat_state: values.pat_state || undefined,
         pat_zip: values.pat_zip || undefined,
         pat_country: values.pat_country || 'US',
-        pat_dob: values.pat_dob || undefined,
         pat_sex: (values.pat_sex || undefined) as 'M' | 'F' | 'Other' | '' | undefined,
-        pat_gender_identity: values.pat_gender_identity || undefined,
-        pat_time_zone: values.pat_time_zone || 'America/New_York',
-        pat_goal: values.pat_goal || undefined,
         primary_staff_id: values.primary_staff_id || undefined,
       };
 
@@ -210,7 +189,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
                   <FormItem>
                     <FormLabel>Preferred Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="How you'd like to be called" {...field} />
+                      <Input placeholder="How they'd like to be called" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -236,9 +215,9 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email Address</FormLabel>
+                    <FormLabel>Email Address *</FormLabel>
                     <FormControl>
-                      <Input placeholder="patient@example.com" {...field} />
+                      <Input placeholder="client@example.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -272,7 +251,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
                 control={form.control}
                 name="primary_staff_id"
                 render={({ field }) => (
-                  <FormItem className="md:col-span-2">
+                  <FormItem>
                     <FormLabel>
                       Assigned Clinician {!isAdmin && '(View Only)'}
                     </FormLabel>
@@ -298,6 +277,20 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
                     <FormLabel>Street Address</FormLabel>
                     <FormControl>
                       <Input placeholder="123 Main Street" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pat_addr_2"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address Line 2</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Apt, Suite, Unit, etc." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -374,27 +367,9 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="pat_goal"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Goals / Notes</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Treatment goals or notes about this patient..."
-                      className="min-h-[100px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="flex gap-2 pt-4">
               <Button type="submit" disabled={isSubmitting} className="flex-1">
-                {isSubmitting ? "Saving..." : "Save Patient"}
+                {isSubmitting ? "Saving..." : "Save Client"}
               </Button>
               <Button 
                 type="button" 
