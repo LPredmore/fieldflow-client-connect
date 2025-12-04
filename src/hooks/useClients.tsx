@@ -66,8 +66,8 @@ export function useClients() {
     
     return {
       total: clientList.length,
-      active: clientList.filter(c => c.pat_status === 'active').length,
-      new: clientList.filter(c => c.pat_status === 'new').length,
+      active: clientList.filter(c => c.pat_status === 'Active').length,
+      new: clientList.filter(c => c.pat_status === 'New').length,
     };
   }, [clients]);
 

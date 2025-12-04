@@ -117,7 +117,7 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
         pat_state: values.pat_state || undefined,
         pat_zip: values.pat_zip || undefined,
         pat_country: values.pat_country || 'US',
-        pat_sex: (values.pat_sex || undefined) as 'M' | 'F' | 'Other' | '' | undefined,
+        pat_sex: (values.pat_sex || undefined) as 'M' | 'F' | '' | undefined,
         primary_staff_id: values.primary_staff_id || undefined,
       };
 
@@ -239,7 +239,6 @@ export function ClientForm({ open, onOpenChange, onSubmit, client, title }: Clie
                       <SelectContent>
                         <SelectItem value="M">Male</SelectItem>
                         <SelectItem value="F">Female</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

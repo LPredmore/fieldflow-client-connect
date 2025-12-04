@@ -200,7 +200,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       pat_state: state || null,
       pat_zip: zipCode || null,
       pat_country: country || 'US',
-      pat_status: 'active',
+      pat_status: 'New',
     };
 
     const { data: clientRecord, error: clientError } = await supabaseAdmin
