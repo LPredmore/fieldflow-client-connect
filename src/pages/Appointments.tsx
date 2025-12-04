@@ -72,7 +72,7 @@ export default function Jobs() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   
-  const { createJobSeries } = useAppointmentSeries();
+  const { createSeries } = useAppointmentSeries();
   const { allManagedJobs, loading, updateOneTimeJob, updateJobSeries, deleteOneTimeJob, deleteJobSeries } = useAppointmentManagement();
   const { userRole, isAdmin } = useAuth();
   const { toast } = useToast();
@@ -174,16 +174,25 @@ export default function Jobs() {
         // which will create the appropriate job_occurrences
         
         if (transformedData.is_recurring && transformedData.rrule) {
-          // Recurring job
-          await createJobSeries(transformedData);
+          // Recurring job - use createSeries
+          await createSeries({
+            client_id: transformedData.customer_id,
+            service_id: transformedData.service_id,
+            start_date: transformedData.start_date,
+            start_time: transformedData.local_start_time,
+            duration_minutes: transformedData.duration_minutes,
+            rrule: transformedData.rrule,
+          });
         } else {
           // Single occurrence job - still create a series but mark as non-recurring
-          const singleJobData = {
-            ...transformedData,
+          await createSeries({
+            client_id: transformedData.customer_id,
+            service_id: transformedData.service_id,
+            start_date: transformedData.start_date,
+            start_time: transformedData.local_start_time,
+            duration_minutes: transformedData.duration_minutes,
             rrule: 'FREQ=DAILY;COUNT=1', // Satisfy NOT NULL constraint
-            is_recurring: false
-          };
-          await createJobSeries(singleJobData);
+          });
         }
       
       setIsFormOpen(false);

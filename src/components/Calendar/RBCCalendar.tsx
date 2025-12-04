@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { Calendar, dateFnsLocalizer, View, SlotInfo } from 'react-big-calendar';
+import { Calendar, dateFnsLocalizer, SlotInfo } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -15,9 +15,7 @@ import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppoint
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-const locales = {
-  'en-US': enUS,
-};
+const locales = { 'en-US': enUS };
 
 const localizer = dateFnsLocalizer({
   format,
@@ -28,43 +26,42 @@ const localizer = dateFnsLocalizer({
 });
 
 export function RBCCalendar() {
-  const { appointments, loading, refetch } = useCalendarAppointments() as any;
+  const { appointments, loading, refetch } = useCalendarAppointments();
   const { tenantId } = useAuth();
   
-  // Dialog state for viewing and creating appointments
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState<string>('');
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
 
   // Convert appointments to RBC event format
   const events = useMemo(() => {
     if (!appointments || !Array.isArray(appointments)) return [];
 
-    return appointments.map((appt: any) => ({
+    return appointments.map((appt) => ({
       id: appt.id,
-      title: appt.title,
-      start: new Date(appt.start_at), // Convert UTC ISO string to Date
+      title: `${appt.service_name} - ${appt.client_name}`,
+      start: new Date(appt.start_at),
       end: new Date(appt.end_at),
       resource: {
         status: appt.status,
-        priority: appt.priority,
-        customer_name: appt.customer_name,
+        client_name: appt.client_name,
+        service_name: appt.service_name,
         series_id: appt.series_id,
+        is_telehealth: appt.is_telehealth,
       },
     }));
   }, [appointments]);
 
-  // Dynamic event styling based on status and priority
+  // Dynamic event styling based on status
   const eventStyleGetter = useCallback((event: any) => {
-    let backgroundColor = 'hsl(var(--primary))'; // default: primary blue
+    let backgroundColor = 'hsl(var(--primary))';
 
     if (event.resource.status === 'completed') {
-      backgroundColor = 'hsl(var(--success))'; // green
+      backgroundColor = 'hsl(142.1 76.2% 36.3%)'; // green
     } else if (event.resource.status === 'cancelled') {
-      backgroundColor = 'hsl(var(--destructive))'; // red
-    } else if (event.resource.priority === 'urgent') {
-      backgroundColor = 'hsl(var(--warning))'; // amber
+      backgroundColor = 'hsl(var(--destructive))';
     }
 
     return {
@@ -79,21 +76,19 @@ export function RBCCalendar() {
     };
   }, []);
 
-  // Handle event click - open AppointmentView dialog
+  // Handle event click
   const handleSelectEvent = useCallback((event: any) => {
     setSelectedAppointmentId(event.id);
     setViewDialogOpen(true);
   }, []);
 
-  // Handle slot selection - open CreateAppointmentDialog with prefilled date
+  // Handle slot selection
   const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
     setPrefilledDate(format(slotInfo.start, 'yyyy-MM-dd'));
     setCreateDialogOpen(true);
   }, []);
 
   // Fetch full appointment data when selected
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
-  
   useEffect(() => {
     if (!selectedAppointmentId || !tenantId) {
       setSelectedAppointment(null);
@@ -103,11 +98,11 @@ export function RBCCalendar() {
     const fetchAppointment = async () => {
       try {
         const { data, error } = await supabase
-          .from('appointment_occurrences')
+          .from('appointments')
           .select(`
             *,
-            customers!inner(pat_name_f, pat_name_l, pat_name_m, preferred_name, email, pat_phone),
-            services(id, name, category, cpt_code, duration_minutes)
+            clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred, email, phone),
+            services!inner(id, name)
           `)
           .eq('id', selectedAppointmentId)
           .eq('tenant_id', tenantId)
@@ -115,16 +110,14 @@ export function RBCCalendar() {
 
         if (error) throw error;
         
-        // Transform to match expected format
+        const clientName = data.clients?.pat_name_preferred || 
+          [data.clients?.pat_name_f, data.clients?.pat_name_m, data.clients?.pat_name_l]
+            .filter(Boolean).join(' ').trim() || 'Unknown Client';
+
         setSelectedAppointment({
           ...data,
-          customer_name: [
-            data.customers?.pat_name_f,
-            data.customers?.pat_name_m,
-            data.customers?.pat_name_l
-          ].filter(Boolean).join(' ').trim() || data.customers?.preferred_name || 'Unknown Customer',
-          service_name: data.services?.name,
-          service_category: data.services?.category,
+          client_name: clientName,
+          service_name: data.services?.name || 'Unknown Service',
         });
       } catch (error) {
         console.error('Error fetching appointment:', error);
@@ -135,19 +128,19 @@ export function RBCCalendar() {
     fetchAppointment();
   }, [selectedAppointmentId, tenantId]);
 
-  // Handle appointment update from view dialog
-  const handleUpdateAppointment = async (jobId: string, updates: any) => {
+  // Handle appointment update
+  const handleUpdateAppointment = async (appointmentId: string, updates: any) => {
     try {
       const { error } = await supabase
-        .from('appointment_occurrences')
+        .from('appointments')
         .update(updates)
-        .eq('id', jobId)
+        .eq('id', appointmentId)
         .eq('tenant_id', tenantId);
 
       if (error) throw error;
       
       setViewDialogOpen(false);
-      refetch(); // Refresh calendar
+      refetch();
     } catch (error) {
       console.error('Error updating appointment:', error);
       throw error;
@@ -200,8 +193,8 @@ export function RBCCalendar() {
               toolbar: CalendarToolbar,
               event: AppointmentEvent,
             }}
-            min={new Date(new Date().getFullYear(), 0, 1, 6, 0, 0)} // 6 AM
-            max={new Date(new Date().getFullYear(), 0, 1, 22, 0, 0)} // 10 PM
+            min={new Date(new Date().getFullYear(), 0, 1, 6, 0, 0)}
+            max={new Date(new Date().getFullYear(), 0, 1, 22, 0, 0)}
           />
         </div>
       </CardContent>
