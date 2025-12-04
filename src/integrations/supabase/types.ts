@@ -3982,7 +3982,7 @@ export type Database = {
     }
     Enums: {
       accept_assign_enum: "Y" | "N"
-      app_role: "staff" | "admin"
+      app_role: "staff" | "admin" | "client"
       appointment_exception_type_enum: "cancelled" | "rescheduled"
       appointment_note_status_enum: "draft" | "signed" | "amended"
       appointment_note_type_enum: "progress" | "treatment" | "addendum"
@@ -4205,7 +4205,7 @@ export const Constants = {
   public: {
     Enums: {
       accept_assign_enum: ["Y", "N"],
-      app_role: ["staff", "admin"],
+      app_role: ["staff", "admin", "client"],
       appointment_exception_type_enum: ["cancelled", "rescheduled"],
       appointment_note_status_enum: ["draft", "signed", "amended"],
       appointment_note_type_enum: ["progress", "treatment", "addendum"],

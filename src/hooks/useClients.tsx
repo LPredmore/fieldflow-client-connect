@@ -1,23 +1,23 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSupabaseTable } from '@/hooks/data/useSupabaseTable';
 import { useAuth } from '@/hooks/useAuth';
 import { Client, ClientFormData } from '@/types/client';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export type { Client, ClientFormData };
 
 export function useClients() {
   const { user, tenantId } = useAuth();
+  const [createLoading, setCreateLoading] = useState(false);
   
   const {
     data: clients,
     loading,
     error,
     refetch: refetchClients,
-    create: createClient,
     update: updateClient,
     remove: deleteClient,
-    createLoading,
     updateLoading,
     deleteLoading,
   } = useSupabaseTable<Client, ClientFormData>({
@@ -39,7 +39,7 @@ export function useClients() {
         const fullName = patientName || 
                         client.pat_name_preferred || 
                         client.email || 
-                        'Unnamed Patient';
+                        'Unnamed Client';
         
         // Compute assigned staff name
         const staffName = client.assigned_staff 
@@ -52,9 +52,6 @@ export function useClients() {
           assigned_staff_name: staffName
         };
       }),
-    insertOptions: {
-      successMessage: 'Client created successfully',
-    },
     updateOptions: {
       successMessage: 'Client updated successfully',
     },
@@ -74,23 +71,81 @@ export function useClients() {
     };
   }, [clients]);
 
-  // Wrapper function with defaults
-  const createClientWithDefaults = async (clientData: ClientFormData) => {
-    const dataWithDefaults = {
-      ...clientData,
-      primary_staff_id: clientData.primary_staff_id || undefined,
-    };
-    
-    const result = await createClient(dataWithDefaults);
-    
-    if (result.data) {
+  // Create client via edge function (creates auth account + all related records)
+  const createClientWithAccount = async (clientData: ClientFormData) => {
+    if (!tenantId) {
       toast({
-        title: "Success",
-        description: "Client created successfully!",
+        title: "Error",
+        description: "No tenant ID available. Please log in again.",
+        variant: "destructive",
       });
+      return { data: null, error: new Error("No tenant ID") };
     }
+
+    setCreateLoading(true);
     
-    return result;
+    try {
+      const { data, error } = await supabase.functions.invoke('create-client-account', {
+        body: {
+          email: clientData.email,
+          firstName: clientData.pat_name_f,
+          lastName: clientData.pat_name_l,
+          middleName: clientData.pat_name_m,
+          preferredName: clientData.pat_name_preferred,
+          phone: clientData.phone,
+          biologicalSex: clientData.pat_sex,
+          assignedClinicianId: clientData.primary_staff_id,
+          streetAddress: clientData.pat_addr_1,
+          address2: clientData.pat_addr_2,
+          city: clientData.pat_city,
+          state: clientData.pat_state,
+          zipCode: clientData.pat_zip,
+          country: clientData.pat_country || 'US',
+          tenantId: tenantId,
+        },
+      });
+
+      if (error) {
+        console.error("Edge function error:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create client account",
+          variant: "destructive",
+        });
+        return { data: null, error };
+      }
+
+      if (data?.error) {
+        console.error("Create client error:", data.error);
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+        return { data: null, error: new Error(data.error) };
+      }
+
+      // Refetch clients list
+      await refetchClients();
+
+      toast({
+        title: "Client Created",
+        description: `Client account created successfully. Temporary password: ${data.password}`,
+      });
+
+      return { data, error: null };
+    } catch (err) {
+      console.error("Unexpected error creating client:", err);
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return { data: null, error: err };
+    } finally {
+      setCreateLoading(false);
+    }
   };
 
   const updateClientById = async (id: string, clientData: Partial<ClientFormData>) => {
@@ -102,7 +157,7 @@ export function useClients() {
     loading: loading || createLoading || updateLoading || deleteLoading,
     error,
     stats,
-    createClient: createClientWithDefaults,
+    createClient: createClientWithAccount,
     updateClient: updateClientById,
     deleteClient,
     refetchClients,
