@@ -4,10 +4,14 @@ export interface Service {
   id: string;
   name: string;
   description: string | null;
-  default_duration_minutes: number | null;
-  default_rate: number | null;
+  duration_minutes: number | null;
+  price_per_unit: number | null;
+  category: string | null;
+  cpt_code: string | null;
   is_active: boolean;
+  schedulable: boolean;
   tenant_id: string;
+  created_by_profile_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +30,7 @@ export function useServices() {
     filters: {
       tenant_id: 'auto',
       is_active: true,
+      schedulable: true,
     },
     orderBy: { column: 'name', ascending: true },
   });
