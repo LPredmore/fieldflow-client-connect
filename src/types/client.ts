@@ -60,7 +60,7 @@ export interface ClientFormData {
   pat_zip?: string;
   pat_country?: string;
   // Demographics
-  pat_sex?: 'M' | 'F' | 'Other' | '';
+  pat_sex?: 'M' | 'F' | '';
   // Assignment
   primary_staff_id?: string;
 }
