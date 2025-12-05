@@ -277,6 +277,11 @@ export function RBCCalendar() {
             <AppointmentView 
               job={selectedAppointment}
               onUpdate={handleUpdateAppointment}
+              onDelete={() => setViewDialogOpen(false)}
+              onRefresh={() => {
+                refetch();
+                setSelectedAppointmentId(null);
+              }}
             />
           </DialogContent>
         </Dialog>

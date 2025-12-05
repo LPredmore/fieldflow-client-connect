@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, User, FileText, Edit, Video, MapPin, Repeat } from 'lucide-react';
+import { Calendar, Clock, User, Edit, Video, MapPin, Repeat, Trash2 } from 'lucide-react';
 import { formatInUserTimezone } from '@/lib/timezoneUtils';
 import { useUserTimezone } from '@/hooks/useUserTimezone';
 import AppointmentForm from './AppointmentForm';
+import { RecurringEditDialog } from './RecurringEditDialog';
+import { DeleteAppointmentDialog } from './DeleteAppointmentDialog';
+import { useRecurringAppointmentActions, type EditScope, type DeleteScope } from '@/hooks/useRecurringAppointmentActions';
 
 /**
  * Appointment interface matching the actual database schema
@@ -35,6 +38,8 @@ interface AppointmentData {
 interface AppointmentViewProps {
   job: AppointmentData; // Keep 'job' prop name for backward compatibility
   onUpdate?: (appointmentId: string, data: Partial<AppointmentData>) => Promise<any>;
+  onDelete?: () => void; // Callback after successful delete
+  onRefresh?: () => void; // Callback to refresh data
 }
 
 const getStatusColor = (status: string) => {
@@ -63,27 +68,109 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-export default function AppointmentView({ job: appointment, onUpdate }: AppointmentViewProps) {
+export default function AppointmentView({ 
+  job: appointment, 
+  onUpdate, 
+  onDelete,
+  onRefresh 
+}: AppointmentViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<any>(null);
+  const [showEditScopeDialog, setShowEditScopeDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const userTimezone = useUserTimezone();
 
-  const handleEdit = () => setIsEditing(true);
-  const handleCancelEdit = () => setIsEditing(false);
+  const {
+    editSingleOccurrence,
+    editThisAndFuture,
+    updateAppointment,
+    deleteSingleOccurrence,
+    deleteThisAndFuture,
+    deleteEntireSeries,
+    deleteAppointment,
+  } = useRecurringAppointmentActions();
 
-  const handleSaveEdit = async (formData: any) => {
-    if (!onUpdate) return;
+  const isRecurring = Boolean(appointment.series_id);
+
+  const handleEdit = () => setIsEditing(true);
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setPendingFormData(null);
+  };
+
+  const handleSaveEdit = useCallback(async (formData: any) => {
+    if (isRecurring) {
+      // Store form data and show scope dialog
+      setPendingFormData(formData);
+      setShowEditScopeDialog(true);
+    } else {
+      // Direct update for non-recurring appointments
+      setIsLoading(true);
+      try {
+        if (onUpdate) {
+          await onUpdate(appointment.id, formData);
+        } else {
+          await updateAppointment(appointment.id, formData);
+        }
+        setIsEditing(false);
+        onRefresh?.();
+      } catch (error) {
+        console.error('Failed to update appointment:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, [isRecurring, appointment.id, onUpdate, updateAppointment, onRefresh]);
+
+  const handleEditScopeSelect = useCallback(async (scope: EditScope) => {
+    if (!pendingFormData) return;
     
     setIsLoading(true);
     try {
-      await onUpdate(appointment.id, formData);
+      if (scope === 'this_only') {
+        await editSingleOccurrence(appointment.id, pendingFormData);
+      } else {
+        await editThisAndFuture(appointment.id, pendingFormData);
+      }
+      setShowEditScopeDialog(false);
       setIsEditing(false);
+      setPendingFormData(null);
+      onRefresh?.();
     } catch (error) {
       console.error('Failed to update appointment:', error);
     } finally {
       setIsLoading(false);
     }
+  }, [pendingFormData, appointment.id, editSingleOccurrence, editThisAndFuture, onRefresh]);
+
+  const handleDeleteClick = () => {
+    setShowDeleteDialog(true);
   };
+
+  const handleDeleteConfirm = useCallback(async (scope: DeleteScope) => {
+    setIsLoading(true);
+    try {
+      if (!isRecurring || scope === 'this_only') {
+        if (isRecurring) {
+          await deleteSingleOccurrence(appointment.id);
+        } else {
+          await deleteAppointment(appointment.id);
+        }
+      } else if (scope === 'this_and_future') {
+        await deleteThisAndFuture(appointment.id);
+      } else if (scope === 'entire_series' && appointment.series_id) {
+        await deleteEntireSeries(appointment.series_id);
+      }
+      setShowDeleteDialog(false);
+      onDelete?.();
+      onRefresh?.();
+    } catch (error) {
+      console.error('Failed to delete appointment:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isRecurring, appointment.id, appointment.series_id, deleteSingleOccurrence, deleteAppointment, deleteThisAndFuture, deleteEntireSeries, onDelete, onRefresh]);
 
   // Calculate duration in minutes
   const durationMinutes = Math.round(
@@ -92,12 +179,20 @@ export default function AppointmentView({ job: appointment, onUpdate }: Appointm
 
   if (isEditing) {
     return (
-      <AppointmentForm
-        appointment={appointment}
-        onSubmit={handleSaveEdit}
-        onCancel={handleCancelEdit}
-        loading={isLoading}
-      />
+      <>
+        <AppointmentForm
+          appointment={appointment}
+          onSubmit={handleSaveEdit}
+          onCancel={handleCancelEdit}
+          loading={isLoading}
+        />
+        <RecurringEditDialog
+          open={showEditScopeDialog}
+          onOpenChange={setShowEditScopeDialog}
+          onSelect={handleEditScopeSelect}
+          isLoading={isLoading}
+        />
+      </>
     );
   }
 
@@ -110,7 +205,7 @@ export default function AppointmentView({ job: appointment, onUpdate }: Appointm
             <h2 className="text-2xl font-bold text-foreground">
               {appointment.service_name || 'Appointment'}
             </h2>
-            {appointment.series_id && (
+            {isRecurring && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Repeat className="h-3 w-3" />
                 Recurring
@@ -127,12 +222,22 @@ export default function AppointmentView({ job: appointment, onUpdate }: Appointm
             {getStatusLabel(appointment.status)}
           </Badge>
         </div>
-        {onUpdate && (
-          <Button onClick={handleEdit} variant="outline">
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {appointment.status !== 'cancelled' && (
+            <>
+              {onUpdate && (
+                <Button onClick={handleEdit} variant="outline">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              )}
+              <Button onClick={handleDeleteClick} variant="outline" className="text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Client Information */}
@@ -272,6 +377,15 @@ export default function AppointmentView({ job: appointment, onUpdate }: Appointm
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Dialog */}
+      <DeleteAppointmentDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleDeleteConfirm}
+        isRecurring={isRecurring}
+        isLoading={isLoading}
+      />
     </div>
   );
 }
