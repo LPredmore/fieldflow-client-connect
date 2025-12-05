@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { parseUTCTimestamp } from '@/lib/timezoneUtils';
+import { utcToLocal } from '@/lib/appointmentTimezone';
 import { useToast } from '@/hooks/use-toast';
 
 export interface CalendarAppointment {
@@ -12,16 +12,16 @@ export interface CalendarAppointment {
   staff_id: string;
   service_id: string;
   service_name?: string;
-  start_at: string; // UTC timestamp
-  end_at: string;   // UTC timestamp
+  start_at: string; // UTC timestamp from database
+  end_at: string;   // UTC timestamp from database
   status: 'scheduled' | 'completed' | 'cancelled';
   is_telehealth: boolean;
   location_name?: string;
   created_at: string;
   updated_at?: string;
   tenant_id: string;
-  time_zone: string;
-  // Derived fields for display (local timezone Date objects)
+  time_zone: string; // Creator's timezone (metadata, not used for rendering)
+  // Derived fields for display (converted to viewer's local timezone)
   local_start?: Date;
   local_end?: Date;
 }
@@ -114,10 +114,13 @@ export function useCalendarAppointments() {
       }
 
       // Transform to display format
-      // Use parseUTCTimestamp for native Date objects - browser handles timezone automatically
+      // Convert UTC timestamps from database to viewer's local timezone
+      // This ensures appointments display at the correct local time regardless of viewer's timezone
       const transformed: CalendarAppointment[] = (data || []).map((row: any) => {
-        const localStart = parseUTCTimestamp(row.start_at);
-        const localEnd = parseUTCTimestamp(row.end_at);
+        // utcToLocal: Database UTC → Viewer's local Date object
+        // These Date objects are ready for React Big Calendar
+        const localStart = utcToLocal(row.start_at);
+        const localEnd = utcToLocal(row.end_at);
 
         // Build client name
         const clientName = row.clients?.pat_name_preferred || 
@@ -132,17 +135,17 @@ export function useCalendarAppointments() {
           staff_id: row.staff_id,
           service_id: row.service_id,
           service_name: row.services?.name || 'Unknown Service',
-          start_at: row.start_at,
-          end_at: row.end_at,
+          start_at: row.start_at,   // Original UTC for reference
+          end_at: row.end_at,       // Original UTC for reference
           status: row.status,
           is_telehealth: row.is_telehealth,
           location_name: row.location_name,
-          time_zone: row.time_zone,
+          time_zone: row.time_zone, // Creator's timezone (metadata only)
           created_at: row.created_at,
           updated_at: row.updated_at,
           tenant_id: row.tenant_id,
-          local_start: localStart,
-          local_end: localEnd,
+          local_start: localStart,  // For calendar display
+          local_end: localEnd,      // For calendar display
         };
       });
 
