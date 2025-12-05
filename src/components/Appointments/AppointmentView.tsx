@@ -1,31 +1,46 @@
-import { useState, useEffect } from 'react';
-import { UnifiedAppointment } from '@/hooks/useUnifiedAppointments';
-import { AppointmentSeries, OneTimeAppointment } from '@/hooks/useAppointmentManagement';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, DollarSign, User, FileText, Edit, AlertTriangle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import AppointmentForm from '@/components/Appointments/AppointmentForm';
-import AppointmentSeriesView from '@/components/Appointments/AppointmentSeriesView';
-import { combineDateTimeToUTC, formatInUserTimezone } from '@/lib/timezoneUtils';
-import { format } from 'date-fns';
+import { Calendar, Clock, User, FileText, Edit, Video, MapPin, Repeat } from 'lucide-react';
+import { formatInUserTimezone } from '@/lib/timezoneUtils';
 import { useUserTimezone } from '@/hooks/useUserTimezone';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import AppointmentForm from './AppointmentForm';
 
-interface JobViewProps {
-  job: UnifiedAppointment | OneTimeAppointment | AppointmentSeries;
-  onUpdate?: (jobId: string, data: any) => Promise<any>;
+/**
+ * Appointment interface matching the actual database schema
+ */
+interface AppointmentData {
+  id: string;
+  client_id: string;
+  staff_id: string;
+  service_id: string;
+  series_id?: string | null;
+  start_at: string;
+  end_at: string;
+  time_zone: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  is_telehealth: boolean;
+  location_name?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+  service_name?: string;
+  clinician_name?: string;
+}
+
+interface AppointmentViewProps {
+  job: AppointmentData; // Keep 'job' prop name for backward compatibility
+  onUpdate?: (appointmentId: string, data: Partial<AppointmentData>) => Promise<any>;
 }
 
 const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
+  switch (status) {
     case 'completed':
       return 'bg-success text-success-foreground';
-    case 'in progress':
-    case 'in_progress':
-      return 'bg-warning text-warning-foreground';
     case 'scheduled':
       return 'bg-primary text-primary-foreground';
     case 'cancelled':
@@ -35,199 +50,50 @@ const getStatusColor = (status: string) => {
   }
 };
 
-const getPriorityColor = (priority: string) => {
-  switch (priority.toLowerCase()) {
-    case 'urgent':
-      return 'bg-destructive text-destructive-foreground';
-    case 'high':
-      return 'bg-warning text-warning-foreground';
-    case 'medium':
-      return 'bg-primary text-primary-foreground';
-    case 'low':
-      return 'bg-muted text-muted-foreground';
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'Completed';
+    case 'scheduled':
+      return 'Scheduled';
+    case 'cancelled':
+      return 'Cancelled';
     default:
-      return 'bg-muted text-muted-foreground';
+      return status;
   }
 };
 
-export default function JobView({ job, onUpdate }: JobViewProps) {
-  const { user } = useAuth();
+export default function AppointmentView({ job: appointment, onUpdate }: AppointmentViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [tenantId, setTenantId] = useState<string>('');
   const userTimezone = useUserTimezone();
 
-  // For one-time jobs, unified jobs, and job series, use the same editing logic
-  const unifiedJob = job as UnifiedAppointment | OneTimeAppointment | AppointmentSeries;
-
-  // Fetch tenant ID
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
-
-      // Get tenant ID
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('tenant_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profile?.tenant_id) {
-        setTenantId(profile.tenant_id);
-      }
-    };
-
-    fetchData();
-  }, [user, unifiedJob.id]);
-
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-  };
+  const handleEdit = () => setIsEditing(true);
+  const handleCancelEdit = () => setIsEditing(false);
 
   const handleSaveEdit = async (formData: any) => {
-    if (onUpdate) {
-      setIsLoading(true);
-      try {
-        // Show warning for recurring job cancellation
-        if (formData.status === 'cancelled' && 
-            'appointment_type' in unifiedJob &&
-            unifiedJob.appointment_type === 'recurring_instance' &&
-            'status' in unifiedJob &&
-            unifiedJob.status !== 'cancelled') {
-          const confirmCancel = window.confirm(
-            'Cancelling this recurring job will also cancel all future occurrences in the series. Completed jobs will remain unchanged. Do you want to continue?'
-          );
-          if (!confirmCancel) {
-            setIsLoading(false);
-            return;
-          }
-        }
-        
-        // Transform form data for update - remove form-specific fields
-        const {
-          start_time,
-          end_time,
-          is_recurring,
-          rrule,
-          until_date,
-          scheduled_time_utc,
-          scheduled_end_time_utc,
-          ...updateData
-        } = formData;
-        
-        // For recurring job series, detect scheduling changes that require occurrence regeneration
-        // Use 'active' as type guard for AppointmentSeries
-        if ('active' in job) {
-          const jobSeries = job as AppointmentSeries;
-          
-          const jobTimezone = formData.timezone || jobSeries.timezone || userTimezone;
-          
-          // Check if scheduling fields have changed
-          const schedulingFieldsChanged = 
-            formData.scheduled_date !== jobSeries.start_date ||
-            formData.start_time !== jobSeries.local_start_time ||
-            formData.duration_minutes !== jobSeries.duration_minutes ||
-            formData.timezone !== jobSeries.timezone ||
-            formData.rrule !== jobSeries.rrule ||
-            formData.until_date !== jobSeries.until_date;
-          
-          if (schedulingFieldsChanged && formData.scheduled_date && formData.start_time) {
-            try {
-              // Compute UTC timestamps for the new schedule
-              const durationMinutes = formData.duration_minutes || jobSeries.duration_minutes || 60;
-              const utcStart = combineDateTimeToUTC(formData.scheduled_date, formData.start_time, jobTimezone);
-              const utcEnd = new Date(utcStart.getTime() + durationMinutes * 60000);
-              
-              // Include computed UTC timestamps and reschedule flag
-              updateData.scheduled_time_utc = utcStart.toISOString();
-              updateData.scheduled_end_time_utc = utcEnd.toISOString();
-              updateData.start_date = formData.scheduled_date;
-              updateData.local_start_time = formData.start_time;
-              updateData.duration_minutes = formData.duration_minutes;
-              updateData.timezone = jobTimezone;
-              updateData.rescheduleOccurrences = true; // Flag for regenerating occurrences
-              
-              if (formData.rrule) updateData.rrule = formData.rrule;
-              if (formData.until_date) updateData.until_date = formData.until_date;
-            } catch (error) {
-              console.error('Error computing UTC timestamps for recurring job:', error);
-            }
-          }
-        }
-        // For one-time jobs, compute and include UTC timestamps when timing changes
-        else if ('start_date' in unifiedJob || 'scheduled_date' in unifiedJob) {
-          const jobTimezone = formData.timezone || ('timezone' in unifiedJob ? unifiedJob.timezone : userTimezone);
-          
-          // Check if timing has changed - compare with current values
-          const currentStartDate = 'start_date' in unifiedJob ? unifiedJob.start_date : formData.scheduled_date;
-          const currentStartTime = 'local_start_time' in unifiedJob ? unifiedJob.local_start_time : formData.start_time;
-          
-          const timingChanged = formData.scheduled_date !== currentStartDate || 
-                               formData.start_time !== currentStartTime ||
-                               formData.duration_minutes !== ('duration_minutes' in unifiedJob ? unifiedJob.duration_minutes : unifiedJob.estimated_duration);
-          
-          if (timingChanged && formData.scheduled_date && formData.start_time) {
-            try {
-              // Compute UTC timestamps for the update
-              const durationMinutes = formData.duration_minutes || ('duration_minutes' in unifiedJob ? unifiedJob.duration_minutes : unifiedJob.estimated_duration) || 60;
-              const utcStart = combineDateTimeToUTC(formData.scheduled_date, formData.start_time, jobTimezone);
-              const utcEnd = new Date(utcStart.getTime() + durationMinutes * 60000);
-              
-              // Include computed UTC timestamps
-              updateData.scheduled_time_utc = utcStart.toISOString();
-              updateData.scheduled_end_time_utc = utcEnd.toISOString();
-              updateData.start_date = formData.scheduled_date;
-              updateData.local_start_time = formData.start_time;
-              updateData.duration_minutes = formData.duration_minutes;
-              updateData.timezone = jobTimezone;
-            } catch (error) {
-              console.error('Error computing UTC timestamps:', error);
-            }
-          }
-        }
-        
-        // Ensure assigned_to_user_id is properly handled
-        if (formData.assigned_to_user_id !== undefined) {
-          updateData.assigned_to_user_id = formData.assigned_to_user_id;
-        }
-        
-        await onUpdate(unifiedJob.id, updateData);
-        setIsEditing(false);
-      } catch (error) {
-        console.error('Failed to update job:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    if (!onUpdate) return;
+    
+    setIsLoading(true);
+    try {
+      await onUpdate(appointment.id, formData);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to update appointment:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  if (isEditing) {
-    // Convert OneTimeJob to UnifiedJob format if needed
-    const jobForForm = 'start_at' in unifiedJob ? unifiedJob : (() => {
-      const timezone = ('timezone' in unifiedJob ? unifiedJob.timezone : undefined) || userTimezone;
-      const localTime = unifiedJob.local_start_time || '08:00';
-      const startTimeFormatted = localTime.substring(0, 5); // HH:mm format
-      const utcStart = combineDateTimeToUTC(unifiedJob.start_date, startTimeFormatted, timezone);
-      const utcEnd = new Date(utcStart.getTime() + (unifiedJob.duration_minutes || 60) * 60000);
-      
-      return {
-        ...unifiedJob,
-        start_at: utcStart.toISOString(),
-        end_at: utcEnd.toISOString(),
-        appointment_type: 'one_time' as const,
-        timezone: timezone,
-        // Ensure assigned_to_user_id is properly passed for contractor binding
-        assigned_to_user_id: unifiedJob.assigned_to_user_id
-      };
-    })();
+  // Calculate duration in minutes
+  const durationMinutes = Math.round(
+    (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
+  );
 
+  if (isEditing) {
     return (
       <AppointmentForm
-        job={jobForForm}
+        appointment={appointment}
         onSubmit={handleSaveEdit}
         onCancel={handleCancelEdit}
         loading={isLoading}
@@ -235,243 +101,175 @@ export default function JobView({ job, onUpdate }: JobViewProps) {
     );
   }
 
-  // Helper function to safely get start_at for display
-  const getStartDateTime = () => {
-    if ('start_at' in unifiedJob) {
-      return unifiedJob.start_at;
-    }
-    if ('start_date' in unifiedJob) {
-      const time = unifiedJob.local_start_time || '08:00';
-      const startTimeFormatted = time.substring(0, 5); // HH:mm format
-      const timezone = ('timezone' in unifiedJob ? unifiedJob.timezone : undefined) || userTimezone;
-      
-      try {
-        const utcStart = combineDateTimeToUTC(unifiedJob.start_date, startTimeFormatted, timezone);
-        return utcStart.toISOString();
-      } catch (error) {
-        console.error('Error converting start date to UTC:', error);
-        return new Date().toISOString();
-      }
-    }
-    return new Date().toISOString();
-  };
-
-  // Helper function to safely get end_at for display
-  const getEndDateTime = () => {
-    if ('end_at' in unifiedJob) {
-      return unifiedJob.end_at;
-    }
-    if ('start_date' in unifiedJob) {
-      const time = unifiedJob.local_start_time || '08:00';
-      const startTimeFormatted = time.substring(0, 5); // HH:mm format
-      const timezone = ('timezone' in unifiedJob ? unifiedJob.timezone : undefined) || userTimezone;
-      
-      try {
-        const utcStart = combineDateTimeToUTC(unifiedJob.start_date, startTimeFormatted, timezone);
-        const utcEnd = new Date(utcStart.getTime() + (unifiedJob.duration_minutes || 60) * 60000);
-        return utcEnd.toISOString();
-      } catch (error) {
-        console.error('Error converting end date to UTC:', error);
-        return new Date().toISOString();
-      }
-    }
-    return new Date().toISOString();
-  };
-
   return (
     <div className="space-y-6">
-      {/* Job Type Alert for Recurring Jobs */}
-      {'appointment_type' in unifiedJob && unifiedJob.appointment_type === 'recurring_instance' && (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            This is a recurring job instance. Changes to status (especially cancellation) may affect future occurrences in the series.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Header with Edit Button */}
+      {/* Header */}
       <div className="flex justify-between items-start">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <h2 className="text-2xl font-bold text-foreground">{unifiedJob.title}</h2>
-            {'appointment_type' in unifiedJob && unifiedJob.appointment_type === 'recurring_instance' && (
-              <Badge variant="secondary">Recurring</Badge>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {'status' in unifiedJob && (
-              <Badge className={getStatusColor(unifiedJob.status)}>
-                {unifiedJob.status.replace('_', ' ')}
+            <h2 className="text-2xl font-bold text-foreground">
+              {appointment.service_name || 'Appointment'}
+            </h2>
+            {appointment.series_id && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Repeat className="h-3 w-3" />
+                Recurring
               </Badge>
             )}
-            <Badge className={getPriorityColor(unifiedJob.priority)}>
-              {unifiedJob.priority}
-            </Badge>
+            {appointment.is_telehealth && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Video className="h-3 w-3" />
+                Telehealth
+              </Badge>
+            )}
           </div>
+          <Badge className={getStatusColor(appointment.status)}>
+            {getStatusLabel(appointment.status)}
+          </Badge>
         </div>
         {onUpdate && (
-          <Button onClick={handleEdit} variant="outline" className="ml-4">
+          <Button onClick={handleEdit} variant="outline">
             <Edit className="h-4 w-4 mr-2" />
-            Edit Job
+            Edit
           </Button>
         )}
       </div>
 
-      {/* Basic Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Customer Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+      {/* Client Information */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Client Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div>
+            <span className="text-sm text-muted-foreground">Name:</span>
+            <p className="font-medium">{appointment.client_name || 'Unknown Client'}</p>
+          </div>
+          {appointment.client_email && (
             <div>
-              <span className="text-sm text-muted-foreground">Customer:</span>
-              <p className="font-medium">{unifiedJob.customer_name}</p>
+              <span className="text-sm text-muted-foreground">Email:</span>
+              <p className="font-medium">{appointment.client_email}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Scheduling
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+          )}
+          {appointment.client_phone && (
             <div>
-              <span className="text-sm text-muted-foreground">Start Date & Time:</span>
-              <p className="font-medium">{formatInUserTimezone(getStartDateTime(), userTimezone, 'MMM d, yyyy h:mm a')}</p>
+              <span className="text-sm text-muted-foreground">Phone:</span>
+              <p className="font-medium">{appointment.client_phone}</p>
             </div>
-            <div>
-              <span className="text-sm text-muted-foreground">End Date & Time:</span>
-              <p className="font-medium">{formatInUserTimezone(getEndDateTime(), userTimezone, 'MMM d, yyyy h:mm a')}</p>
-            </div>
-            {'estimated_duration' in unifiedJob && unifiedJob.estimated_duration && (
-              <div>
-                <span className="text-sm text-muted-foreground">Estimated Duration:</span>
-                <p className="font-medium">{unifiedJob.estimated_duration} hours</p>
-              </div>
-            )}
-            {'complete_date' in unifiedJob && unifiedJob.complete_date && (
-              <div>
-                <span className="text-sm text-muted-foreground">Completion Date:</span>
-                <p className="font-medium">{format(new Date(unifiedJob.complete_date), 'MMM d, yyyy')}</p>
-              </div>
-            )}
-            {'series_id' in unifiedJob && unifiedJob.series_id && (
-              <div>
-                <span className="text-sm text-muted-foreground">Series ID:</span>
-                <p className="font-medium font-mono text-xs">{unifiedJob.series_id.slice(0, 8)}...</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Cost Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Cost Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {'actual_cost' in unifiedJob && unifiedJob.actual_cost && (
-              <div>
-                <span className="text-sm text-muted-foreground">Actual Cost:</span>
-                <p className="font-medium">${unifiedJob.actual_cost}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Assignment and Materials */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Assignment
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Scheduling */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Schedule
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div>
+            <span className="text-sm text-muted-foreground">Date:</span>
+            <p className="font-medium">
+              {formatInUserTimezone(appointment.start_at, userTimezone, 'EEEE, MMMM d, yyyy')}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="text-sm text-muted-foreground">Assigned Contractor:</span>
+              <span className="text-sm text-muted-foreground">Start Time:</span>
               <p className="font-medium">
-                {unifiedJob.contractor_name || 'Unassigned'}
+                {formatInUserTimezone(appointment.start_at, userTimezone, 'h:mm a')}
               </p>
-              {unifiedJob.assigned_to_user_id && (
-                <p className="text-xs text-muted-foreground font-mono">
-                  ID: {unifiedJob.assigned_to_user_id.slice(0, 8)}...
-                </p>
-              )}
             </div>
-          </CardContent>
-        </Card>
-
-        {'additional_info' in unifiedJob && unifiedJob.additional_info && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Additional Info
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm whitespace-pre-wrap">
-                {unifiedJob.additional_info}
+            <div>
+              <span className="text-sm text-muted-foreground">End Time:</span>
+              <p className="font-medium">
+                {formatInUserTimezone(appointment.end_at, userTimezone, 'h:mm a')}
               </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            </div>
+          </div>
+          <div>
+            <span className="text-sm text-muted-foreground">Duration:</span>
+            <p className="font-medium">{durationMinutes} minutes</p>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Completion Notes */}
-      {'completion_notes' in unifiedJob && unifiedJob.completion_notes && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Completion Notes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">{unifiedJob.completion_notes}</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Location / Telehealth */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            {appointment.is_telehealth ? (
+              <Video className="h-4 w-4" />
+            ) : (
+              <MapPin className="h-4 w-4" />
+            )}
+            {appointment.is_telehealth ? 'Telehealth Session' : 'Location'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {appointment.is_telehealth ? (
+            <p className="text-muted-foreground">
+              This is a telehealth appointment. Video link will be provided.
+            </p>
+          ) : (
+            <p className="font-medium">
+              {appointment.location_name || 'No location specified'}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Clinician */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Clinician
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="font-medium">{appointment.clinician_name || 'Unassigned'}</p>
+        </CardContent>
+      </Card>
 
       {/* Metadata */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Clock className="h-4 w-4" />
-            Job Information
+            Details
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <div>
             <span className="text-sm text-muted-foreground">Created:</span>
-            <p className="font-medium">{formatInUserTimezone(unifiedJob.created_at, userTimezone, 'MMM d, yyyy h:mm a')}</p>
+            <p className="font-medium">
+              {formatInUserTimezone(appointment.created_at, userTimezone, 'MMM d, yyyy h:mm a')}
+            </p>
           </div>
-          {unifiedJob.updated_at && (
+          {appointment.updated_at && (
             <div>
               <span className="text-sm text-muted-foreground">Last Updated:</span>
-              <p className="font-medium">{formatInUserTimezone(unifiedJob.updated_at, userTimezone, 'MMM d, yyyy h:mm a')}</p>
+              <p className="font-medium">
+                {formatInUserTimezone(appointment.updated_at, userTimezone, 'MMM d, yyyy h:mm a')}
+              </p>
             </div>
           )}
           <div>
-            <span className="text-sm text-muted-foreground">Job ID:</span>
-            <p className="font-medium font-mono">{unifiedJob.id}</p>
+            <span className="text-sm text-muted-foreground">Appointment ID:</span>
+            <p className="font-mono text-xs text-muted-foreground">{appointment.id}</p>
           </div>
+          {appointment.series_id && (
+            <div>
+              <span className="text-sm text-muted-foreground">Series ID:</span>
+              <p className="font-mono text-xs text-muted-foreground">{appointment.series_id}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -43,11 +43,12 @@ const Index = () => {
   // Calculate dashboard metrics from real data
   const dashboardMetrics = useMemo(() => {
     const activeJobs = appointments.filter(job => 
-      job.status === 'scheduled' || job.status === 'in_progress'
+      job.status === 'scheduled'
     ).length;
     
+    // No priority field in new schema - count cancelled as needing attention
     const urgentJobs = appointments.filter(job => 
-      job.priority === 'urgent' || job.priority === 'high'
+      job.status === 'cancelled'
     ).length;
     
     const todaysJobs = appointments.filter(job => {
@@ -221,14 +222,14 @@ const Index = () => {
                         <div key={job.id} className="flex items-center gap-3 p-3 rounded-lg bg-accent/50">
                           <div className={`h-2 w-2 rounded-full ${getJobStatusColor(job.status)}`}></div>
                           <div className="flex-1">
-                            <p className="text-sm font-medium">{job.customer_name}</p>
+                            <p className="text-sm font-medium">{job.client_name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(job.start_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - {job.title}
+                              {new Date(job.start_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - {job.service_name}
                             </p>
                           </div>
                           <StatusIcon className={`h-4 w-4 ${
                             job.status === 'completed' ? 'text-success' : 
-                            job.status === 'in_progress' ? 'text-warning' : 
+                            job.status === 'cancelled' ? 'text-warning' : 
                             'text-primary'
                           }`} />
                         </div>
