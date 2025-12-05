@@ -29,6 +29,11 @@ const STORAGE_KEY = 'calendar-working-hours';
 const DEFAULT_START = 7;
 const DEFAULT_END = 21;
 
+// Explicit formats to ensure consistent 12-hour AM/PM display
+const formats = {
+  timeGutterFormat: 'h:mm a', // e.g., "9:00 AM"
+};
+
 function loadWorkingHours(): { start: number; end: number } {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -236,6 +241,8 @@ export function RBCCalendar() {
           <Calendar
             localizer={localizer}
             events={events}
+            culture="en-US"
+            formats={formats}
             startAccessor="start"
             endAccessor="end"
             style={{ height: '100%' }}
