@@ -13,6 +13,7 @@ interface GenerateOccurrencesRequest {
   monthsAhead?: number;
   fromDate?: string;
   maxOccurrences?: number;
+  is_telehealth?: boolean;
 }
 
 serve(async (req) => {
@@ -31,7 +32,8 @@ serve(async (req) => {
       seriesId, 
       monthsAhead = 3, 
       fromDate,
-      maxOccurrences = 200 
+      maxOccurrences = 200,
+      is_telehealth = false,
     }: GenerateOccurrencesRequest = await req.json();
     
     console.log('Generating occurrences for series:', seriesId);
@@ -155,23 +157,64 @@ serve(async (req) => {
         end_at: endUTC.toISO(),
         time_zone: series.time_zone,
         status: 'scheduled',
-        is_telehealth: false,
+        is_telehealth: is_telehealth,
         created_by_profile_id: series.created_by_profile_id,
       };
 
       // Use upsert to avoid duplicates (based on series_id + start_at)
-      const { error: insertError } = await supabase
+      const { data: insertedAppointment, error: insertError } = await supabase
         .from('appointments')
         .upsert(appointmentData, { 
           onConflict: 'series_id,start_at',
           ignoreDuplicates: true
-        });
+        })
+        .select('id')
+        .single();
 
       if (insertError) {
         console.error('Error inserting appointment:', insertError);
         generatedCount.skipped++;
       } else {
         generatedCount.created++;
+        
+        // Create Daily.co room for telehealth appointments
+        if (is_telehealth && insertedAppointment?.id) {
+          try {
+            const dailyApiKey = Deno.env.get('DAILY.CO_API_KEY');
+            if (dailyApiKey) {
+              const roomName = `appt-${insertedAppointment.id}`;
+              const dailyResponse = await fetch('https://api.daily.co/v1/rooms', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${dailyApiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  name: roomName,
+                  privacy: 'private',
+                  properties: {
+                    enable_screenshare: true,
+                    enable_chat: true,
+                  },
+                }),
+              });
+
+              if (dailyResponse.ok) {
+                const dailyRoom = await dailyResponse.json();
+                await supabase
+                  .from('appointments')
+                  .update({ videoroom_url: dailyRoom.url })
+                  .eq('id', insertedAppointment.id);
+                console.log('Created Daily.co room for appointment:', insertedAppointment.id);
+              } else {
+                console.error('Failed to create Daily.co room:', await dailyResponse.text());
+              }
+            }
+          } catch (roomError) {
+            console.error('Error creating video room:', roomError);
+            // Don't fail the appointment creation, just log the error
+          }
+        }
       }
     }
 

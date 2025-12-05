@@ -464,6 +464,7 @@ export type Database = {
           time_zone: Database["public"]["Enums"]["time_zones"]
           units_1: number | null
           updated_at: string
+          videoroom_url: string | null
         }
         Insert: {
           accept_assign?: boolean | null
@@ -499,6 +500,7 @@ export type Database = {
           time_zone: Database["public"]["Enums"]["time_zones"]
           units_1?: number | null
           updated_at?: string
+          videoroom_url?: string | null
         }
         Update: {
           accept_assign?: boolean | null
@@ -534,6 +536,7 @@ export type Database = {
           time_zone?: Database["public"]["Enums"]["time_zones"]
           units_1?: number | null
           updated_at?: string
+          videoroom_url?: string | null
         }
         Relationships: [
           {

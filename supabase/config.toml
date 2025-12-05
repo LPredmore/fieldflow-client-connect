@@ -1,5 +1,8 @@
 project_id = "ahqauomkgflopxgnlndd"
 
+[functions.create-daily-room]
+verify_jwt = true
+
 [functions.create-staff-account]
 verify_jwt = true
 
