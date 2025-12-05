@@ -11,6 +11,10 @@ import { CalendarToolbar } from './CalendarToolbar';
 
 const locales = { 'en-US': enUS };
 
+const formats = {
+  timeGutterFormat: 'h:mm a',
+};
+
 const localizer = dateFnsLocalizer({
   format,
   parse,
@@ -164,6 +168,7 @@ export function RBCCalendar() {
             onSelectEvent={handleSelectEvent}
             onSelectSlot={handleSelectSlot}
             eventPropGetter={eventStyleGetter}
+            formats={formats}
             components={{
               toolbar: (props) => (
                 <CalendarToolbar
