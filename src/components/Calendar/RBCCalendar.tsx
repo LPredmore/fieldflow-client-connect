@@ -1,19 +1,51 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Calendar, luxonLocalizer, SlotInfo } from 'react-big-calendar';
-import { DateTime } from 'luxon';
+import { useCallback, useMemo, useState, useEffect } from 'react';
+import { Calendar, dateFnsLocalizer, SlotInfo } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
-import { useAppointments } from '@/hooks/useAppointments';
+import { useCalendarAppointments } from '@/hooks/useCalendarAppointments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CalendarIcon } from 'lucide-react';
 import { CalendarToolbar } from './CalendarToolbar';
+import { AppointmentEvent } from './AppointmentEvent';
+import AppointmentView from '@/components/Appointments/AppointmentView';
+import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppointmentDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
-// Use Luxon localizer for react-big-calendar
-const localizer = luxonLocalizer(DateTime);
+const locales = { 'en-US': enUS };
 
-const STORAGE_KEY = 'calendar-working-hours-v3';
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
+
+const STORAGE_KEY = 'calendar-working-hours-v2';
 const DEFAULT_START = 7;
 const DEFAULT_END = 21;
+
+// String format for timeGutterFormat - dateFnsLocalizer expects string patterns for simple formats
+// Range formats (eventTimeRangeFormat, etc.) can be functions as they're handled differently
+const formats = {
+  timeGutterFormat: 'h:mm a',
+  eventTimeRangeFormat: (
+    { start, end }: { start: Date; end: Date }
+  ) => `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`,
+  eventTimeRangeStartFormat: (
+    { start }: { start: Date }
+  ) => `${format(start, 'h:mm a')} –`,
+  eventTimeRangeEndFormat: (
+    { end }: { end: Date }
+  ) => `– ${format(end, 'h:mm a')}`,
+  selectRangeFormat: (
+    { start, end }: { start: Date; end: Date }
+  ) => `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`,
+};
 
 function loadWorkingHours(): { start: number; end: number } {
   try {
@@ -34,18 +66,15 @@ function saveWorkingHours(start: number, end: number) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ start, end }));
 }
 
-/**
- * Create a plain local Date object for a specific hour.
- * No UTC gymnastics, no Luxon, just a simple local Date.
- */
-function createLocalTime(hour: number, minute: number = 0): Date {
-  const d = new Date();
-  d.setHours(hour, minute, 0, 0);
-  return d;
-}
-
 export function RBCCalendar() {
-  const { appointments, loading } = useAppointments();
+  const { appointments, loading, refetch } = useCalendarAppointments();
+  const { tenantId } = useAuth();
+  
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [prefilledDate, setPrefilledDate] = useState<string>('');
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   
   // Working hours state with localStorage persistence
   const [workingHoursStart, setWorkingHoursStart] = useState(() => loadWorkingHours().start);
@@ -57,25 +86,43 @@ export function RBCCalendar() {
     saveWorkingHours(start, end);
   }, []);
 
-  // Create min/max as plain local Date objects
-  const min = useMemo(() => createLocalTime(workingHoursStart, 0), [workingHoursStart]);
-  const max = useMemo(() => createLocalTime(workingHoursEnd, 0), [workingHoursEnd]);
-  const scrollToTime = useMemo(() => createLocalTime(workingHoursStart, 0), [workingHoursStart]);
+  // Convert hours to Date objects for min/max props
+  // react-big-calendar uses local time (getHours()), so we use setHours()
+  const minTime = useMemo(() => {
+    const date = new Date();
+    date.setHours(workingHoursStart, 0, 0, 0);
+    return date;
+  }, [workingHoursStart]);
 
-  // Sanity log before rendering
-  console.log('[RBC] min:', min.toString(), 'hours:', min.getHours());
-  console.log('[RBC] max:', max.toString(), 'hours:', max.getHours());
+  const maxTime = useMemo(() => {
+    const date = new Date();
+    // For 11 PM (hour 23), set to 23:59 to include the full hour
+    if (workingHoursEnd === 23) {
+      date.setHours(23, 59, 59, 999);
+    } else {
+      date.setHours(workingHoursEnd, 0, 0, 0);
+    }
+    return date;
+  }, [workingHoursEnd]);
+
+  const scrollToTime = useMemo(() => {
+    const date = new Date();
+    date.setHours(workingHoursStart, 0, 0, 0);
+    return date;
+  }, [workingHoursStart]);
 
   // Convert appointments to RBC event format
-  // Use start_local and end_local which are already converted to local timezone
+  // Use pre-computed local_start/local_end from useCalendarAppointments
+  // which correctly handles Supabase's non-standard timestamp format
   const events = useMemo(() => {
     if (!appointments || !Array.isArray(appointments)) return [];
 
     return appointments.map((appt) => ({
       id: appt.id,
       title: `${appt.service_name} - ${appt.client_name}`,
-      start: appt.start_local, // Already local JS Date from useAppointments
-      end: appt.end_local,     // Already local JS Date from useAppointments
+      // Use pre-computed local times (already converted from UTC)
+      start: appt.local_start || new Date(),
+      end: appt.local_end || new Date(),
       resource: {
         status: appt.status,
         client_name: appt.client_name,
@@ -110,15 +157,74 @@ export function RBCCalendar() {
 
   // Handle event click
   const handleSelectEvent = useCallback((event: any) => {
-    console.log('Selected event:', event);
-    // TODO: Open appointment detail dialog
+    setSelectedAppointmentId(event.id);
+    setViewDialogOpen(true);
   }, []);
 
   // Handle slot selection
   const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
-    console.log('Selected slot:', slotInfo);
-    // TODO: Open create appointment dialog
+    setPrefilledDate(format(slotInfo.start, 'yyyy-MM-dd'));
+    setCreateDialogOpen(true);
   }, []);
+
+  // Fetch full appointment data when selected
+  useEffect(() => {
+    if (!selectedAppointmentId || !tenantId) {
+      setSelectedAppointment(null);
+      return;
+    }
+
+    const fetchAppointment = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('appointments')
+          .select(`
+            *,
+            clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred, email, phone),
+            services!inner(id, name)
+          `)
+          .eq('id', selectedAppointmentId)
+          .eq('tenant_id', tenantId)
+          .single();
+
+        if (error) throw error;
+        
+        const clientName = data.clients?.pat_name_preferred || 
+          [data.clients?.pat_name_f, data.clients?.pat_name_m, data.clients?.pat_name_l]
+            .filter(Boolean).join(' ').trim() || 'Unknown Client';
+
+        setSelectedAppointment({
+          ...data,
+          client_name: clientName,
+          service_name: data.services?.name || 'Unknown Service',
+        });
+      } catch (error) {
+        console.error('Error fetching appointment:', error);
+        setSelectedAppointment(null);
+      }
+    };
+
+    fetchAppointment();
+  }, [selectedAppointmentId, tenantId]);
+
+  // Handle appointment update
+  const handleUpdateAppointment = async (appointmentId: string, updates: any) => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update(updates)
+        .eq('id', appointmentId)
+        .eq('tenant_id', tenantId);
+
+      if (error) throw error;
+      
+      setViewDialogOpen(false);
+      refetch();
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+      throw error;
+    }
+  };
 
   if (loading) {
     return (
@@ -151,13 +257,14 @@ export function RBCCalendar() {
           <Calendar
             localizer={localizer}
             events={events}
+            culture="en-US"
+            formats={formats}
             startAccessor="start"
             endAccessor="end"
             style={{ height: '100%' }}
             defaultView="week"
             views={['month', 'week', 'day']}
-            step={15}
-            timeslots={4}
+            step={30}
             showMultiDayTimes
             selectable
             onSelectEvent={handleSelectEvent}
@@ -172,13 +279,37 @@ export function RBCCalendar() {
                   onWorkingHoursChange={handleWorkingHoursChange}
                 />
               ),
+              event: AppointmentEvent,
             }}
-            min={min}
-            max={max}
+            min={minTime}
+            max={maxTime}
             scrollToTime={scrollToTime}
           />
         </div>
       </CardContent>
+
+      {/* Appointment View Dialog */}
+      {selectedAppointment && (
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Appointment Details</DialogTitle>
+            </DialogHeader>
+            <AppointmentView 
+              job={selectedAppointment}
+              onUpdate={handleUpdateAppointment}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Create Appointment Dialog */}
+      <CreateAppointmentDialog
+        prefilledDate={prefilledDate}
+        trigger={null}
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
     </Card>
   );
 }
