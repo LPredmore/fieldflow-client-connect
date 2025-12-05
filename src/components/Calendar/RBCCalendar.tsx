@@ -30,8 +30,29 @@ const DEFAULT_START = 7;
 const DEFAULT_END = 21;
 
 // Explicit formats to ensure consistent 12-hour AM/PM display
+// Using 'h:mm a' pattern instead of 'p' token which has UTC interpretation issues
 const formats = {
-  timeGutterFormat: 'h:mm a', // e.g., "9:00 AM"
+  timeGutterFormat: 'h:mm a',
+  eventTimeRangeFormat: (
+    { start, end }: { start: Date; end: Date },
+    culture?: string,
+    localizer?: any
+  ) => `${localizer.format(start, 'h:mm a', culture)} – ${localizer.format(end, 'h:mm a', culture)}`,
+  eventTimeRangeStartFormat: (
+    { start }: { start: Date },
+    culture?: string,
+    localizer?: any
+  ) => `${localizer.format(start, 'h:mm a', culture)} –`,
+  eventTimeRangeEndFormat: (
+    { end }: { end: Date },
+    culture?: string,
+    localizer?: any
+  ) => `– ${localizer.format(end, 'h:mm a', culture)}`,
+  selectRangeFormat: (
+    { start, end }: { start: Date; end: Date },
+    culture?: string,
+    localizer?: any
+  ) => `${localizer.format(start, 'h:mm a', culture)} – ${localizer.format(end, 'h:mm a', culture)}`,
 };
 
 function loadWorkingHours(): { start: number; end: number } {
