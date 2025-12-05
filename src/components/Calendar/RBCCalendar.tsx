@@ -53,6 +53,22 @@ export function RBCCalendar() {
   const [workingHoursStart, setWorkingHoursStart] = useState(() => loadWorkingHours().start);
   const [workingHoursEnd, setWorkingHoursEnd] = useState(() => loadWorkingHours().end);
 
+  // DEBUG: Log working hours state values
+  console.log('=== CALENDAR DEBUG ===');
+  console.log('workingHoursStart (raw number):', workingHoursStart);
+  console.log('workingHoursEnd (raw number):', workingHoursEnd);
+  
+  // DEBUG: Test what format produces for different hours
+  const testDate7AM = new Date(2000, 0, 1, 7, 0, 0);
+  const testDate19PM = new Date(2000, 0, 1, 19, 0, 0);
+  console.log('=== FORMAT TEST ===');
+  console.log('Test 7 AM Date:', testDate7AM);
+  console.log('Test 7 AM getHours():', testDate7AM.getHours());
+  console.log('Test 7 AM formatted with h:mm a:', format(testDate7AM, 'h:mm a'));
+  console.log('Test 19 (7PM) Date:', testDate19PM);
+  console.log('Test 19 (7PM) getHours():', testDate19PM.getHours());
+  console.log('Test 19 (7PM) formatted with h:mm a:', format(testDate19PM, 'h:mm a'));
+
   const handleWorkingHoursChange = useCallback((start: number, end: number) => {
     setWorkingHoursStart(start);
     setWorkingHoursEnd(end);
@@ -72,6 +88,21 @@ export function RBCCalendar() {
   const scrollToTime = useMemo(() => {
     return new Date(2000, 0, 1, workingHoursStart, 0, 0);
   }, [workingHoursStart]);
+
+  // DEBUG: Log the Date objects and their hour values
+  console.log('=== MIN/MAX TIME DEBUG ===');
+  console.log('minTime Date object:', minTime);
+  console.log('minTime.getHours():', minTime.getHours());
+  console.log('minTime.toISOString():', minTime.toISOString());
+  console.log('minTime.toString():', minTime.toString());
+  console.log('---');
+  console.log('maxTime Date object:', maxTime);
+  console.log('maxTime.getHours():', maxTime.getHours());
+  console.log('maxTime.toISOString():', maxTime.toISOString());
+  console.log('maxTime.toString():', maxTime.toString());
+  console.log('---');
+  console.log('scrollToTime.getHours():', scrollToTime.getHours());
+  console.log('=== END DEBUG ===');
 
   // Convert appointments to RBC event format
   const events = useMemo(() => {
