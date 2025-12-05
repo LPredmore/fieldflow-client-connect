@@ -99,7 +99,7 @@ export function useAppointmentManagement() {
           updated_at,
           clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred),
           services!inner(name),
-          staff!inner(prov_name_f, prov_name_l)
+          staff!inner(prov_name_f, prov_name_l, prov_name_for_clients)
         `)
         .eq('tenant_id', tenantId)
         .order('start_at', { ascending: false });
@@ -134,8 +134,9 @@ export function useAppointmentManagement() {
           [appt.clients?.pat_name_f, appt.clients?.pat_name_m, appt.clients?.pat_name_l]
             .filter(Boolean).join(' ').trim() || 'Unknown Client',
         service_name: appt.services?.name || 'Unknown Service',
-        clinician_name: [appt.staff?.prov_name_f, appt.staff?.prov_name_l]
-          .filter(Boolean).join(' ').trim() || 'Unassigned',
+        clinician_name: appt.staff?.prov_name_for_clients ||
+          [appt.staff?.prov_name_f, appt.staff?.prov_name_l]
+            .filter(Boolean).join(' ').trim() || 'Unassigned',
       }));
 
       setAppointments(transformedAppointments);
@@ -162,7 +163,7 @@ export function useAppointmentManagement() {
           updated_at,
           clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred),
           services!inner(name),
-          staff!inner(prov_name_f, prov_name_l)
+          staff!inner(prov_name_f, prov_name_l, prov_name_for_clients)
         `)
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false });
@@ -218,8 +219,9 @@ export function useAppointmentManagement() {
             [clientData?.pat_name_f, clientData?.pat_name_m, clientData?.pat_name_l]
               .filter(Boolean).join(' ').trim() || 'Unknown Client',
           service_name: serviceData?.name || 'Unknown Service',
-          clinician_name: [staffData?.prov_name_f, staffData?.prov_name_l]
-            .filter(Boolean).join(' ').trim() || 'Unassigned',
+          clinician_name: staffData?.prov_name_for_clients ||
+            [staffData?.prov_name_f, staffData?.prov_name_l]
+              .filter(Boolean).join(' ').trim() || 'Unassigned',
           total_occurrences: totalOccurrences,
           completed_occurrences: completedOccurrences,
           next_occurrence_date: nextOccurrence?.start_at,
