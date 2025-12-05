@@ -1,8 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { useUserTimezone } from './useUserTimezone';
-import { convertFromUTC } from '@/lib/timezoneUtils';
+import { parseUTCTimestamp } from '@/lib/timezoneUtils';
 import { useToast } from '@/hooks/use-toast';
 
 export interface CalendarAppointment {
@@ -48,7 +47,6 @@ function defaultRange(): CalendarRange {
  */
 export function useCalendarAppointments() {
   const { user, tenantId } = useAuth();
-  const userTimezone = useUserTimezone();
   const { toast } = useToast();
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRangeRef = useRef<string>('');
@@ -116,9 +114,10 @@ export function useCalendarAppointments() {
       }
 
       // Transform to display format
+      // Use parseUTCTimestamp for native Date objects - browser handles timezone automatically
       const transformed: CalendarAppointment[] = (data || []).map((row: any) => {
-        const localStart = convertFromUTC(row.start_at, userTimezone);
-        const localEnd = convertFromUTC(row.end_at, userTimezone);
+        const localStart = parseUTCTimestamp(row.start_at);
+        const localEnd = parseUTCTimestamp(row.end_at);
 
         // Build client name
         const clientName = row.clients?.pat_name_preferred || 
@@ -160,7 +159,7 @@ export function useCalendarAppointments() {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [user, tenantId, userTimezone, range.fromISO, range.toISO, toast]);
+  }, [user, tenantId, range.fromISO, range.toISO, toast]);
 
   // Manual refetch function
   const refetch = useCallback(() => {
