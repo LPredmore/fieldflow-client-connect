@@ -51,35 +51,42 @@ export function combineDateTimeToUTC(
     throw new Error('Date and time are required');
   }
   
-  // Validate date format (YYYY-MM-DD)
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateRegex.test(date)) {
+  // Parse date components explicitly (no string parsing ambiguity)
+  const dateParts = date.split('-');
+  const year = parseInt(dateParts[0], 10);
+  const month = parseInt(dateParts[1], 10);
+  const day = parseInt(dateParts[2], 10);
+  
+  // Validate parsed date
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
     throw new Error(`Invalid date format: ${date}. Expected YYYY-MM-DD`);
   }
   
-  // Validate time format (HH:mm or HH:mm:ss)
-  const timeRegex = /^\d{1,2}:\d{2}(:\d{2})?$/;
-  if (!timeRegex.test(time)) {
+  // Parse time components explicitly
+  const timeParts = time.split(':');
+  const hours = parseInt(timeParts[0], 10);
+  const minutes = parseInt(timeParts[1], 10);
+  const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+  
+  // Validate parsed time
+  if (isNaN(hours) || isNaN(minutes)) {
     throw new Error(`Invalid time format: ${time}. Expected HH:mm or HH:mm:ss`);
   }
   
-  // Normalize time to HH:mm:ss format
-  const timeParts = time.split(':');
-  const hours = timeParts[0].padStart(2, '0');
-  const minutes = timeParts[1].padStart(2, '0');
-  const seconds = timeParts[2] || '00';
-  const normalizedTime = `${hours}:${minutes}:${seconds}`;
+  // Create a Date object using Date.UTC() to represent the "wall clock" reading
+  // This creates a Date where the UTC components match what we want to interpret
+  // as the user's local time (avoids any browser timezone interpretation)
+  // Note: Date.UTC uses 0-indexed months, so subtract 1 from month
+  const wallClockAsUTC = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds, 0));
   
-  // Create ISO-compliant datetime string with T separator
-  // This format is interpreted as a local time by fromZonedTime
-  const isoDateTimeString = `${date}T${normalizedTime}`;
+  // fromZonedTime interprets this instant as if it occurred in the user's timezone
+  // and returns the actual UTC instant
+  // Example: 9:00 AM "wall clock" in "America/New_York" → 14:00 UTC
+  const utcDateTime = fromZonedTime(wallClockAsUTC, userTimezone);
   
-  // Use fromZonedTime to interpret the datetime as being IN the user's timezone and convert to UTC
-  const utcDateTime = fromZonedTime(isoDateTimeString, userTimezone);
-  
-  // Check if the conversion result is valid
+  // Validate the result
   if (isNaN(utcDateTime.getTime())) {
-    throw new Error(`Invalid date/time combination or timezone: ${isoDateTimeString} in ${userTimezone}`);
+    throw new Error(`Invalid date/time combination or timezone: ${date} ${time} in ${userTimezone}`);
   }
   
   return utcDateTime;
