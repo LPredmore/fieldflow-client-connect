@@ -101,6 +101,7 @@ export function CreateAppointmentDialog({
           start_time: formData.time,
           duration_minutes: formData.duration_minutes,
           rrule: formData.rrule,
+          is_telehealth: formData.is_telehealth,
         });
       } else {
         // Create single appointment

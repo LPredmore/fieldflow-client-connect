@@ -33,6 +33,7 @@ export interface CreateAppointmentSeriesInput {
   series_end_date?: string | null;
   max_occurrences?: number | null;
   notes?: string;
+  is_telehealth?: boolean; // Whether appointments in this series are telehealth
 }
 
 /**
@@ -126,6 +127,7 @@ export function useAppointmentSeries() {
             seriesId: newSeries.id,
             monthsAhead: 3,
             maxOccurrences: 200,
+            is_telehealth: input.is_telehealth ?? false,
           },
         }
       );

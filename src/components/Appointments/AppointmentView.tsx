@@ -24,6 +24,7 @@ interface AppointmentData {
   time_zone: string;
   status: 'scheduled' | 'completed' | 'cancelled';
   is_telehealth: boolean;
+  videoroom_url?: string | null;
   location_name?: string | null;
   created_at: string;
   updated_at: string;
@@ -318,9 +319,23 @@ export default function AppointmentView({
         </CardHeader>
         <CardContent>
           {appointment.is_telehealth ? (
-            <p className="text-muted-foreground">
-              This is a telehealth appointment. Video link will be provided.
-            </p>
+            <div className="space-y-3">
+              {appointment.videoroom_url ? (
+                <a 
+                  href={appointment.videoroom_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  <Video className="h-4 w-4" />
+                  Join Video Call
+                </a>
+              ) : (
+                <p className="text-muted-foreground">
+                  Video room is being set up...
+                </p>
+              )}
+            </div>
           ) : (
             <p className="font-medium">
               {appointment.location_name || 'No location specified'}

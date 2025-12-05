@@ -22,6 +22,10 @@ export interface CreateAppointmentInput {
  * 2. This hook converts local → UTC before saving to database
  * 3. Database stores UTC timestamps (start_at, end_at as timestamptz)
  * 4. time_zone column stores creator's timezone as metadata
+ * 
+ * Telehealth Integration:
+ * - If is_telehealth is true, creates a Daily.co video room after appointment insert
+ * - Video room URL is stored in appointments.videoroom_url
  */
 export function useAppointmentCreation() {
   const { user, tenantId } = useAuth();
@@ -29,6 +33,34 @@ export function useAppointmentCreation() {
 
   // Get the current staff_id from auth context
   const staffId = user?.staffAttributes?.staffData?.id;
+
+  /**
+   * Creates a Daily.co video room for the appointment
+   */
+  const createVideoRoom = async (appointmentId: string): Promise<string | null> => {
+    try {
+      console.log('Creating Daily.co room for appointment:', appointmentId);
+      
+      const { data, error } = await supabase.functions.invoke('create-daily-room', {
+        body: { appointmentId },
+      });
+
+      if (error) {
+        console.error('Error creating video room:', error);
+        return null;
+      }
+
+      if (data?.videoroom_url) {
+        console.log('Video room created:', data.videoroom_url);
+        return data.videoroom_url;
+      }
+
+      return null;
+    } catch (err) {
+      console.error('Failed to create video room:', err);
+      return null;
+    }
+  };
 
   const createAppointment = async (data: CreateAppointmentInput) => {
     if (!user || !tenantId || !staffId) {
@@ -78,16 +110,34 @@ export function useAppointmentCreation() {
       throw error;
     }
 
-    toast({
-      title: 'Appointment created',
-      description: 'Your appointment has been scheduled successfully',
-    });
+    // If telehealth, create Daily.co video room
+    let videoRoomUrl: string | null = null;
+    if (data.is_telehealth && appointment) {
+      videoRoomUrl = await createVideoRoom(appointment.id);
+      if (videoRoomUrl) {
+        toast({
+          title: 'Telehealth appointment created',
+          description: 'Video room has been set up for this appointment',
+        });
+      } else {
+        toast({
+          title: 'Appointment created',
+          description: 'Video room setup is pending - it will be available shortly',
+        });
+      }
+    } else {
+      toast({
+        title: 'Appointment created',
+        description: 'Your appointment has been scheduled successfully',
+      });
+    }
 
-    return appointment;
+    return { ...appointment, videoroom_url: videoRoomUrl };
   };
 
   return {
     createAppointment,
+    createVideoRoom,
     staffId,
   };
 }
