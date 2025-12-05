@@ -77,7 +77,10 @@ export function useAppointmentCreation() {
     const endUTC = calculateEndUTC(startUTC, data.duration_minutes);
     
     // Get database enum value for timezone metadata
+    // getDBTimezoneEnum already handles validation and fallback to 'America/New_York'
     const dbTimezone = getDBTimezoneEnum(browserTimezone);
+    
+    console.log('Creating appointment with timezone:', { browserTimezone, dbTimezone });
 
     const appointmentData = {
       tenant_id: tenantId,

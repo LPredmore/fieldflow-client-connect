@@ -102,16 +102,21 @@ export default function AppointmentForm({ appointment, onSubmit, onCancel, loadi
       const utcStart = combineDateTimeToUTC(data.scheduled_date, data.start_time, userTimezone);
       const utcEnd = new Date(utcStart.getTime() + data.duration_minutes * 60 * 1000);
 
-      const submitData = {
+      const submitData: Record<string, any> = {
         client_id: data.client_id,
         service_id: data.service_id,
         start_at: utcStart.toISOString(),
         end_at: utcEnd.toISOString(),
-        time_zone: userTimezone,
         status: data.status,
         is_telehealth: data.is_telehealth,
         location_name: data.is_telehealth ? null : (data.location_name || null),
       };
+
+      // Only include time_zone for NEW appointments (not edits)
+      // time_zone represents creation context; existing appointments preserve their original timezone
+      if (!appointment) {
+        submitData.time_zone = userTimezone;
+      }
 
       await onSubmit(submitData);
     } catch (error: any) {
