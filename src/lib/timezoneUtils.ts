@@ -7,6 +7,36 @@ import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 export const DEFAULT_TIMEZONE = 'America/New_York';
 
 /**
+ * Normalize Supabase timestamp format to ISO 8601
+ * Supabase returns: "2025-12-05 14:00:00+00" (space separator, short offset)
+ * ISO 8601 expects: "2025-12-05T14:00:00Z" (T separator, Z or full offset)
+ * 
+ * This ensures consistent parsing across all browsers.
+ */
+export function normalizeTimestamp(timestamp: string): string {
+  if (!timestamp) return timestamp;
+  
+  // Replace space with T for ISO 8601 compliance
+  let normalized = timestamp.replace(' ', 'T');
+  
+  // Normalize timezone offset
+  // "+00" or "-00" → "Z"
+  if (/[+-]00$/.test(normalized)) {
+    normalized = normalized.slice(0, -3) + 'Z';
+  }
+  // "+00:00" or "-00:00" → "Z"
+  else if (/[+-]00:00$/.test(normalized)) {
+    normalized = normalized.slice(0, -6) + 'Z';
+  }
+  // "+05" → "+05:00" (short offset to full offset)
+  else if (/[+-]\d{2}$/.test(normalized)) {
+    normalized = normalized + ':00';
+  }
+  
+  return normalized;
+}
+
+/**
  * Convert a date/time from user's timezone to UTC for storage
  */
 export function convertToUTC(dateTime: Date | string, userTimezone: string): Date {
@@ -18,8 +48,12 @@ export function convertToUTC(dateTime: Date | string, userTimezone: string): Dat
  * Convert a UTC date/time to user's timezone for display
  */
 export function convertFromUTC(utcDateTime: Date | string, userTimezone: string): Date {
-  const date = typeof utcDateTime === 'string' ? parseISO(utcDateTime) : utcDateTime;
-  return toZonedTime(date, userTimezone);
+  if (typeof utcDateTime === 'string') {
+    const normalized = normalizeTimestamp(utcDateTime);
+    const date = parseISO(normalized);
+    return toZonedTime(date, userTimezone);
+  }
+  return toZonedTime(utcDateTime, userTimezone);
 }
 
 /**
@@ -30,8 +64,12 @@ export function formatInUserTimezone(
   userTimezone: string, 
   formatStr: string = 'yyyy-MM-dd HH:mm:ss'
 ): string {
-  const date = typeof utcDateTime === 'string' ? parseISO(utcDateTime) : utcDateTime;
-  return formatInTimeZone(date, userTimezone, formatStr);
+  if (typeof utcDateTime === 'string') {
+    const normalized = normalizeTimestamp(utcDateTime);
+    const date = parseISO(normalized);
+    return formatInTimeZone(date, userTimezone, formatStr);
+  }
+  return formatInTimeZone(utcDateTime, userTimezone, formatStr);
 }
 
 /**
