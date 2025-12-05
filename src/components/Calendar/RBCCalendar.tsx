@@ -120,17 +120,17 @@ export function RBCCalendar() {
   }, [workingHoursStart]);
 
   // Convert appointments to RBC event format
-  // Browser automatically converts UTC strings to local time via new Date()
-  // react-big-calendar then uses getHours() which returns local time
+  // Use pre-computed local_start/local_end from useCalendarAppointments
+  // which correctly handles Supabase's non-standard timestamp format
   const events = useMemo(() => {
     if (!appointments || !Array.isArray(appointments)) return [];
 
     return appointments.map((appt) => ({
       id: appt.id,
       title: `${appt.service_name} - ${appt.client_name}`,
-      // new Date() automatically converts UTC ISO strings to local time
-      start: new Date(appt.start_at),
-      end: new Date(appt.end_at),
+      // Use pre-computed local times (already converted from UTC)
+      start: appt.local_start || new Date(),
+      end: appt.local_end || new Date(),
       resource: {
         status: appt.status,
         client_name: appt.client_name,
