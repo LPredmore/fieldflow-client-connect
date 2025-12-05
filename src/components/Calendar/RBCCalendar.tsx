@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { Calendar, dateFnsLocalizer, SlotInfo } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { Calendar, luxonLocalizer, SlotInfo } from 'react-big-calendar';
+import { DateTime } from 'luxon';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 import { useCalendarAppointments } from '@/hooks/useCalendarAppointments';
@@ -15,37 +14,24 @@ import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppoint
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-const locales = { 'en-US': enUS };
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
+// Luxon localizer for React Big Calendar
+const localizer = luxonLocalizer(DateTime);
 
 const STORAGE_KEY = 'calendar-working-hours-v2';
 const DEFAULT_START = 7;
 const DEFAULT_END = 21;
 
-// All formats are function-based to ensure consistent formatting using date-fns directly
-// This bypasses the localizer's format function which can have issues with string formats
-const formats = {
-  timeGutterFormat: (date: Date) => format(date, 'h:mm a'),
-  eventTimeRangeFormat: (
-    { start, end }: { start: Date; end: Date }
-  ) => `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`,
-  eventTimeRangeStartFormat: (
-    { start }: { start: Date }
-  ) => `${format(start, 'h:mm a')} –`,
-  eventTimeRangeEndFormat: (
-    { end }: { end: Date }
-  ) => `– ${format(end, 'h:mm a')}`,
-  selectRangeFormat: (
-    { start, end }: { start: Date; end: Date }
-  ) => `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`,
-};
+// Helper to create a plain local Date object at a specific hour
+function createLocalTime(hour: number, minute = 0): Date {
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+
+// Format time for display using Luxon
+function formatTime(date: Date): string {
+  return DateTime.fromJSDate(date).toFormat('h:mm a');
+}
 
 function loadWorkingHours(): { start: number; end: number } {
   try {
@@ -86,29 +72,21 @@ export function RBCCalendar() {
     saveWorkingHours(start, end);
   }, []);
 
-  // Convert hours to Date objects for min/max props
-  // react-big-calendar uses local time (getHours()), so we use setHours()
+  // Plain local Date objects for min/max - no UTC gymnastics
   const minTime = useMemo(() => {
-    const date = new Date();
-    date.setHours(workingHoursStart, 0, 0, 0);
-    return date;
+    const min = createLocalTime(workingHoursStart, 0);
+    console.log('[RBC] min:', min.toString(), 'hours:', min.getHours());
+    return min;
   }, [workingHoursStart]);
 
   const maxTime = useMemo(() => {
-    const date = new Date();
-    // For 11 PM (hour 23), set to 23:59 to include the full hour
-    if (workingHoursEnd === 23) {
-      date.setHours(23, 59, 59, 999);
-    } else {
-      date.setHours(workingHoursEnd, 0, 0, 0);
-    }
-    return date;
+    const max = createLocalTime(workingHoursEnd, 0);
+    console.log('[RBC] max:', max.toString(), 'hours:', max.getHours());
+    return max;
   }, [workingHoursEnd]);
 
   const scrollToTime = useMemo(() => {
-    const date = new Date();
-    date.setHours(workingHoursStart, 0, 0, 0);
-    return date;
+    return createLocalTime(workingHoursStart, 0);
   }, [workingHoursStart]);
 
   // Convert appointments to RBC event format
@@ -166,7 +144,7 @@ export function RBCCalendar() {
 
   // Handle slot selection
   const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
-    setPrefilledDate(format(slotInfo.start, 'yyyy-MM-dd'));
+    setPrefilledDate(DateTime.fromJSDate(slotInfo.start).toFormat('yyyy-MM-dd'));
     setCreateDialogOpen(true);
   }, []);
 
@@ -260,8 +238,6 @@ export function RBCCalendar() {
           <Calendar
             localizer={localizer}
             events={events}
-            culture="en-US"
-            formats={formats}
             startAccessor="start"
             endAccessor="end"
             style={{ height: '100%' }}
