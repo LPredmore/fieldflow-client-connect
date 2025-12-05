@@ -10,6 +10,7 @@ export interface CalendarAppointment {
   client_id: string;
   client_name: string;
   staff_id: string;
+  clinician_name: string;
   service_id: string;
   service_name?: string;
   start_at: string; // UTC timestamp from database
@@ -95,7 +96,8 @@ export function useCalendarAppointments() {
           updated_at,
           tenant_id,
           clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred),
-          services!inner(id, name)
+          services!inner(id, name),
+          staff!inner(prov_name_f, prov_name_l, prov_name_for_clients)
         `)
         .eq('tenant_id', tenantId)
         .gte('start_at', range.fromISO)
@@ -127,12 +129,18 @@ export function useCalendarAppointments() {
           [row.clients?.pat_name_f, row.clients?.pat_name_m, row.clients?.pat_name_l]
             .filter(Boolean).join(' ').trim() || 'Unknown Client';
 
+        // Build clinician name - prioritize prov_name_for_clients
+        const clinicianName = row.staff?.prov_name_for_clients ||
+          [row.staff?.prov_name_f, row.staff?.prov_name_l]
+            .filter(Boolean).join(' ').trim() || 'Unassigned';
+
         return {
           id: row.id,
           series_id: row.series_id,
           client_id: row.client_id,
           client_name: clientName,
           staff_id: row.staff_id,
+          clinician_name: clinicianName,
           service_id: row.service_id,
           service_name: row.services?.name || 'Unknown Service',
           start_at: row.start_at,   // Original UTC for reference
@@ -177,7 +185,7 @@ export function useCalendarAppointments() {
       if (!user || !tenantId) throw new Error('User not authenticated');
 
       // Strip display-only fields
-      const { local_start, local_end, client_name, service_name, ...dbUpdates } = updates;
+      const { local_start, local_end, client_name, clinician_name, service_name, ...dbUpdates } = updates;
 
       const { data, error } = await supabase
         .from('appointments')

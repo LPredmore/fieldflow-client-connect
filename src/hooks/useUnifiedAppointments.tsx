@@ -83,7 +83,7 @@ export function useUnifiedAppointments(options?: UseUnifiedAppointmentsOptions) 
       updated_at,
       clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred, email, phone),
       services!inner(id, name),
-      staff!inner(prov_name_f, prov_name_l)
+      staff!inner(prov_name_f, prov_name_l, prov_name_for_clients)
     `,
     filters: {
       tenant_id: 'auto',
@@ -110,9 +110,10 @@ export function useUnifiedAppointments(options?: UseUnifiedAppointmentsOptions) 
         [appt.clients?.pat_name_f, appt.clients?.pat_name_m, appt.clients?.pat_name_l]
           .filter(Boolean).join(' ').trim() || 'Unknown Client';
 
-      // Build clinician name from parts
-      const clinicianName = [appt.staff?.prov_name_f, appt.staff?.prov_name_l]
-        .filter(Boolean).join(' ').trim() || 'Unassigned';
+      // Use client-facing name with fallback to first/last name
+      const clinicianName = appt.staff?.prov_name_for_clients ||
+        [appt.staff?.prov_name_f, appt.staff?.prov_name_l]
+          .filter(Boolean).join(' ').trim() || 'Unassigned';
 
       return {
         id: appt.id,
