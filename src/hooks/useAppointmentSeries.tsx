@@ -2,8 +2,7 @@ import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { combineDateTimeToUTC } from '@/lib/timezoneUtils';
-import { useUserTimezone } from './useUserTimezone';
+import { localToUTC, getDBTimezoneEnum, getBrowserTimezone } from '@/lib/appointmentTimezone';
 
 export interface AppointmentSeries {
   id: string;
@@ -40,10 +39,18 @@ export interface CreateAppointmentSeriesInput {
  * Hook to manage recurring appointment series.
  * Uses the appointment_series table with correct schema columns.
  */
+/**
+ * Hook to manage recurring appointment series.
+ * 
+ * Time Model:
+ * 1. User selects start date/time in their LOCAL timezone
+ * 2. This hook converts local → UTC before saving to database
+ * 3. Database stores UTC timestamps (start_at as timestamptz)
+ * 4. time_zone column stores creator's timezone as metadata
+ */
 export function useAppointmentSeries() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
-  const userTimezone = useUserTimezone();
 
   // Get the current staff_id from auth context
   const staffId = user?.staffAttributes?.staffData?.id;
@@ -68,21 +75,14 @@ export function useAppointmentSeries() {
       throw new Error('User not authenticated or staff ID not found');
     }
 
-    // Convert local start time to UTC
-    const utcStart = combineDateTimeToUTC(input.start_date, input.start_time, userTimezone);
+    // Get browser timezone for conversion and metadata
+    const browserTimezone = getBrowserTimezone();
 
-    // Map time_zone to database enum
-    const timeZoneMapping: Record<string, string> = {
-      'America/New_York': 'America/New_York',
-      'America/Chicago': 'America/Chicago',
-      'America/Denver': 'America/Denver',
-      'America/Los_Angeles': 'America/Los_Angeles',
-      'America/Phoenix': 'America/Phoenix',
-      'America/Anchorage': 'America/Anchorage',
-      'Pacific/Honolulu': 'Pacific/Honolulu',
-    };
+    // Convert local start time to UTC for database storage
+    const startUTC = localToUTC(input.start_date, input.start_time, browserTimezone);
     
-    const dbTimezone = timeZoneMapping[userTimezone] || 'America/New_York';
+    // Get database enum value for timezone metadata
+    const dbTimezone = getDBTimezoneEnum(browserTimezone);
 
     const seriesData = {
       tenant_id: tenantId,
@@ -90,7 +90,7 @@ export function useAppointmentSeries() {
       staff_id: staffId,
       service_id: input.service_id,
       rrule: input.rrule,
-      start_at: utcStart.toISOString(),
+      start_at: startUTC, // Already an ISO string in UTC
       duration_minutes: input.duration_minutes,
       time_zone: dbTimezone,
       series_end_date: input.series_end_date || null,

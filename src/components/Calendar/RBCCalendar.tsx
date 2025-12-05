@@ -112,8 +112,11 @@ export function RBCCalendar() {
   }, [workingHoursStart]);
 
   // Convert appointments to RBC event format
-  // Use pre-computed local_start/local_end from useCalendarAppointments
-  // which correctly handles Supabase's non-standard timestamp format
+  // Time Model:
+  // - Database stores UTC timestamps (start_at, end_at)
+  // - useCalendarAppointments converts UTC → local Date objects (local_start, local_end)
+  // - React Big Calendar receives these local Date objects for correct display
+  // - This ensures appointments display at the correct local time for the viewer
   const events = useMemo(() => {
     if (!appointments || !Array.isArray(appointments)) return [];
 
