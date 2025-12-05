@@ -25,34 +25,26 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-const STORAGE_KEY = 'calendar-working-hours';
+const STORAGE_KEY = 'calendar-working-hours-v2';
 const DEFAULT_START = 7;
 const DEFAULT_END = 21;
 
-// Explicit formats to ensure consistent 12-hour AM/PM display
-// Using 'h:mm a' pattern instead of 'p' token which has UTC interpretation issues
+// All formats are function-based to ensure consistent formatting using date-fns directly
+// This bypasses the localizer's format function which can have issues with string formats
 const formats = {
-  timeGutterFormat: 'h:mm a',
+  timeGutterFormat: (date: Date) => format(date, 'h:mm a'),
   eventTimeRangeFormat: (
-    { start, end }: { start: Date; end: Date },
-    culture?: string,
-    localizer?: any
-  ) => `${localizer.format(start, 'h:mm a', culture)} – ${localizer.format(end, 'h:mm a', culture)}`,
+    { start, end }: { start: Date; end: Date }
+  ) => `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`,
   eventTimeRangeStartFormat: (
-    { start }: { start: Date },
-    culture?: string,
-    localizer?: any
-  ) => `${localizer.format(start, 'h:mm a', culture)} –`,
+    { start }: { start: Date }
+  ) => `${format(start, 'h:mm a')} –`,
   eventTimeRangeEndFormat: (
-    { end }: { end: Date },
-    culture?: string,
-    localizer?: any
-  ) => `– ${localizer.format(end, 'h:mm a', culture)}`,
+    { end }: { end: Date }
+  ) => `– ${format(end, 'h:mm a')}`,
   selectRangeFormat: (
-    { start, end }: { start: Date; end: Date },
-    culture?: string,
-    localizer?: any
-  ) => `${localizer.format(start, 'h:mm a', culture)} – ${localizer.format(end, 'h:mm a', culture)}`,
+    { start, end }: { start: Date; end: Date }
+  ) => `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`,
 };
 
 function loadWorkingHours(): { start: number; end: number } {
