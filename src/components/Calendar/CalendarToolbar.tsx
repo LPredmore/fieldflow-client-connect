@@ -153,7 +153,9 @@ export function CalendarToolbar({
                   onValueChange={handleStartChange}
                 >
                   <SelectTrigger id="start-time">
-                    <SelectValue />
+                    <SelectValue>
+                      {ALL_HOURS.find(h => h.value === workingHoursStart)?.label}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {startOptions.map((opt) => (
@@ -174,7 +176,9 @@ export function CalendarToolbar({
                   onValueChange={handleEndChange}
                 >
                   <SelectTrigger id="end-time">
-                    <SelectValue />
+                    <SelectValue>
+                      {ALL_HOURS.find(h => h.value === workingHoursEnd)?.label}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {endOptions.map((opt) => (
