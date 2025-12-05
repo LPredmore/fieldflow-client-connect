@@ -2,6 +2,51 @@ import { format, parseISO } from 'date-fns';
 import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 
 /**
+ * Converts a UTC Date to a "display Date" for react-big-calendar.
+ * The returned Date has UTC values that match the local time components.
+ * This is necessary because react-big-calendar uses UTC values for grid positioning.
+ * 
+ * Example: 14:00 UTC in "America/New_York" (Eastern, UTC-5)
+ * - Real local time: 9:00 AM
+ * - Output Date: getUTCHours() = 9 (so calendar positions at 9 AM slot)
+ */
+export function toCalendarDisplayDate(utcDate: Date | string, userTimezone: string): Date {
+  const date = typeof utcDate === 'string' ? new Date(utcDate) : utcDate;
+  
+  // Convert to user's timezone to get local time components
+  const zonedDate = toZonedTime(date, userTimezone);
+  
+  // Extract the local time components
+  const year = zonedDate.getFullYear();
+  const month = zonedDate.getMonth();
+  const day = zonedDate.getDate();
+  const hours = zonedDate.getHours();
+  const minutes = zonedDate.getMinutes();
+  const seconds = zonedDate.getSeconds();
+  
+  // Create a new Date where UTC values match these local components
+  // This "fakes" UTC so react-big-calendar positions correctly
+  return new Date(Date.UTC(year, month, day, hours, minutes, seconds));
+}
+
+/**
+ * Creates a display Date for working hours (minTime/maxTime).
+ * Takes an hour number (0-23) and returns a Date where getUTCHours() = that hour.
+ */
+export function createWorkingHoursDate(hour: number, minute: number = 0): Date {
+  const today = new Date();
+  return new Date(Date.UTC(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+    hour,
+    minute,
+    0,
+    0
+  ));
+}
+
+/**
  * Default timezone fallback
  */
 export const DEFAULT_TIMEZONE = 'America/New_York';
