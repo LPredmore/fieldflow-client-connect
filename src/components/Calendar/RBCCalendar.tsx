@@ -14,8 +14,6 @@ import AppointmentView from '@/components/Appointments/AppointmentView';
 import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppointmentDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserTimezone } from '@/hooks/useUserTimezone';
-import { toCalendarDisplayDate, createWorkingHoursDate } from '@/lib/timezoneUtils';
 
 const locales = { 'en-US': enUS };
 
@@ -58,7 +56,6 @@ function saveWorkingHours(start: number, end: number) {
 export function RBCCalendar() {
   const { appointments, loading, refetch } = useCalendarAppointments();
   const { tenantId } = useAuth();
-  const userTimezone = useUserTimezone();
   
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -77,45 +74,51 @@ export function RBCCalendar() {
   }, []);
 
   // Convert hours to Date objects for min/max props
-  // Use createWorkingHoursDate to ensure UTC values match display values
+  // react-big-calendar uses local time (getHours()), so we use setHours()
   const minTime = useMemo(() => {
-    return createWorkingHoursDate(workingHoursStart, 0);
+    const date = new Date();
+    date.setHours(workingHoursStart, 0, 0, 0);
+    return date;
   }, [workingHoursStart]);
 
   const maxTime = useMemo(() => {
+    const date = new Date();
     // For 11 PM (hour 23), set to 23:59 to include the full hour
     if (workingHoursEnd === 23) {
-      return createWorkingHoursDate(23, 59);
+      date.setHours(23, 59, 59, 999);
+    } else {
+      date.setHours(workingHoursEnd, 0, 0, 0);
     }
-    return createWorkingHoursDate(workingHoursEnd, 0);
+    return date;
   }, [workingHoursEnd]);
 
   const scrollToTime = useMemo(() => {
-    return createWorkingHoursDate(workingHoursStart, 0);
+    const date = new Date();
+    date.setHours(workingHoursStart, 0, 0, 0);
+    return date;
   }, [workingHoursStart]);
 
-  // Convert appointments to RBC event format with display dates
+  // Convert appointments to RBC event format
+  // Browser automatically converts UTC strings to local time via new Date()
+  // react-big-calendar then uses getHours() which returns local time
   const events = useMemo(() => {
     if (!appointments || !Array.isArray(appointments)) return [];
 
     return appointments.map((appt) => ({
       id: appt.id,
       title: `${appt.service_name} - ${appt.client_name}`,
-      // Convert UTC timestamps to "display dates" for correct calendar positioning
-      start: toCalendarDisplayDate(appt.start_at, userTimezone),
-      end: toCalendarDisplayDate(appt.end_at, userTimezone),
+      // new Date() automatically converts UTC ISO strings to local time
+      start: new Date(appt.start_at),
+      end: new Date(appt.end_at),
       resource: {
         status: appt.status,
         client_name: appt.client_name,
         service_name: appt.service_name,
         series_id: appt.series_id,
         is_telehealth: appt.is_telehealth,
-        // Store original UTC values for operations that need real time
-        originalStart: appt.start_at,
-        originalEnd: appt.end_at,
       },
     }));
-  }, [appointments, userTimezone]);
+  }, [appointments]);
 
   // Dynamic event styling based on status
   const eventStyleGetter = useCallback((event: any) => {
