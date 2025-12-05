@@ -29,10 +29,10 @@ const STORAGE_KEY = 'calendar-working-hours-v2';
 const DEFAULT_START = 7;
 const DEFAULT_END = 21;
 
-// String format for timeGutterFormat - dateFnsLocalizer expects string patterns for simple formats
-// Range formats (eventTimeRangeFormat, etc.) can be functions as they're handled differently
+// All formats are function-based to ensure consistent formatting using date-fns directly
+// This bypasses the localizer's format function which can have issues with string formats
 const formats = {
-  timeGutterFormat: 'h:mm a',
+  timeGutterFormat: (date: Date) => format(date, 'h:mm a'),
   eventTimeRangeFormat: (
     { start, end }: { start: Date; end: Date }
   ) => `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`,
