@@ -25,6 +25,29 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+const STORAGE_KEY = 'calendar-working-hours';
+const DEFAULT_START = 7;
+const DEFAULT_END = 21;
+
+function loadWorkingHours(): { start: number; end: number } {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (typeof parsed.start === 'number' && typeof parsed.end === 'number') {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    // Ignore parse errors
+  }
+  return { start: DEFAULT_START, end: DEFAULT_END };
+}
+
+function saveWorkingHours(start: number, end: number) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ start, end }));
+}
+
 export function RBCCalendar() {
   const { appointments, loading, refetch } = useCalendarAppointments();
   const { tenantId } = useAuth();
@@ -34,6 +57,21 @@ export function RBCCalendar() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState<string>('');
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  
+  // Working hours state with localStorage persistence
+  const [workingHoursStart, setWorkingHoursStart] = useState(() => loadWorkingHours().start);
+  const [workingHoursEnd, setWorkingHoursEnd] = useState(() => loadWorkingHours().end);
+
+  const handleWorkingHoursChange = useCallback((start: number, end: number) => {
+    setWorkingHoursStart(start);
+    setWorkingHoursEnd(end);
+    saveWorkingHours(start, end);
+  }, []);
+
+  // Convert hours to Date objects for min/max props
+  const minTime = useMemo(() => new Date(2000, 0, 1, workingHoursStart, 0, 0), [workingHoursStart]);
+  const maxTime = useMemo(() => new Date(2000, 0, 1, workingHoursEnd, 0, 0), [workingHoursEnd]);
+  const scrollToTime = useMemo(() => new Date(2000, 0, 1, workingHoursStart, 0, 0), [workingHoursStart]);
 
   // Convert appointments to RBC event format
   const events = useMemo(() => {
@@ -190,11 +228,19 @@ export function RBCCalendar() {
             onSelectSlot={handleSelectSlot}
             eventPropGetter={eventStyleGetter}
             components={{
-              toolbar: CalendarToolbar,
+              toolbar: (props) => (
+                <CalendarToolbar
+                  {...props}
+                  workingHoursStart={workingHoursStart}
+                  workingHoursEnd={workingHoursEnd}
+                  onWorkingHoursChange={handleWorkingHoursChange}
+                />
+              ),
               event: AppointmentEvent,
             }}
-            min={new Date(new Date().getFullYear(), 0, 1, 6, 0, 0)}
-            max={new Date(new Date().getFullYear(), 0, 1, 22, 0, 0)}
+            min={minTime}
+            max={maxTime}
+            scrollToTime={scrollToTime}
           />
         </div>
       </CardContent>
