@@ -1,28 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Calendar, dateFnsLocalizer, SlotInfo } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { Calendar, luxonLocalizer, SlotInfo } from 'react-big-calendar';
+import { DateTime } from 'luxon';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 import { useAppointments } from '@/hooks/useAppointments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarIcon } from 'lucide-react';
 import { CalendarToolbar } from './CalendarToolbar';
-import { createLocalTimeDate } from '@/lib/appointmentTime';
 
-const locales = { 'en-US': enUS };
-
-const formats = {
-  timeGutterFormat: 'h:mm a',
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
+// Use Luxon localizer for react-big-calendar
+const localizer = luxonLocalizer(DateTime);
 
 const STORAGE_KEY = 'calendar-working-hours-v3';
 const DEFAULT_START = 7;
@@ -47,6 +34,16 @@ function saveWorkingHours(start: number, end: number) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ start, end }));
 }
 
+/**
+ * Create a plain local Date object for a specific hour.
+ * No UTC gymnastics, no Luxon, just a simple local Date.
+ */
+function createLocalTime(hour: number, minute: number = 0): Date {
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+
 export function RBCCalendar() {
   const { appointments, loading } = useAppointments();
   
@@ -60,11 +57,14 @@ export function RBCCalendar() {
     saveWorkingHours(start, end);
   }, []);
 
-  // Create min/max time Date objects using Luxon for correct local time
-  // These Dates will have getHours() === the expected hour
-  const minTime = useMemo(() => createLocalTimeDate(workingHoursStart), [workingHoursStart]);
-  const maxTime = useMemo(() => createLocalTimeDate(workingHoursEnd), [workingHoursEnd]);
-  const scrollToTime = useMemo(() => createLocalTimeDate(workingHoursStart), [workingHoursStart]);
+  // Create min/max as plain local Date objects
+  const min = useMemo(() => createLocalTime(workingHoursStart, 0), [workingHoursStart]);
+  const max = useMemo(() => createLocalTime(workingHoursEnd, 0), [workingHoursEnd]);
+  const scrollToTime = useMemo(() => createLocalTime(workingHoursStart, 0), [workingHoursStart]);
+
+  // Sanity log before rendering
+  console.log('[RBC] min:', min.toString(), 'hours:', min.getHours());
+  console.log('[RBC] max:', max.toString(), 'hours:', max.getHours());
 
   // Convert appointments to RBC event format
   // Use start_local and end_local which are already converted to local timezone
@@ -156,13 +156,13 @@ export function RBCCalendar() {
             style={{ height: '100%' }}
             defaultView="week"
             views={['month', 'week', 'day']}
-            step={30}
+            step={15}
+            timeslots={4}
             showMultiDayTimes
             selectable
             onSelectEvent={handleSelectEvent}
             onSelectSlot={handleSelectSlot}
             eventPropGetter={eventStyleGetter}
-            formats={formats}
             components={{
               toolbar: (props) => (
                 <CalendarToolbar
@@ -173,8 +173,8 @@ export function RBCCalendar() {
                 />
               ),
             }}
-            min={minTime}
-            max={maxTime}
+            min={min}
+            max={max}
             scrollToTime={scrollToTime}
           />
         </div>
