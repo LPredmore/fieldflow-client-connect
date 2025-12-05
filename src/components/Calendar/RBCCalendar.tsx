@@ -69,15 +69,29 @@ export function RBCCalendar() {
   }, []);
 
   // Convert hours to Date objects for min/max props
-  const minTime = useMemo(() => new Date(2000, 0, 1, workingHoursStart, 0, 0), [workingHoursStart]);
+  // IMPORTANT: Use today's date to ensure timezone consistency with calendar display
+  const minTime = useMemo(() => {
+    const date = new Date();
+    date.setHours(workingHoursStart, 0, 0, 0);
+    return date;
+  }, [workingHoursStart]);
+
   const maxTime = useMemo(() => {
-    // For hour 23, use 23:59:59 to represent end of day without rolling to next day
+    const date = new Date();
+    // For 11 PM (hour 23), set to 23:59:59 to include the full hour
     if (workingHoursEnd === 23) {
-      return new Date(2000, 0, 1, 23, 59, 59);
+      date.setHours(23, 59, 59, 999);
+    } else {
+      date.setHours(workingHoursEnd, 0, 0, 0);
     }
-    return new Date(2000, 0, 1, workingHoursEnd, 0, 0);
+    return date;
   }, [workingHoursEnd]);
-  const scrollToTime = useMemo(() => new Date(2000, 0, 1, workingHoursStart, 0, 0), [workingHoursStart]);
+
+  const scrollToTime = useMemo(() => {
+    const date = new Date();
+    date.setHours(workingHoursStart, 0, 0, 0);
+    return date;
+  }, [workingHoursStart]);
 
   // Convert appointments to RBC event format
   const events = useMemo(() => {
