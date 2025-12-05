@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Calendar, dateFnsLocalizer, SlotInfo } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
@@ -8,6 +8,7 @@ import { useAppointments } from '@/hooks/useAppointments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarIcon } from 'lucide-react';
 import { CalendarToolbar } from './CalendarToolbar';
+import { createLocalTimeDate } from '@/lib/appointmentTime';
 
 const locales = { 'en-US': enUS };
 
@@ -53,66 +54,28 @@ export function RBCCalendar() {
   const [workingHoursStart, setWorkingHoursStart] = useState(() => loadWorkingHours().start);
   const [workingHoursEnd, setWorkingHoursEnd] = useState(() => loadWorkingHours().end);
 
-  // DEBUG: Log working hours state values
-  console.log('=== CALENDAR DEBUG ===');
-  console.log('workingHoursStart (raw number):', workingHoursStart);
-  console.log('workingHoursEnd (raw number):', workingHoursEnd);
-  
-  // DEBUG: Test what format produces for different hours
-  const testDate7AM = new Date(2000, 0, 1, 7, 0, 0);
-  const testDate19PM = new Date(2000, 0, 1, 19, 0, 0);
-  console.log('=== FORMAT TEST ===');
-  console.log('Test 7 AM Date:', testDate7AM);
-  console.log('Test 7 AM getHours():', testDate7AM.getHours());
-  console.log('Test 7 AM formatted with h:mm a:', format(testDate7AM, 'h:mm a'));
-  console.log('Test 19 (7PM) Date:', testDate19PM);
-  console.log('Test 19 (7PM) getHours():', testDate19PM.getHours());
-  console.log('Test 19 (7PM) formatted with h:mm a:', format(testDate19PM, 'h:mm a'));
-
   const handleWorkingHoursChange = useCallback((start: number, end: number) => {
     setWorkingHoursStart(start);
     setWorkingHoursEnd(end);
     saveWorkingHours(start, end);
   }, []);
 
-  // Create min/max time Date objects
-  // Use a fixed date (Jan 1, 2000) to avoid DST issues
-  const minTime = useMemo(() => {
-    return new Date(2000, 0, 1, workingHoursStart, 0, 0);
-  }, [workingHoursStart]);
-
-  const maxTime = useMemo(() => {
-    return new Date(2000, 0, 1, workingHoursEnd, 0, 0);
-  }, [workingHoursEnd]);
-
-  const scrollToTime = useMemo(() => {
-    return new Date(2000, 0, 1, workingHoursStart, 0, 0);
-  }, [workingHoursStart]);
-
-  // DEBUG: Log the Date objects and their hour values
-  console.log('=== MIN/MAX TIME DEBUG ===');
-  console.log('minTime Date object:', minTime);
-  console.log('minTime.getHours():', minTime.getHours());
-  console.log('minTime.toISOString():', minTime.toISOString());
-  console.log('minTime.toString():', minTime.toString());
-  console.log('---');
-  console.log('maxTime Date object:', maxTime);
-  console.log('maxTime.getHours():', maxTime.getHours());
-  console.log('maxTime.toISOString():', maxTime.toISOString());
-  console.log('maxTime.toString():', maxTime.toString());
-  console.log('---');
-  console.log('scrollToTime.getHours():', scrollToTime.getHours());
-  console.log('=== END DEBUG ===');
+  // Create min/max time Date objects using Luxon for correct local time
+  // These Dates will have getHours() === the expected hour
+  const minTime = useMemo(() => createLocalTimeDate(workingHoursStart), [workingHoursStart]);
+  const maxTime = useMemo(() => createLocalTimeDate(workingHoursEnd), [workingHoursEnd]);
+  const scrollToTime = useMemo(() => createLocalTimeDate(workingHoursStart), [workingHoursStart]);
 
   // Convert appointments to RBC event format
+  // Use start_local and end_local which are already converted to local timezone
   const events = useMemo(() => {
     if (!appointments || !Array.isArray(appointments)) return [];
 
     return appointments.map((appt) => ({
       id: appt.id,
       title: `${appt.service_name} - ${appt.client_name}`,
-      start: new Date(appt.start_at),
-      end: new Date(appt.end_at),
+      start: appt.start_local, // Already local JS Date from useAppointments
+      end: appt.end_local,     // Already local JS Date from useAppointments
       resource: {
         status: appt.status,
         client_name: appt.client_name,
