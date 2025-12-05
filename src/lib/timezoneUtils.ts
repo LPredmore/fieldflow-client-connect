@@ -73,16 +73,16 @@ export function combineDateTimeToUTC(
     throw new Error(`Invalid time format: ${time}. Expected HH:mm or HH:mm:ss`);
   }
   
-  // Create a Date object using Date.UTC() to represent the "wall clock" reading
-  // This creates a Date where the UTC components match what we want to interpret
-  // as the user's local time (avoids any browser timezone interpretation)
-  // Note: Date.UTC uses 0-indexed months, so subtract 1 from month
-  const wallClockAsUTC = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds, 0));
+  // Create a Date object with LOCAL components matching the user's input
+  // CRITICAL: fromZonedTime reads getHours(), getMinutes(), etc. (local accessors)
+  // NOT getUTCHours(). So we must create a Date where local components = user input.
+  // Note: Date constructor uses 0-indexed months, so subtract 1 from month
+  const localDate = new Date(year, month - 1, day, hours, minutes, seconds, 0);
   
-  // fromZonedTime interprets this instant as if it occurred in the user's timezone
+  // fromZonedTime interprets localDate's LOCAL components as being in userTimezone
   // and returns the actual UTC instant
-  // Example: 9:00 AM "wall clock" in "America/New_York" → 14:00 UTC
-  const utcDateTime = fromZonedTime(wallClockAsUTC, userTimezone);
+  // Example: 9:00 AM in "America/New_York" → 14:00 UTC (during EST)
+  const utcDateTime = fromZonedTime(localDate, userTimezone);
   
   // Validate the result
   if (isNaN(utcDateTime.getTime())) {
