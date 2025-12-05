@@ -37,6 +37,9 @@ export function formatInUserTimezone(
 /**
  * Combine a date and time string in user's timezone, then convert to UTC
  * Used for form inputs where user enters date/time in their local timezone
+ * 
+ * IMPORTANT: This function correctly interprets the date/time as being IN the user's timezone
+ * and converts it to UTC for database storage.
  */
 export function combineDateTimeToUTC(
   date: string, // YYYY-MM-DD format
@@ -60,10 +63,15 @@ export function combineDateTimeToUTC(
     throw new Error(`Invalid time format: ${time}. Expected HH:mm or HH:mm:ss`);
   }
   
-  // Normalize time to HH:mm:ss format (append :00 if needed)
-  const normalizedTime = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
+  // Normalize time to HH:mm:ss format
+  const timeParts = time.split(':');
+  const hours = timeParts[0].padStart(2, '0');
+  const minutes = timeParts[1].padStart(2, '0');
+  const seconds = timeParts[2] || '00';
+  const normalizedTime = `${hours}:${minutes}:${seconds}`;
   
   // Create ISO-compliant datetime string with T separator
+  // This format is interpreted as a local time by fromZonedTime
   const isoDateTimeString = `${date}T${normalizedTime}`;
   
   // Use fromZonedTime to interpret the datetime as being IN the user's timezone and convert to UTC
@@ -129,4 +137,12 @@ export function utcToCalendarInTimezone(
 ): string {
   const localDate = convertFromUTC(utcDateTime, userTimezone);
   return toCalendarFormat(localDate);
+}
+
+/**
+ * Calculate end time given start time and duration in minutes
+ */
+export function calculateEndTime(startAt: Date | string, durationMinutes: number): Date {
+  const start = typeof startAt === 'string' ? new Date(startAt) : startAt;
+  return new Date(start.getTime() + durationMinutes * 60 * 1000);
 }
