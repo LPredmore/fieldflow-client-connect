@@ -14,6 +14,7 @@ import { useServices } from '@/hooks/useServices';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { getClientDisplayName } from '@/utils/clientDisplayName';
+import { localToUTCWithDuration, getBrowserTimezone } from '@/lib/appointmentTime';
 
 interface CreateAppointmentDialogProps {
   prefilledDate?: string;
@@ -74,9 +75,13 @@ export function CreateAppointmentDialog({
     try {
       setLoading(true);
       
-      // Create start and end timestamps
-      const startDateTime = new Date(`${formData.date}T${formData.time}:00`);
-      const endDateTime = new Date(startDateTime.getTime() + formData.duration_minutes * 60 * 1000);
+      // Convert local date/time to UTC using Luxon
+      // User picks local time → we store UTC in database
+      const { startUtc, endUtc } = localToUTCWithDuration(
+        formData.date,
+        formData.time,
+        formData.duration_minutes
+      );
 
       const { error } = await supabase
         .from('appointments')
@@ -85,11 +90,11 @@ export function CreateAppointmentDialog({
           client_id: formData.client_id,
           staff_id: staffId,
           service_id: formData.service_id,
-          start_at: startDateTime.toISOString(),
-          end_at: endDateTime.toISOString(),
+          start_at: startUtc,
+          end_at: endUtc,
           status: 'scheduled',
           is_telehealth: formData.is_telehealth,
-          time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          time_zone: getBrowserTimezone(), // Store creator's timezone as metadata
           created_by_profile_id: user.id,
         });
 
