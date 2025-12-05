@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { fromZonedTime } from 'date-fns-tz';
 
 /**
  * Default timezone fallback
@@ -37,7 +37,57 @@ export function normalizeTimestamp(timestamp: string): string {
 }
 
 /**
- * Convert a date/time from user's timezone to UTC for storage
+ * Parse a UTC timestamp string to a native Date object.
+ * Browser automatically handles local timezone display when using getHours(), etc.
+ * This is the PRIMARY function for converting UTC strings for calendar display.
+ */
+export function parseUTCTimestamp(utcString: string): Date {
+  const normalized = normalizeTimestamp(utcString);
+  return new Date(normalized);
+}
+
+/**
+ * Format a UTC timestamp in browser's local timezone for display.
+ * Uses date-fns format which respects browser's local timezone.
+ * 
+ * @param utcDateTime - UTC date/time string or Date object
+ * @param formatStr - date-fns format string (default: 'h:mm a')
+ * @returns Formatted string in browser's local timezone
+ */
+export function formatLocalTime(
+  utcDateTime: Date | string,
+  formatStr: string = 'h:mm a'
+): string {
+  const date = typeof utcDateTime === 'string' 
+    ? parseUTCTimestamp(utcDateTime) 
+    : utcDateTime;
+  
+  return format(date, formatStr);
+}
+
+/**
+ * Get local date and time strings from a UTC timestamp.
+ * Used for populating form inputs with existing appointment times.
+ * 
+ * @param utcDateTime - UTC date/time string or Date object
+ * @returns Object with date (YYYY-MM-DD) and time (HH:mm) strings
+ */
+export function getLocalDateTimeStrings(utcDateTime: Date | string): { date: string; time: string } {
+  const date = typeof utcDateTime === 'string'
+    ? parseUTCTimestamp(utcDateTime)
+    : utcDateTime;
+  
+  return {
+    date: format(date, 'yyyy-MM-dd'),
+    time: format(date, 'HH:mm')
+  };
+}
+
+/**
+ * Convert a date/time from user's timezone to UTC for storage.
+ * Used when creating appointments - interprets local input as being in userTimezone.
+ * 
+ * @deprecated Use combineDateTimeToUTC for form inputs instead
  */
 export function convertToUTC(dateTime: Date | string, userTimezone: string): Date {
   const date = typeof dateTime === 'string' ? parseISO(dateTime) : dateTime;
@@ -45,31 +95,35 @@ export function convertToUTC(dateTime: Date | string, userTimezone: string): Dat
 }
 
 /**
- * Convert a UTC date/time to user's timezone for display
+ * Convert a UTC date/time to local Date for display.
+ * Uses native browser parsing which correctly converts to local timezone.
+ * 
+ * @param utcDateTime - UTC date/time string or Date object
+ * @param _userTimezone - DEPRECATED: parameter kept for backwards compatibility but ignored
+ * @returns Date object representing the local time
  */
-export function convertFromUTC(utcDateTime: Date | string, userTimezone: string): Date {
+export function convertFromUTC(utcDateTime: Date | string, _userTimezone?: string): Date {
   if (typeof utcDateTime === 'string') {
-    const normalized = normalizeTimestamp(utcDateTime);
-    const date = parseISO(normalized);
-    return toZonedTime(date, userTimezone);
+    return parseUTCTimestamp(utcDateTime);
   }
-  return toZonedTime(utcDateTime, userTimezone);
+  return utcDateTime;
 }
 
 /**
- * Format a UTC date/time in user's timezone
+ * Format a UTC date/time in browser's local timezone.
+ * This is an alias for formatLocalTime with backwards-compatible signature.
+ * 
+ * @param utcDateTime - UTC date/time string or Date object
+ * @param _userTimezone - DEPRECATED: parameter kept for backwards compatibility but ignored
+ * @param formatStr - date-fns format string
+ * @returns Formatted string in browser's local timezone
  */
 export function formatInUserTimezone(
   utcDateTime: Date | string, 
-  userTimezone: string, 
+  _userTimezone: string, 
   formatStr: string = 'yyyy-MM-dd HH:mm:ss'
 ): string {
-  if (typeof utcDateTime === 'string') {
-    const normalized = normalizeTimestamp(utcDateTime);
-    const date = parseISO(normalized);
-    return formatInTimeZone(date, userTimezone, formatStr);
-  }
-  return formatInTimeZone(utcDateTime, userTimezone, formatStr);
+  return formatLocalTime(utcDateTime, formatStr);
 }
 
 /**
@@ -131,26 +185,28 @@ export function combineDateTimeToUTC(
 }
 
 /**
- * Convert UTC datetime to user's local date and time strings
- * Returns object with separate date and time strings
+ * Convert UTC datetime to user's local date and time strings.
+ * Returns object with separate date and time strings for form inputs.
+ * 
+ * @param utcDateTime - UTC date/time string or Date object
+ * @param _userTimezone - DEPRECATED: parameter kept for backwards compatibility but ignored
+ * @returns Object with date (YYYY-MM-DD) and time (HH:mm) strings
  */
 export function splitUTCToLocalDateTime(
   utcDateTime: Date | string,
-  userTimezone: string
+  _userTimezone?: string
 ): { date: string; time: string } {
-  const localDateTime = convertFromUTC(utcDateTime, userTimezone);
-  
-  return {
-    date: format(localDateTime, 'yyyy-MM-dd'),
-    time: format(localDateTime, 'HH:mm')
-  };
+  return getLocalDateTimeStrings(utcDateTime);
 }
 
 /**
- * Get current date/time in user's timezone
+ * Get current date/time as a native Date.
+ * Browser's local timezone is automatically used when accessing hours/minutes.
+ * 
+ * @param _userTimezone - DEPRECATED: parameter kept for backwards compatibility but ignored
  */
-export function getCurrentInTimezone(userTimezone: string): Date {
-  return toZonedTime(new Date(), userTimezone);
+export function getCurrentInTimezone(_userTimezone?: string): Date {
+  return new Date();
 }
 
 /**
