@@ -21,7 +21,13 @@ interface CalendarToolbarProps extends ToolbarProps {
   onWorkingHoursChange?: (start: number, end: number) => void;
 }
 
-const START_HOUR_OPTIONS = [
+// Full 24-hour options (0-23)
+const ALL_HOURS = [
+  { value: 0, label: '12:00 AM' },
+  { value: 1, label: '1:00 AM' },
+  { value: 2, label: '2:00 AM' },
+  { value: 3, label: '3:00 AM' },
+  { value: 4, label: '4:00 AM' },
   { value: 5, label: '5:00 AM' },
   { value: 6, label: '6:00 AM' },
   { value: 7, label: '7:00 AM' },
@@ -30,9 +36,10 @@ const START_HOUR_OPTIONS = [
   { value: 10, label: '10:00 AM' },
   { value: 11, label: '11:00 AM' },
   { value: 12, label: '12:00 PM' },
-];
-
-const END_HOUR_OPTIONS = [
+  { value: 13, label: '1:00 PM' },
+  { value: 14, label: '2:00 PM' },
+  { value: 15, label: '3:00 PM' },
+  { value: 16, label: '4:00 PM' },
   { value: 17, label: '5:00 PM' },
   { value: 18, label: '6:00 PM' },
   { value: 19, label: '7:00 PM' },
@@ -40,8 +47,9 @@ const END_HOUR_OPTIONS = [
   { value: 21, label: '9:00 PM' },
   { value: 22, label: '10:00 PM' },
   { value: 23, label: '11:00 PM' },
-  { value: 24, label: '12:00 AM' },
 ];
+
+const MIN_HOUR_GAP = 2;
 
 export function CalendarToolbar({ 
   onNavigate, 
@@ -53,18 +61,22 @@ export function CalendarToolbar({
   onWorkingHoursChange,
 }: CalendarToolbarProps) {
   
+  // Filter start options: can't start at hour 22 or 23 (no room for valid end)
+  const startOptions = ALL_HOURS.filter(opt => opt.value <= 23 - MIN_HOUR_GAP);
+  
+  // Filter end options: must be at least MIN_HOUR_GAP hours after current start
+  const endOptions = ALL_HOURS.filter(opt => opt.value >= workingHoursStart + MIN_HOUR_GAP);
+
   const handleStartChange = (value: string) => {
     const newStart = parseInt(value, 10);
-    // Ensure at least 4 hour gap
-    const minEnd = newStart + 4;
+    const minEnd = newStart + MIN_HOUR_GAP;
     const adjustedEnd = workingHoursEnd < minEnd ? minEnd : workingHoursEnd;
     onWorkingHoursChange?.(newStart, adjustedEnd);
   };
 
   const handleEndChange = (value: string) => {
     const newEnd = parseInt(value, 10);
-    // Ensure at least 4 hour gap
-    const maxStart = newEnd - 4;
+    const maxStart = newEnd - MIN_HOUR_GAP;
     const adjustedStart = workingHoursStart > maxStart ? maxStart : workingHoursStart;
     onWorkingHoursChange?.(adjustedStart, newEnd);
   };
@@ -144,7 +156,7 @@ export function CalendarToolbar({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {START_HOUR_OPTIONS.map((opt) => (
+                    {startOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value.toString()}>
                         {opt.label}
                       </SelectItem>
@@ -165,7 +177,7 @@ export function CalendarToolbar({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {END_HOUR_OPTIONS.map((opt) => (
+                    {endOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value.toString()}>
                         {opt.label}
                       </SelectItem>

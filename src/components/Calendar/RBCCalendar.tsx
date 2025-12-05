@@ -70,7 +70,13 @@ export function RBCCalendar() {
 
   // Convert hours to Date objects for min/max props
   const minTime = useMemo(() => new Date(2000, 0, 1, workingHoursStart, 0, 0), [workingHoursStart]);
-  const maxTime = useMemo(() => new Date(2000, 0, 1, workingHoursEnd, 0, 0), [workingHoursEnd]);
+  const maxTime = useMemo(() => {
+    // For hour 23, use 23:59:59 to represent end of day without rolling to next day
+    if (workingHoursEnd === 23) {
+      return new Date(2000, 0, 1, 23, 59, 59);
+    }
+    return new Date(2000, 0, 1, workingHoursEnd, 0, 0);
+  }, [workingHoursEnd]);
   const scrollToTime = useMemo(() => new Date(2000, 0, 1, workingHoursStart, 0, 0), [workingHoursStart]);
 
   // Convert appointments to RBC event format
