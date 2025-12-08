@@ -431,7 +431,7 @@ export type Database = {
       }
       appointments: {
         Row: {
-          accept_assign: boolean | null
+          accept_assign: Database["public"]["Enums"]["accept_assign_enum"]
           auto_accident: boolean | null
           auto_accident_state: string | null
           charge_1: number | null
@@ -450,7 +450,7 @@ export type Database = {
           mod3_1: string | null
           mod4_1: string | null
           narrative_1: string | null
-          place_of_service_1: string | null
+          place_of_service_1: number | null
           prior_auth: string | null
           proc_code_1: string | null
           remote_chgid_1: string | null
@@ -467,7 +467,7 @@ export type Database = {
           videoroom_url: string | null
         }
         Insert: {
-          accept_assign?: boolean | null
+          accept_assign?: Database["public"]["Enums"]["accept_assign_enum"]
           auto_accident?: boolean | null
           auto_accident_state?: string | null
           charge_1?: number | null
@@ -486,7 +486,7 @@ export type Database = {
           mod3_1?: string | null
           mod4_1?: string | null
           narrative_1?: string | null
-          place_of_service_1?: string | null
+          place_of_service_1?: number | null
           prior_auth?: string | null
           proc_code_1?: string | null
           remote_chgid_1?: string | null
@@ -503,7 +503,7 @@ export type Database = {
           videoroom_url?: string | null
         }
         Update: {
-          accept_assign?: boolean | null
+          accept_assign?: Database["public"]["Enums"]["accept_assign_enum"]
           auto_accident?: boolean | null
           auto_accident_state?: string | null
           charge_1?: number | null
@@ -522,7 +522,7 @@ export type Database = {
           mod3_1?: string | null
           mod4_1?: string | null
           narrative_1?: string | null
-          place_of_service_1?: string | null
+          place_of_service_1?: number | null
           prior_auth?: string | null
           proc_code_1?: string | null
           remote_chgid_1?: string | null
@@ -915,6 +915,92 @@ export type Database = {
           },
           {
             foreignKeyName: "claim_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_status_events: {
+        Row: {
+          claim_id: string
+          claimmd_response_id: string | null
+          created_at: string | null
+          event_source: string
+          id: string
+          new_status: string
+          old_status: string | null
+          raw_payload: Json | null
+          status_message: string | null
+          tenant_id: string
+        }
+        Insert: {
+          claim_id: string
+          claimmd_response_id?: string | null
+          created_at?: string | null
+          event_source: string
+          id?: string
+          new_status: string
+          old_status?: string | null
+          raw_payload?: Json | null
+          status_message?: string | null
+          tenant_id: string
+        }
+        Update: {
+          claim_id?: string
+          claimmd_response_id?: string | null
+          created_at?: string | null
+          event_source?: string
+          id?: string
+          new_status?: string
+          old_status?: string | null
+          raw_payload?: Json | null
+          status_message?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_status_events_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_status_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claimmd_cursors: {
+        Row: {
+          cursor_type: string
+          cursor_value: string
+          id: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          cursor_type: string
+          cursor_value?: string
+          id?: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          cursor_type?: string
+          cursor_value?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claimmd_cursors_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2456,7 +2542,6 @@ export type Database = {
           pat_status: Database["public"]["Enums"]["pat_status_enum"] | null
           pat_time_zone: Database["public"]["Enums"]["time_zones"] | null
           pat_zip: string | null
-          pcn: string | null
           phone: string | null
           primary_staff_id: string | null
           profile_id: string
@@ -2485,7 +2570,6 @@ export type Database = {
           pat_status?: Database["public"]["Enums"]["pat_status_enum"] | null
           pat_time_zone?: Database["public"]["Enums"]["time_zones"] | null
           pat_zip?: string | null
-          pcn?: string | null
           phone?: string | null
           primary_staff_id?: string | null
           profile_id: string
@@ -2514,7 +2598,6 @@ export type Database = {
           pat_status?: Database["public"]["Enums"]["pat_status_enum"] | null
           pat_time_zone?: Database["public"]["Enums"]["time_zones"] | null
           pat_zip?: string | null
-          pcn?: string | null
           phone?: string | null
           primary_staff_id?: string | null
           profile_id?: string
@@ -2946,174 +3029,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      insurance_info: {
-        Row: {
-          id: string
-          ins_addr_1: string | null
-          ins_addr_2: string | null
-          ins_city: string | null
-          ins_dob: string | null
-          ins_employer: string | null
-          ins_group: string | null
-          ins_name_f: string | null
-          ins_name_l: string | null
-          ins_name_m: string | null
-          ins_number: string | null
-          ins_phone: string | null
-          ins_plan: string | null
-          ins_sex: Database["public"]["Enums"]["sex_enum"] | null
-          ins_state: string | null
-          ins_zip: string | null
-          other_ins_dob: string | null
-          other_ins_group: string | null
-          other_ins_medicare_code: string | null
-          other_ins_name_f: string | null
-          other_ins_name_l: string | null
-          other_ins_name_m: string | null
-          other_ins_number: string | null
-          other_ins_payment_date: string | null
-          other_ins_plan: string | null
-          other_ins_sex: Database["public"]["Enums"]["sex_enum"] | null
-          other_pat_rel: Database["public"]["Enums"]["pat_rel_enum"] | null
-          other_payer_addr_1: string | null
-          other_payer_addr_2: string | null
-          other_payer_city: string | null
-          other_payer_name: string | null
-          other_payer_phone: string | null
-          other_payer_state: string | null
-          other_payer_typecode: string | null
-          other_payer_zip: string | null
-          other_payerid: string | null
-          pat_rel: Database["public"]["Enums"]["pat_rel_enum"] | null
-          pay_addr_1: string | null
-          pay_addr_2: string | null
-          pay_city: string | null
-          pay_state: string | null
-          pay_zip: string | null
-          payer_addr_1: string | null
-          payer_addr_2: string | null
-          payer_city: string | null
-          payer_name: string | null
-          payer_order: string | null
-          payer_state: string | null
-          payer_zip: string | null
-          payerid: string | null
-          pcn: string | null
-          prior_auth: string | null
-          profile_id: string
-        }
-        Insert: {
-          id?: string
-          ins_addr_1?: string | null
-          ins_addr_2?: string | null
-          ins_city?: string | null
-          ins_dob?: string | null
-          ins_employer?: string | null
-          ins_group?: string | null
-          ins_name_f?: string | null
-          ins_name_l?: string | null
-          ins_name_m?: string | null
-          ins_number?: string | null
-          ins_phone?: string | null
-          ins_plan?: string | null
-          ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
-          ins_state?: string | null
-          ins_zip?: string | null
-          other_ins_dob?: string | null
-          other_ins_group?: string | null
-          other_ins_medicare_code?: string | null
-          other_ins_name_f?: string | null
-          other_ins_name_l?: string | null
-          other_ins_name_m?: string | null
-          other_ins_number?: string | null
-          other_ins_payment_date?: string | null
-          other_ins_plan?: string | null
-          other_ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
-          other_pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
-          other_payer_addr_1?: string | null
-          other_payer_addr_2?: string | null
-          other_payer_city?: string | null
-          other_payer_name?: string | null
-          other_payer_phone?: string | null
-          other_payer_state?: string | null
-          other_payer_typecode?: string | null
-          other_payer_zip?: string | null
-          other_payerid?: string | null
-          pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
-          pay_addr_1?: string | null
-          pay_addr_2?: string | null
-          pay_city?: string | null
-          pay_state?: string | null
-          pay_zip?: string | null
-          payer_addr_1?: string | null
-          payer_addr_2?: string | null
-          payer_city?: string | null
-          payer_name?: string | null
-          payer_order?: string | null
-          payer_state?: string | null
-          payer_zip?: string | null
-          payerid?: string | null
-          pcn?: string | null
-          prior_auth?: string | null
-          profile_id: string
-        }
-        Update: {
-          id?: string
-          ins_addr_1?: string | null
-          ins_addr_2?: string | null
-          ins_city?: string | null
-          ins_dob?: string | null
-          ins_employer?: string | null
-          ins_group?: string | null
-          ins_name_f?: string | null
-          ins_name_l?: string | null
-          ins_name_m?: string | null
-          ins_number?: string | null
-          ins_phone?: string | null
-          ins_plan?: string | null
-          ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
-          ins_state?: string | null
-          ins_zip?: string | null
-          other_ins_dob?: string | null
-          other_ins_group?: string | null
-          other_ins_medicare_code?: string | null
-          other_ins_name_f?: string | null
-          other_ins_name_l?: string | null
-          other_ins_name_m?: string | null
-          other_ins_number?: string | null
-          other_ins_payment_date?: string | null
-          other_ins_plan?: string | null
-          other_ins_sex?: Database["public"]["Enums"]["sex_enum"] | null
-          other_pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
-          other_payer_addr_1?: string | null
-          other_payer_addr_2?: string | null
-          other_payer_city?: string | null
-          other_payer_name?: string | null
-          other_payer_phone?: string | null
-          other_payer_state?: string | null
-          other_payer_typecode?: string | null
-          other_payer_zip?: string | null
-          other_payerid?: string | null
-          pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
-          pay_addr_1?: string | null
-          pay_addr_2?: string | null
-          pay_city?: string | null
-          pay_state?: string | null
-          pay_zip?: string | null
-          payer_addr_1?: string | null
-          payer_addr_2?: string | null
-          payer_city?: string | null
-          payer_name?: string | null
-          payer_order?: string | null
-          payer_state?: string | null
-          payer_zip?: string | null
-          payerid?: string | null
-          pcn?: string | null
-          prior_auth?: string | null
-          profile_id?: string
-        }
-        Relationships: []
       }
       pat_rel: {
         Row: {
@@ -3989,7 +3904,11 @@ export type Database = {
       appointment_exception_type_enum: "cancelled" | "rescheduled"
       appointment_note_status_enum: "draft" | "signed" | "amended"
       appointment_note_type_enum: "progress" | "treatment" | "addendum"
-      appointment_status_enum: "scheduled" | "completed" | "cancelled"
+      appointment_status_enum:
+        | "scheduled"
+        | "documented"
+        | "cancelled"
+        | "late_cancel/noshow"
       client_history_family_context_enum:
         | "family_of_origin"
         | "current_household"
@@ -4212,7 +4131,12 @@ export const Constants = {
       appointment_exception_type_enum: ["cancelled", "rescheduled"],
       appointment_note_status_enum: ["draft", "signed", "amended"],
       appointment_note_type_enum: ["progress", "treatment", "addendum"],
-      appointment_status_enum: ["scheduled", "completed", "cancelled"],
+      appointment_status_enum: [
+        "scheduled",
+        "documented",
+        "cancelled",
+        "late_cancel/noshow",
+      ],
       client_history_family_context_enum: [
         "family_of_origin",
         "current_household",
