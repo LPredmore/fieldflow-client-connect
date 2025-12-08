@@ -9,6 +9,9 @@ verify_jwt = true
 [functions.create-client-account]
 verify_jwt = true
 
+[functions.create-bulk-client-accounts]
+verify_jwt = false
+
 [functions.update-clinician]
 verify_jwt = true
 
