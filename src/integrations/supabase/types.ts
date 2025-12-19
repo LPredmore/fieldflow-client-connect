@@ -73,7 +73,7 @@ export type Database = {
           client_appearance?: string | null
           client_attitude?: string | null
           client_behavior?: string | null
-          client_diagnosis?: string[]
+          client_diagnosis: string[]
           client_functioning?: string | null
           client_homicidalideation?:
             | Database["public"]["Enums"]["client_ideation_enum"]
@@ -921,6 +921,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      claim_payer_list: {
+        Row: {
+          attachments: string | null
+          created_at: string | null
+          dental_claims: string | null
+          eligibility: string | null
+          eligibility_category: string | null
+          era: string | null
+          institutional_claims: string | null
+          payer_id: string
+          payer_name: string | null
+          payer_state: string | null
+          payer_type: string | null
+          professional_claims: string | null
+          secondary_support: string | null
+          updated_at: string | null
+          workers_comp: string | null
+        }
+        Insert: {
+          attachments?: string | null
+          created_at?: string | null
+          dental_claims?: string | null
+          eligibility?: string | null
+          eligibility_category?: string | null
+          era?: string | null
+          institutional_claims?: string | null
+          payer_id: string
+          payer_name?: string | null
+          payer_state?: string | null
+          payer_type?: string | null
+          professional_claims?: string | null
+          secondary_support?: string | null
+          updated_at?: string | null
+          workers_comp?: string | null
+        }
+        Update: {
+          attachments?: string | null
+          created_at?: string | null
+          dental_claims?: string | null
+          eligibility?: string | null
+          eligibility_category?: string | null
+          era?: string | null
+          institutional_claims?: string | null
+          payer_id?: string
+          payer_name?: string | null
+          payer_state?: string | null
+          payer_type?: string | null
+          professional_claims?: string | null
+          secondary_support?: string | null
+          updated_at?: string | null
+          workers_comp?: string | null
+        }
+        Relationships: []
       }
       claim_status_events: {
         Row: {
@@ -1787,8 +1841,12 @@ export type Database = {
         Row: {
           claims_office_number: string | null
           client_id: string
+          copay_amount: number | null
           created_at: string
+          deductible_amount: number | null
+          deductible_met: number | null
           effective_date: string | null
+          has_other_coverage: boolean | null
           id: string
           ins_addr_1: string | null
           ins_addr_2: string | null
@@ -1807,12 +1865,15 @@ export type Database = {
           ins_state: Database["public"]["Enums"]["state_code_enum"] | null
           ins_zip: string | null
           is_active: boolean
+          out_of_pocket_max: number | null
+          out_of_pocket_met: number | null
           pat_rel: Database["public"]["Enums"]["pat_rel_enum"] | null
           payer_addr_1: string | null
           payer_addr_2: string | null
           payer_city: string | null
           payer_name: string | null
           payer_order: string
+          payer_order_source: string | null
           payer_phone: string | null
           payer_state: Database["public"]["Enums"]["state_code_enum"] | null
           payer_zip: string | null
@@ -1825,8 +1886,12 @@ export type Database = {
         Insert: {
           claims_office_number?: string | null
           client_id: string
+          copay_amount?: number | null
           created_at?: string
+          deductible_amount?: number | null
+          deductible_met?: number | null
           effective_date?: string | null
+          has_other_coverage?: boolean | null
           id?: string
           ins_addr_1?: string | null
           ins_addr_2?: string | null
@@ -1845,12 +1910,15 @@ export type Database = {
           ins_state?: Database["public"]["Enums"]["state_code_enum"] | null
           ins_zip?: string | null
           is_active?: boolean
+          out_of_pocket_max?: number | null
+          out_of_pocket_met?: number | null
           pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
           payer_addr_1?: string | null
           payer_addr_2?: string | null
           payer_city?: string | null
           payer_name?: string | null
           payer_order: string
+          payer_order_source?: string | null
           payer_phone?: string | null
           payer_state?: Database["public"]["Enums"]["state_code_enum"] | null
           payer_zip?: string | null
@@ -1863,8 +1931,12 @@ export type Database = {
         Update: {
           claims_office_number?: string | null
           client_id?: string
+          copay_amount?: number | null
           created_at?: string
+          deductible_amount?: number | null
+          deductible_met?: number | null
           effective_date?: string | null
+          has_other_coverage?: boolean | null
           id?: string
           ins_addr_1?: string | null
           ins_addr_2?: string | null
@@ -1883,12 +1955,15 @@ export type Database = {
           ins_state?: Database["public"]["Enums"]["state_code_enum"] | null
           ins_zip?: string | null
           is_active?: boolean
+          out_of_pocket_max?: number | null
+          out_of_pocket_met?: number | null
           pat_rel?: Database["public"]["Enums"]["pat_rel_enum"] | null
           payer_addr_1?: string | null
           payer_addr_2?: string | null
           payer_city?: string | null
           payer_name?: string | null
           payer_order?: string
+          payer_order_source?: string | null
           payer_phone?: string | null
           payer_state?: Database["public"]["Enums"]["state_code_enum"] | null
           payer_zip?: string | null
@@ -2238,6 +2313,71 @@ export type Database = {
           },
         ]
       }
+      client_related_persons: {
+        Row: {
+          addr_1: string | null
+          addr_2: string | null
+          city: string | null
+          client_id: string
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          is_form_submitter: boolean
+          last_name: string
+          phone: string | null
+          relationship: Database["public"]["Enums"]["client_relation_type_enum"]
+          state: Database["public"]["Enums"]["state_code_enum"] | null
+          tenant_id: string
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          addr_1?: string | null
+          addr_2?: string | null
+          city?: string | null
+          client_id: string
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          is_form_submitter?: boolean
+          last_name: string
+          phone?: string | null
+          relationship: Database["public"]["Enums"]["client_relation_type_enum"]
+          state?: Database["public"]["Enums"]["state_code_enum"] | null
+          tenant_id: string
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          addr_1?: string | null
+          addr_2?: string | null
+          city?: string | null
+          client_id?: string
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          is_form_submitter?: boolean
+          last_name?: string
+          phone?: string | null
+          relationship?: Database["public"]["Enums"]["client_relation_type_enum"]
+          state?: Database["public"]["Enums"]["state_code_enum"] | null
+          tenant_id?: string
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_related_persons_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_safety_plans: {
         Row: {
           client_id: string
@@ -2526,10 +2666,13 @@ export type Database = {
           id: string
           pat_addr_1: string | null
           pat_addr_2: string | null
+          pat_age: number | null
           pat_city: string | null
           pat_country: string
           pat_dob: string | null
-          pat_gender_identity: Database["public"]["Enums"]["sex_enum"] | null
+          pat_gender_identity:
+            | Database["public"]["Enums"]["gender_identity_enum"]
+            | null
           pat_goal: string | null
           pat_marital_status: string | null
           pat_name_f: string | null
@@ -2545,6 +2688,7 @@ export type Database = {
           phone: string | null
           primary_staff_id: string | null
           profile_id: string
+          referral_source: string | null
           tenant_id: string
           updated_at: string
         }
@@ -2554,10 +2698,13 @@ export type Database = {
           id?: string
           pat_addr_1?: string | null
           pat_addr_2?: string | null
+          pat_age?: number | null
           pat_city?: string | null
           pat_country?: string
           pat_dob?: string | null
-          pat_gender_identity?: Database["public"]["Enums"]["sex_enum"] | null
+          pat_gender_identity?:
+            | Database["public"]["Enums"]["gender_identity_enum"]
+            | null
           pat_goal?: string | null
           pat_marital_status?: string | null
           pat_name_f?: string | null
@@ -2573,6 +2720,7 @@ export type Database = {
           phone?: string | null
           primary_staff_id?: string | null
           profile_id: string
+          referral_source?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -2582,10 +2730,13 @@ export type Database = {
           id?: string
           pat_addr_1?: string | null
           pat_addr_2?: string | null
+          pat_age?: number | null
           pat_city?: string | null
           pat_country?: string
           pat_dob?: string | null
-          pat_gender_identity?: Database["public"]["Enums"]["sex_enum"] | null
+          pat_gender_identity?:
+            | Database["public"]["Enums"]["gender_identity_enum"]
+            | null
           pat_goal?: string | null
           pat_marital_status?: string | null
           pat_name_f?: string | null
@@ -2601,6 +2752,7 @@ export type Database = {
           phone?: string | null
           primary_staff_id?: string | null
           profile_id?: string
+          referral_source?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -2649,6 +2801,60 @@ export type Database = {
         }
         Relationships: []
       }
+      consent_templates: {
+        Row: {
+          consent_type: string
+          content: Json
+          created_at: string
+          created_by_profile_id: string | null
+          id: string
+          is_active: boolean
+          tenant_id: string | null
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          consent_type: string
+          content: Json
+          created_at?: string
+          created_by_profile_id?: string | null
+          id?: string
+          is_active?: boolean
+          tenant_id?: string | null
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          consent_type?: string
+          content?: Json
+          created_at?: string
+          created_by_profile_id?: string | null
+          id?: string
+          is_active?: boolean
+          tenant_id?: string | null
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_templates_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cpt_codes: {
         Row: {
           category: string | null
@@ -2673,6 +2879,54 @@ export type Database = {
           description?: string
           id?: string
           is_active?: boolean
+        }
+        Relationships: []
+      }
+      data_fields: {
+        Row: {
+          client_editable_default: boolean
+          client_visible_default: boolean
+          clinician_editable_default: boolean
+          clinician_visible_default: boolean
+          column_name: string | null
+          computed_source: string | null
+          description: string | null
+          id: number
+          key: string
+          label: string
+          meta: Json | null
+          source_type: string
+          table_name: string | null
+        }
+        Insert: {
+          client_editable_default?: boolean
+          client_visible_default?: boolean
+          clinician_editable_default?: boolean
+          clinician_visible_default?: boolean
+          column_name?: string | null
+          computed_source?: string | null
+          description?: string | null
+          id?: number
+          key: string
+          label: string
+          meta?: Json | null
+          source_type: string
+          table_name?: string | null
+        }
+        Update: {
+          client_editable_default?: boolean
+          client_visible_default?: boolean
+          clinician_editable_default?: boolean
+          clinician_visible_default?: boolean
+          column_name?: string | null
+          computed_source?: string | null
+          description?: string | null
+          id?: number
+          key?: string
+          label?: string
+          meta?: Json | null
+          source_type?: string
+          table_name?: string | null
         }
         Relationships: []
       }
@@ -3030,6 +3284,412 @@ export type Database = {
           },
         ]
       }
+      form_assignment_rules: {
+        Row: {
+          active: boolean
+          applies_to_client_type: string | null
+          applies_to_new_clients: boolean
+          assign_after_days: number | null
+          due_after_days: number | null
+          form_id: number
+          id: number
+          tenant_id: string
+        }
+        Insert: {
+          active?: boolean
+          applies_to_client_type?: string | null
+          applies_to_new_clients?: boolean
+          assign_after_days?: number | null
+          due_after_days?: number | null
+          form_id: number
+          id?: number
+          tenant_id: string
+        }
+        Update: {
+          active?: boolean
+          applies_to_client_type?: string | null
+          applies_to_new_clients?: boolean
+          assign_after_days?: number | null
+          due_after_days?: number | null
+          form_id?: number
+          id?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_assignment_rules_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          client_id: string
+          completed_at: string | null
+          due_at: string | null
+          form_id: number
+          id: number
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          client_id: string
+          completed_at?: string | null
+          due_at?: string | null
+          form_id: number
+          id?: number
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          client_id?: string
+          completed_at?: string | null
+          due_at?: string | null
+          form_id?: number
+          id?: number
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_assignments_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_fields: {
+        Row: {
+          client_editable: boolean | null
+          client_visible: boolean | null
+          clinician_editable: boolean | null
+          clinician_visible: boolean | null
+          data_field_id: number
+          field_type: string
+          form_id: number
+          help_text: string | null
+          id: number
+          label_override: string | null
+          required: boolean
+          sort_order: number
+        }
+        Insert: {
+          client_editable?: boolean | null
+          client_visible?: boolean | null
+          clinician_editable?: boolean | null
+          clinician_visible?: boolean | null
+          data_field_id: number
+          field_type: string
+          form_id: number
+          help_text?: string | null
+          id?: number
+          label_override?: string | null
+          required?: boolean
+          sort_order?: number
+        }
+        Update: {
+          client_editable?: boolean | null
+          client_visible?: boolean | null
+          clinician_editable?: boolean | null
+          clinician_visible?: boolean | null
+          data_field_id?: number
+          field_type?: string
+          form_id?: number
+          help_text?: string | null
+          id?: number
+          label_override?: string | null
+          required?: boolean
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_fields_data_field_id_fkey"
+            columns: ["data_field_id"]
+            isOneToOne: false
+            referencedRelation: "data_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_fields_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_response_values: {
+        Row: {
+          created_at: string
+          data_field_id: number
+          form_field_id: number
+          id: number
+          response_id: number
+          tenant_id: string
+          value: Json | null
+        }
+        Insert: {
+          created_at?: string
+          data_field_id: number
+          form_field_id: number
+          id?: number
+          response_id: number
+          tenant_id: string
+          value?: Json | null
+        }
+        Update: {
+          created_at?: string
+          data_field_id?: number
+          form_field_id?: number
+          id?: number
+          response_id?: number
+          tenant_id?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_response_values_data_field_id_fkey"
+            columns: ["data_field_id"]
+            isOneToOne: false
+            referencedRelation: "data_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_response_values_form_field_id_fkey"
+            columns: ["form_field_id"]
+            isOneToOne: false
+            referencedRelation: "form_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_response_values_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "form_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_response_values_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_responses: {
+        Row: {
+          client_id: string
+          created_at: string
+          form_id: number
+          id: number
+          role: string
+          submitted_by: string
+          tenant_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          form_id: number
+          id?: number
+          role: string
+          submitted_by: string
+          tenant_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          form_id?: number
+          id?: number
+          role?: string
+          submitted_by?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_responses_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_responses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_template_fields: {
+        Row: {
+          conditional_logic: Json | null
+          created_at: string
+          field_key: string
+          field_type: string
+          form_template_id: string
+          help_text: string | null
+          id: string
+          is_required: boolean
+          label: string
+          options: Json | null
+          order_index: number
+          placeholder: string | null
+          updated_at: string
+          validation_rules: Json | null
+        }
+        Insert: {
+          conditional_logic?: Json | null
+          created_at?: string
+          field_key: string
+          field_type: string
+          form_template_id: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          label: string
+          options?: Json | null
+          order_index?: number
+          placeholder?: string | null
+          updated_at?: string
+          validation_rules?: Json | null
+        }
+        Update: {
+          conditional_logic?: Json | null
+          created_at?: string
+          field_key?: string
+          field_type?: string
+          form_template_id?: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          label?: string
+          options?: Json | null
+          order_index?: number
+          placeholder?: string | null
+          updated_at?: string
+          validation_rules?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_template_fields_form_template_id_fkey"
+            columns: ["form_template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_templates: {
+        Row: {
+          created_at: string
+          created_by_user_id: string | null
+          description: string | null
+          form_type: string | null
+          id: string
+          is_active: boolean
+          name: string
+          tenant_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          form_type?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          tenant_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          form_type?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_templates_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          form_type: string | null
+          id: number
+          is_system_form: boolean
+          name: string
+          system_form_key: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          form_type?: string | null
+          id?: number
+          is_system_form?: boolean
+          name: string
+          system_form_key?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          form_type?: string | null
+          id?: number
+          is_system_form?: boolean
+          name?: string
+          system_form_key?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forms_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pat_rel: {
         Row: {
           created_at: string
@@ -3120,6 +3780,7 @@ export type Database = {
       }
       practice_info: {
         Row: {
+          allow_privatepay: boolean
           bill_addr_1: string | null
           bill_addr_2: string | null
           bill_city: string | null
@@ -3144,6 +3805,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_privatepay?: boolean
           bill_addr_1?: string | null
           bill_addr_2?: string | null
           bill_city?: string | null
@@ -3168,6 +3830,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_privatepay?: boolean
           bill_addr_1?: string | null
           bill_addr_2?: string | null
           bill_city?: string | null
@@ -3913,14 +4576,25 @@ export type Database = {
         | "family_of_origin"
         | "current_household"
       client_ideation_enum: "none" | "passive" | "active"
+      client_relation_type_enum:
+        | "Patient"
+        | "Parent"
+        | "Spouse"
+        | "Caregiver"
+        | "Legal Guardian"
+        | "Other"
       client_status_enum: "New" | "Registered" | "Active" | "Inactive"
       client_substance_abuse_risk_enum: "none" | "low" | "medium" | "high"
       clinician_status_enum: "Invited" | "New" | "Active" | "Inactive"
       form_type_enum: "signup" | "intake" | "session_notes"
       gad7_severity_enum: "minimal" | "mild" | "moderate" | "severe"
-      gender_identity_enum: "Female" | "Male" | "Non-Binary" | "Other"
+      gender_identity_enum:
+        | "Female"
+        | "Male"
+        | "Non-Binary/Gender Fluid"
+        | "Other"
       pat_rel_enum: "18" | "01" | "19" | "20" | "21" | "39" | "40" | "53" | "G8"
-      pat_status_enum: "New" | "Active"
+      pat_status_enum: "New" | "Active" | "Inactive"
       phq9_severity_enum:
         | "none_minimal"
         | "mild"
@@ -4142,14 +4816,27 @@ export const Constants = {
         "current_household",
       ],
       client_ideation_enum: ["none", "passive", "active"],
+      client_relation_type_enum: [
+        "Patient",
+        "Parent",
+        "Spouse",
+        "Caregiver",
+        "Legal Guardian",
+        "Other",
+      ],
       client_status_enum: ["New", "Registered", "Active", "Inactive"],
       client_substance_abuse_risk_enum: ["none", "low", "medium", "high"],
       clinician_status_enum: ["Invited", "New", "Active", "Inactive"],
       form_type_enum: ["signup", "intake", "session_notes"],
       gad7_severity_enum: ["minimal", "mild", "moderate", "severe"],
-      gender_identity_enum: ["Female", "Male", "Non-Binary", "Other"],
+      gender_identity_enum: [
+        "Female",
+        "Male",
+        "Non-Binary/Gender Fluid",
+        "Other",
+      ],
       pat_rel_enum: ["18", "01", "19", "20", "21", "39", "40", "53", "G8"],
-      pat_status_enum: ["New", "Active"],
+      pat_status_enum: ["New", "Active", "Inactive"],
       phq9_severity_enum: [
         "none_minimal",
         "mild",
