@@ -1,0 +1,1 @@
+export { ConsentEditor } from './ConsentEditor';

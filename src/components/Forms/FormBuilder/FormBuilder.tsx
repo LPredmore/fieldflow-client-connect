@@ -42,21 +42,14 @@ export function FormBuilder({ formType = 'custom', templateId, onSaveComplete }:
   const [tenantId, setTenantId] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  // Load tenant ID
+  // Get tenant ID from auth context
+  const { tenantId: authTenantId } = useAuth();
+  
   useEffect(() => {
-    const fetchTenantId = async () => {
-      if (!user) return;
-      
-      const { data: profile } = await import('@/integrations/supabase/client')
-        .then(m => m.supabase.from('profiles').select('tenant_id').eq('user_id', user.id).single());
-      
-      if (profile?.tenant_id) {
-        setTenantId(profile.tenant_id);
-      }
-    };
-    
-    fetchTenantId();
-  }, [user]);
+    if (authTenantId) {
+      setTenantId(authTenantId);
+    }
+  }, [authTenantId]);
 
   // Load existing template by ID or by type
   useEffect(() => {

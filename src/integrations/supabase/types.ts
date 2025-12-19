@@ -3473,13 +3473,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "form_response_values_response_id_fkey"
-            columns: ["response_id"]
-            isOneToOne: false
-            referencedRelation: "form_responses"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "form_response_values_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -3490,45 +3483,51 @@ export type Database = {
       }
       form_responses: {
         Row: {
-          client_id: string
           created_at: string
-          form_id: number
-          id: number
-          role: string
-          submitted_by: string
+          customer_id: string | null
+          form_template_id: string
+          id: string
+          response_data: Json
+          submitted_at: string
+          submitted_by_user_id: string | null
           tenant_id: string
+          updated_at: string
         }
         Insert: {
-          client_id: string
           created_at?: string
-          form_id: number
-          id?: number
-          role: string
-          submitted_by: string
+          customer_id?: string | null
+          form_template_id: string
+          id?: string
+          response_data?: Json
+          submitted_at?: string
+          submitted_by_user_id?: string | null
           tenant_id: string
+          updated_at?: string
         }
         Update: {
-          client_id?: string
           created_at?: string
-          form_id?: number
-          id?: number
-          role?: string
-          submitted_by?: string
+          customer_id?: string | null
+          form_template_id?: string
+          id?: string
+          response_data?: Json
+          submitted_at?: string
+          submitted_by_user_id?: string | null
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "form_responses_form_id_fkey"
-            columns: ["form_id"]
+            foreignKeyName: "form_responses_customer_id_fkey"
+            columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "forms"
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "form_responses_tenant_id_fkey"
-            columns: ["tenant_id"]
+            foreignKeyName: "form_responses_form_template_id_fkey"
+            columns: ["form_template_id"]
             isOneToOne: false
-            referencedRelation: "tenants"
+            referencedRelation: "form_templates"
             referencedColumns: ["id"]
           },
         ]

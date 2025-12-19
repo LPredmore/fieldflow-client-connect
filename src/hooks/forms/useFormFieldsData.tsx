@@ -24,7 +24,7 @@ export function useFormFieldsData(templateId?: string) {
   );
   
   return useSupabaseTable<FormField, FormFieldData>({
-    table: 'form_fields',
+    table: 'form_template_fields',
     filters,
     orderBy: { column: 'order_index', ascending: true },
     enabled: !!templateId,
