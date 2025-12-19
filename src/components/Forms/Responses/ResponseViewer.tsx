@@ -51,7 +51,7 @@ export function ResponseViewer({ template, onClose }: ResponseViewerProps) {
         .from('form_responses')
         .select(`
           *,
-          customer:customers (
+          customer:clients (
             pat_name_f,
             pat_name_l,
             pat_name_m,

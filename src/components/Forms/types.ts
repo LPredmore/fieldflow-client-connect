@@ -11,7 +11,9 @@ export type FieldType =
   | 'checkbox' 
   | 'file';
 
-export type FormType = 'signup' | 'intake' | 'custom';
+export type FormType = 'signup' | 'intake' | 'custom' | 'consent';
+
+export type ConsentType = 'telehealth_informed_consent' | 'hipaa_notice' | 'privacy_practices' | 'financial_agreement' | 'custom';
 
 export interface ValidationRules {
   minLength?: number;
@@ -71,4 +73,31 @@ export interface FormResponse {
   submitted_by_user_id?: string;
   response_data: Record<string, any>;
   submitted_at: string;
+}
+
+// Consent Templates Types
+export interface ConsentSection {
+  id: string;
+  type: 'text' | 'acknowledgment' | 'signature_block';
+  title?: string;
+  content: string;
+  required?: boolean;
+}
+
+export interface ConsentContent {
+  sections: ConsentSection[];
+}
+
+export interface ConsentTemplate {
+  id: string;
+  tenant_id: string | null; // null = system default
+  consent_type: ConsentType;
+  title: string;
+  content: ConsentContent;
+  version: number;
+  is_active: boolean;
+  is_system_default?: boolean;
+  created_by_profile_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
