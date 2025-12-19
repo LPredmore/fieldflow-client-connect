@@ -58,7 +58,10 @@ export function useCalendarAppointments() {
   const [loading, setLoading] = useState(true);
 
   const fetchAppointments = useCallback(async () => {
-    if (!user || !tenantId) {
+    // Get the logged-in user's staff ID
+    const staffId = user?.roleContext?.staffData?.id;
+    
+    if (!user || !tenantId || !staffId) {
       setAppointments([]);
       setLoading(false);
       return;
@@ -100,6 +103,7 @@ export function useCalendarAppointments() {
           staff!inner(prov_name_f, prov_name_l, prov_name_for_clients)
         `)
         .eq('tenant_id', tenantId)
+        .eq('staff_id', staffId)
         .gte('start_at', range.fromISO)
         .lt('start_at', range.toISO)
         .order('start_at', { ascending: true });
