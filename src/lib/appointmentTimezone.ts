@@ -149,6 +149,7 @@ export function utcToLocalForCalendar(
   utcTimestamp: string,
   timezone: string
 ): Date {
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const utc = DateTime.fromISO(utcTimestamp, { zone: 'utc' });
   
   if (!utc.isValid) {
@@ -161,7 +162,7 @@ export function utcToLocalForCalendar(
   
   // Create Date using LOCAL components (bypasses browser TZ interpretation)
   // This makes the Date "look like" the correct time on the calendar
-  return new Date(
+  const result = new Date(
     local.year,
     local.month - 1, // JS months are 0-indexed
     local.day,
@@ -169,6 +170,44 @@ export function utcToLocalForCalendar(
     local.minute,
     local.second
   );
+
+  // Comprehensive timezone debugging
+  const timezoneMismatch = browserTz !== timezone;
+  console.log('[TIMEZONE DEBUG] utcToLocalForCalendar:', {
+    // Inputs
+    input_utcTimestamp: utcTimestamp,
+    input_targetTimezone: timezone,
+    
+    // Browser context
+    browserTimezone: browserTz,
+    timezoneMismatch: timezoneMismatch ? '⚠️ MISMATCH' : '✅ Match',
+    
+    // Luxon intermediate values
+    luxon_utcHour: utc.hour,
+    luxon_utcMinute: utc.minute,
+    luxon_utcZone: utc.zoneName,
+    luxon_localHour: local.hour,
+    luxon_localMinute: local.minute,
+    luxon_localZone: local.zoneName,
+    
+    // Final Date object
+    result_getHours: result.getHours(),
+    result_getMinutes: result.getMinutes(),
+    result_toString: result.toString(),
+    
+    // Diagnosis
+    hourMatch: local.hour === result.getHours() ? '✅ Hours match' : '⚠️ HOURS DIFFER',
+  });
+  
+  // Warning if timezone mismatch detected
+  if (timezoneMismatch) {
+    console.warn(
+      `[TIMEZONE WARNING] Browser TZ (${browserTz}) ≠ Staff TZ (${timezone}). ` +
+      `Date object uses browser TZ interpretation - calendar may show wrong time.`
+    );
+  }
+
+  return result;
 }
 
 /**

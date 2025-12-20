@@ -89,6 +89,11 @@ export function RBCCalendar() {
     return createLocalTime(workingHoursStart, 0);
   }, [workingHoursStart]);
 
+  // Get timezone info for debugging display
+  const staffTimezone = appointments[0]?.display_timezone;
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const tzMismatch = staffTimezone && staffTimezone !== browserTimezone;
+
   // Convert appointments to RBC event format
   // Time Model:
   // - Database stores UTC timestamps (start_at, end_at)
@@ -98,7 +103,7 @@ export function RBCCalendar() {
   const events = useMemo(() => {
     if (!appointments || !Array.isArray(appointments)) return [];
 
-    return appointments.map((appt) => ({
+    const mapped = appointments.map((appt) => ({
       id: appt.id,
       title: `${appt.service_name} - ${appt.client_name}`,
       // Use pre-computed local times (already converted from UTC)
@@ -110,8 +115,45 @@ export function RBCCalendar() {
         service_name: appt.service_name,
         series_id: appt.series_id,
         is_telehealth: appt.is_telehealth,
+        // Include server display times for debugging
+        display_time: appt.display_time,
+        display_end_time: appt.display_end_time,
+        display_timezone: appt.display_timezone,
       },
     }));
+
+    // Debug logging for calendar events
+    if (mapped.length > 0) {
+      const first = mapped[0];
+      const firstAppt = appointments[0];
+      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
+      console.group('[TIMEZONE DEBUG] Calendar Events');
+      console.log('First event for react-big-calendar:', {
+        eventId: first.id,
+        eventStartHour: first.start.getHours(),
+        eventStartMinute: first.start.getMinutes(),
+        eventStartString: first.start.toString(),
+      });
+      console.log('Server display values:', {
+        serverDisplayTime: firstAppt?.display_time,
+        serverDisplayEndTime: firstAppt?.display_end_time,
+        serverDisplayTimezone: firstAppt?.display_timezone,
+      });
+      console.log('Timezone comparison:', {
+        browserTimezone: browserTz,
+        staffTimezone: firstAppt?.display_timezone,
+        mismatch: browserTz !== firstAppt?.display_timezone ? '⚠️ MISMATCH - Times may display incorrectly!' : '✅ Match',
+      });
+      console.log('Diagnosis:', {
+        calendarWillShow: `${first.start.getHours()}:${String(first.start.getMinutes()).padStart(2, '0')}`,
+        serverSays: firstAppt?.display_time,
+        match: first.start.getHours().toString() === firstAppt?.display_time?.split(':')[0] ? '✅' : '⚠️ DIFFERENT',
+      });
+      console.groupEnd();
+    }
+
+    return mapped;
   }, [appointments]);
 
   // Dynamic event styling based on status
@@ -228,10 +270,17 @@ export function RBCCalendar() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5" />
-          Schedule Calendar
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5" />
+            Schedule Calendar
+          </CardTitle>
+          {tzMismatch && (
+            <span className="text-xs text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-1 rounded border border-yellow-300 dark:border-yellow-700">
+              ⚠️ Browser TZ ({browserTimezone}) ≠ Staff TZ ({staffTimezone})
+            </span>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="calendar-container h-[600px]">

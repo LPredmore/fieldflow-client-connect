@@ -100,13 +100,51 @@ export function useCalendarAppointments() {
         return;
       }
 
+      // Log raw RPC response for timezone debugging
+      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (data && data.length > 0) {
+        console.group('[TIMEZONE DEBUG] RPC Response');
+        console.log('Browser timezone:', browserTz);
+        console.log('First appointment raw data:', {
+          id: data[0]?.id,
+          start_at: data[0]?.start_at,
+          end_at: data[0]?.end_at,
+          display_time: data[0]?.display_time,
+          display_end_time: data[0]?.display_end_time,
+          display_timezone: data[0]?.display_timezone,
+          timezoneMismatch: browserTz !== data[0]?.display_timezone ? '⚠️ MISMATCH' : '✅ Match',
+        });
+        console.log('Total appointments:', data.length);
+        console.groupEnd();
+      }
+
       // Transform to display format
       // The RPC returns the display_timezone, so we use it for local Date conversion
-      const transformed: CalendarAppointment[] = (data || []).map((row: any) => {
+      const transformed: CalendarAppointment[] = (data || []).map((row: any, index: number) => {
         // Use the server-provided timezone for Luxon conversion
         // This ensures consistency between display strings and Date objects
         const localStart = utcToLocalForCalendar(row.start_at, row.display_timezone);
         const localEnd = utcToLocalForCalendar(row.end_at, row.display_timezone);
+
+        // Log first appointment transformation for debugging
+        if (index === 0) {
+          console.group('[TIMEZONE DEBUG] Transformation (first appointment)');
+          console.log('Input:', {
+            rawUTC: row.start_at,
+            serverDisplayTime: row.display_time,
+            serverDisplayTimezone: row.display_timezone,
+          });
+          console.log('Output:', {
+            localStartHour: localStart.getHours(),
+            localStartMinute: localStart.getMinutes(),
+            localStartString: localStart.toString(),
+          });
+          console.log('Comparison:', {
+            serverSays: row.display_time,
+            jsDateSays: `${localStart.getHours()}:${String(localStart.getMinutes()).padStart(2, '0')}`,
+          });
+          console.groupEnd();
+        }
 
         return {
           id: row.id,
@@ -138,7 +176,8 @@ export function useCalendarAppointments() {
 
       console.log('[useCalendarAppointments] Loaded appointments with server timezone:', {
         count: transformed.length,
-        timezone: transformed[0]?.display_timezone || 'none'
+        timezone: transformed[0]?.display_timezone || 'none',
+        browserTimezone: browserTz,
       });
 
       setAppointments(transformed);
