@@ -52,6 +52,9 @@ export function RBCCalendar() {
   const { appointments, loading, refetch, staffTimezone } = useStaffAppointments();
   const { tenantId } = useAuth();
   
+  // Debug: log when appointments change
+  console.log('[RBCCalendar] Render with appointments count:', appointments?.length ?? 0);
+  
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
