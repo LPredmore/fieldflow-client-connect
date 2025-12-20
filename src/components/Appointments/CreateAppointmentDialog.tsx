@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAppointmentCreation } from '@/hooks/useAppointmentCreation';
 import { useAppointmentSeries } from '@/hooks/useAppointmentSeries';
-import { useCalendarAppointments } from '@/hooks/useCalendarAppointments';
 import { useClients } from '@/hooks/useClients';
 import { useServices } from '@/hooks/useServices';
 import { getClientDisplayName } from '@/utils/clientDisplayName';
@@ -23,13 +22,15 @@ interface CreateAppointmentDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onAppointmentCreated?: () => void;
 }
 
 export function CreateAppointmentDialog({ 
   prefilledDate, 
   trigger,
   open: externalOpen,
-  onOpenChange: externalOnOpenChange
+  onOpenChange: externalOnOpenChange,
+  onAppointmentCreated
 }: CreateAppointmentDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
@@ -38,7 +39,6 @@ export function CreateAppointmentDialog({
   
   const { createAppointment } = useAppointmentCreation();
   const { createSeries } = useAppointmentSeries();
-  const { refetch: refetchCalendar } = useCalendarAppointments();
   const { clients } = useClients();
   const { services, defaultService, loading: servicesLoading } = useServices();
   const { toast } = useToast();
@@ -115,7 +115,10 @@ export function CreateAppointmentDialog({
         });
       }
       
-      await refetchCalendar();
+      // Notify parent to refresh calendar
+      if (onAppointmentCreated) {
+        onAppointmentCreated();
+      }
       setOpen(false);
       
       // Reset form

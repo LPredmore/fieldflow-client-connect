@@ -304,6 +304,7 @@ export function RBCCalendar() {
         trigger={null}
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+        onAppointmentCreated={refetch}
       />
     </Card>
   );
