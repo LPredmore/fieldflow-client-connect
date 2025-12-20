@@ -17,6 +17,10 @@ import { DateTime } from 'luxon';
 /**
  * Get the current browser's timezone (IANA format)
  * Example: "America/Chicago", "America/New_York"
+ * 
+ * @deprecated Use useStaffTimezone hook instead for staff views.
+ * This function only returns browser timezone and does not account for
+ * staff profile prov_time_zone preference.
  */
 export function getBrowserTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;

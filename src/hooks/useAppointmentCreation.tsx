@@ -1,7 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { localToUTC, calculateEndUTC, getDBTimezoneEnum, getBrowserTimezone } from '@/lib/appointmentTimezone';
+import { localToUTC, calculateEndUTC, getDBTimezoneEnum } from '@/lib/appointmentTimezone';
+import { useStaffTimezone } from './useStaffTimezone';
 
 export interface CreateAppointmentInput {
   client_id: string;
@@ -30,6 +31,7 @@ export interface CreateAppointmentInput {
 export function useAppointmentCreation() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
+  const staffTimezone = useStaffTimezone();
 
   // Get the current staff_id from auth context
   const staffId = user?.staffAttributes?.staffData?.id;
@@ -67,20 +69,20 @@ export function useAppointmentCreation() {
       throw new Error('User not authenticated or staff ID not found');
     }
 
-    // Get browser timezone for conversion and metadata
-    const browserTimezone = getBrowserTimezone();
+    // Use staff's saved timezone for conversion and metadata
+    // This ensures consistency across devices and during travel
 
     // Convert local date/time to UTC for database storage
-    // User selected "10:00 AM on 2025-12-05" in their local timezone
+    // User selected "10:00 AM on 2025-12-05" in their configured timezone
     // This becomes the UTC instant to store
-    const startUTC = localToUTC(data.date, data.time, browserTimezone);
+    const startUTC = localToUTC(data.date, data.time, staffTimezone);
     const endUTC = calculateEndUTC(startUTC, data.duration_minutes);
     
     // Get database enum value for timezone metadata
     // getDBTimezoneEnum already handles validation and fallback to 'America/New_York'
-    const dbTimezone = getDBTimezoneEnum(browserTimezone);
+    const dbTimezone = getDBTimezoneEnum(staffTimezone);
     
-    console.log('Creating appointment with timezone:', { browserTimezone, dbTimezone });
+    console.log('Creating appointment with timezone:', { staffTimezone, dbTimezone });
 
     const appointmentData = {
       tenant_id: tenantId,
