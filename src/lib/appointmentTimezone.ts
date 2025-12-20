@@ -49,24 +49,35 @@ export function localToUTC(
   time: string,
   timezone?: string
 ): string {
-  const zone = timezone || getBrowserTimezone();
+  const zone = timezone || DEFAULT_TIMEZONE;
   
-  // Parse date and time components
-  const [year, month, day] = date.split('-').map(Number);
-  const [hour, minute] = time.split(':').map(Number);
+  // Build ISO string from date and time (e.g., "2025-12-20T09:00")
+  // Using fromISO with explicit zone is more reliable than fromObject
+  const isoString = `${date}T${time}`;
   
-  // Create DateTime in the specified timezone
-  const local = DateTime.fromObject(
-    { year, month, day, hour, minute, second: 0, millisecond: 0 },
-    { zone }
-  );
+  // Parse as if this time is in the specified timezone
+  const local = DateTime.fromISO(isoString, { zone });
   
   if (!local.isValid) {
+    console.error('[localToUTC] Invalid DateTime:', {
+      date, time, zone,
+      invalidReason: local.invalidReason,
+      invalidExplanation: local.invalidExplanation
+    });
     throw new Error(`Invalid date/time: ${date} ${time} in ${zone}`);
   }
   
-  // Convert to UTC and return ISO string
+  // Convert to UTC
   const utc = local.toUTC();
+  
+  // Debug logging to verify conversion is working correctly
+  console.log('[localToUTC] Timezone conversion:', {
+    input: { date, time, zone },
+    localISO: local.toISO(),
+    utcISO: utc.toISO(),
+    offsetMinutes: local.offset
+  });
+  
   return utc.toISO()!;
 }
 
@@ -84,17 +95,17 @@ export function localToUTCDate(
   time: string,
   timezone?: string
 ): Date {
-  const zone = timezone || getBrowserTimezone();
+  const zone = timezone || DEFAULT_TIMEZONE;
   
-  const [year, month, day] = date.split('-').map(Number);
-  const [hour, minute] = time.split(':').map(Number);
-  
-  const local = DateTime.fromObject(
-    { year, month, day, hour, minute, second: 0, millisecond: 0 },
-    { zone }
-  );
+  // Build ISO string and parse in the specified timezone
+  const isoString = `${date}T${time}`;
+  const local = DateTime.fromISO(isoString, { zone });
   
   if (!local.isValid) {
+    console.error('[localToUTCDate] Invalid DateTime:', {
+      date, time, zone,
+      invalidReason: local.invalidReason
+    });
     throw new Error(`Invalid date/time: ${date} ${time} in ${zone}`);
   }
   

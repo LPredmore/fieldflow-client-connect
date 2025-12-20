@@ -78,14 +78,26 @@ export function useAppointmentSeries() {
       throw new Error('User not authenticated or staff ID not found');
     }
 
-    // Use staff timezone for conversion and metadata (NOT browser timezone)
-    // This ensures recurring appointments are created in the staff's preferred timezone
+    // Log input data BEFORE conversion for debugging
+    console.log('[useAppointmentSeries] Input data:', {
+      start_date: input.start_date,
+      start_time: input.start_time,
+      staffTimezone,
+      duration_minutes: input.duration_minutes
+    });
 
     // Convert local start time to UTC for database storage using staff timezone
     const startUTC = localToUTC(input.start_date, input.start_time, staffTimezone);
     
     // Get database enum value for timezone metadata
     const dbTimezone = getDBTimezoneEnum(staffTimezone);
+
+    // Log conversion results for verification
+    console.log('[useAppointmentSeries] Conversion result:', {
+      inputLocal: `${input.start_date} ${input.start_time} in ${staffTimezone}`,
+      outputUTC: startUTC,
+      dbTimezone
+    });
 
     const seriesData = {
       tenant_id: tenantId,

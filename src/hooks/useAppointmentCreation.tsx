@@ -69,20 +69,30 @@ export function useAppointmentCreation() {
       throw new Error('User not authenticated or staff ID not found');
     }
 
-    // Use staff's saved timezone for conversion and metadata
-    // This ensures consistency across devices and during travel
+    // Log input data BEFORE conversion for debugging
+    console.log('[useAppointmentCreation] Input data:', {
+      date: data.date,
+      time: data.time,
+      staffTimezone,
+      duration_minutes: data.duration_minutes
+    });
 
     // Convert local date/time to UTC for database storage
-    // User selected "10:00 AM on 2025-12-05" in their configured timezone
-    // This becomes the UTC instant to store
+    // User selected time in their configured timezone (staffTimezone)
+    // localToUTC interprets the input as local time and converts to UTC
     const startUTC = localToUTC(data.date, data.time, staffTimezone);
     const endUTC = calculateEndUTC(startUTC, data.duration_minutes);
     
     // Get database enum value for timezone metadata
-    // getDBTimezoneEnum already handles validation and fallback to 'America/New_York'
     const dbTimezone = getDBTimezoneEnum(staffTimezone);
     
-    console.log('Creating appointment with timezone:', { staffTimezone, dbTimezone });
+    // Log conversion results for verification
+    console.log('[useAppointmentCreation] Conversion result:', {
+      inputLocal: `${data.date} ${data.time} in ${staffTimezone}`,
+      outputUTC: startUTC,
+      endUTC: endUTC,
+      dbTimezone
+    });
 
     const appointmentData = {
       tenant_id: tenantId,
