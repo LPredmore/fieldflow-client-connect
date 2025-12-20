@@ -27,6 +27,7 @@ export interface StaffAppointment {
   time_zone: string; // Creator's timezone (metadata only)
   created_at: string;
   updated_at: string;
+  videoroom_url: string | null; // Daily.co video room URL for telehealth
   
   // Joined data
   client_name: string;
@@ -181,6 +182,7 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
           time_zone: row.time_zone,
           created_at: row.created_at,
           updated_at: row.updated_at,
+          videoroom_url: row.videoroom_url || null,
           client_name: row.client_name || 'Unknown Client',
           service_name: row.service_name || 'Unknown Service',
           clinician_name: row.clinician_name || 'Unassigned',
@@ -238,7 +240,7 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
       const { 
         client_name, clinician_name, service_name,
         display_date, display_time, display_end_time, display_timezone,
-        calendar_start, calendar_end,
+        calendar_start, calendar_end, videoroom_url,
         ...dbUpdates 
       } = updates;
 
