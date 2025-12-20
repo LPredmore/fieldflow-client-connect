@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { utcToLocalForCalendar } from '@/lib/appointmentTimezone';
 import { useToast } from '@/hooks/use-toast';
-import { useStaffTimezone } from './useStaffTimezone';
+import { useFreshStaffTimezone } from './useStaffTimezone';
 
 export interface CalendarAppointment {
   id: string;
@@ -50,7 +50,7 @@ function defaultRange(): CalendarRange {
 export function useCalendarAppointments() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
-  const staffTimezone = useStaffTimezone();
+  const { timezone: staffTimezone, isLoading: timezoneLoading } = useFreshStaffTimezone();
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRangeRef = useRef<string>('');
   const isFetchingRef = useRef(false);
@@ -255,12 +255,12 @@ export function useCalendarAppointments() {
     }, 300);
   }, [range.fromISO, range.toISO, fetchAppointments]);
 
-  // Initial fetch - also refetch when timezone changes
+  // Initial fetch - wait for timezone to load, then fetch
   useMemo(() => {
-    if (user && tenantId && !isFetchingRef.current) {
+    if (user && tenantId && !timezoneLoading && !isFetchingRef.current) {
       fetchAppointments();
     }
-  }, [user, tenantId, staffTimezone]);
+  }, [user, tenantId, timezoneLoading, staffTimezone]);
 
   return {
     appointments,

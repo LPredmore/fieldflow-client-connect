@@ -13,8 +13,6 @@ import AppointmentView from '@/components/Appointments/AppointmentView';
 import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppointmentDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { clearFormatCache } from '@/hooks/useFormattedTime';
-import { clearAppointmentFormatCache } from '@/hooks/useFormattedAppointments';
 
 // Luxon localizer for React Big Calendar
 const localizer = luxonLocalizer(DateTime);
@@ -56,21 +54,7 @@ function saveWorkingHours(start: number, end: number) {
 
 export function RBCCalendar() {
   const { appointments, loading, refetch } = useCalendarAppointments();
-  const { tenantId, refreshUserData } = useAuth();
-
-  // Refresh user data on mount to get latest prov_time_zone and clear format caches
-  useEffect(() => {
-    const refreshData = async () => {
-      try {
-        await refreshUserData();
-        clearFormatCache();
-        clearAppointmentFormatCache();
-      } catch (error) {
-        console.error('Failed to refresh user data on calendar mount:', error);
-      }
-    };
-    refreshData();
-  }, []); // Only on mount
+  const { tenantId } = useAuth();
   
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
