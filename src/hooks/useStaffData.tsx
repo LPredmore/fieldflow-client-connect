@@ -39,6 +39,7 @@ export interface StaffMember {
   prov_min_client_age?: number | null;
   /** Boolean in database - convert to "Yes"/"No" for display only */
   prov_accepting_new_clients?: boolean | null;
+  prov_time_zone?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -65,6 +66,7 @@ interface StaffUpdateData {
   prov_min_client_age?: number;
   /** Boolean in database */
   prov_accepting_new_clients?: boolean;
+  prov_time_zone?: string;
 }
 
 export function useStaffData() {

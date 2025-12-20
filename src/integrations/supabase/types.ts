@@ -4134,6 +4134,7 @@ export type Database = {
           prov_taxid: string | null
           prov_taxid_type: string | null
           prov_taxonomy: string | null
+          prov_time_zone: Database["public"]["Enums"]["time_zones"] | null
           prov_treatment_approaches: string[] | null
           prov_zip: string | null
           tenant_id: string
@@ -4167,6 +4168,7 @@ export type Database = {
           prov_taxid?: string | null
           prov_taxid_type?: string | null
           prov_taxonomy?: string | null
+          prov_time_zone?: Database["public"]["Enums"]["time_zones"] | null
           prov_treatment_approaches?: string[] | null
           prov_zip?: string | null
           tenant_id: string
@@ -4200,6 +4202,7 @@ export type Database = {
           prov_taxid?: string | null
           prov_taxid_type?: string | null
           prov_taxonomy?: string | null
+          prov_time_zone?: Database["public"]["Enums"]["time_zones"] | null
           prov_treatment_approaches?: string[] | null
           prov_zip?: string | null
           tenant_id?: string
