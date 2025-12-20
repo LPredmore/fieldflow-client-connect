@@ -17,6 +17,20 @@ import { LicenseManagement } from '@/components/Staff/LicenseManagement';
 import { US_STATES } from '@/constants/usStates';
 import { useTreatmentApproachOptions } from '@/hooks/useTreatmentApproachOptions';
 import { MultiSelectCombobox } from '@/components/ui/multi-select-combobox';
+import { DB_ENUMS } from '@/schema/enums';
+
+const TIMEZONE_LABELS: Record<string, string> = {
+  'America/New_York': 'Eastern Time (ET)',
+  'America/Chicago': 'Central Time (CT)',
+  'America/Denver': 'Mountain Time (MT)',
+  'America/Phoenix': 'Arizona (MST)',
+  'America/Los_Angeles': 'Pacific Time (PT)',
+  'America/Anchorage': 'Alaska Time (AKT)',
+  'Pacific/Honolulu': 'Hawaii Time (HST)',
+  'America/Puerto_Rico': 'Atlantic Time (AST)',
+  'Pacific/Guam': 'Chamorro Time (ChST)',
+  'Pacific/Pago_Pago': 'Samoa Time (SST)',
+};
 
 export default function Profile() {
   const { profile, loading: profileLoading, updatePassword } = useProfile();
@@ -48,6 +62,7 @@ export default function Profile() {
     prov_city: '',
     prov_state: '',
     prov_zip: '',
+    prov_time_zone: '',
   });
 
   // Licensing & Credentials form state
@@ -85,6 +100,7 @@ export default function Profile() {
         prov_city: staff.prov_city || '',
         prov_state: staff.prov_state || '',
         prov_zip: staff.prov_zip || '',
+        prov_time_zone: staff.prov_time_zone || '',
       });
     }
   }, [staff, profile]);
@@ -129,6 +145,7 @@ export default function Profile() {
       prov_city: professionalInfo.prov_city,
       prov_state: professionalInfo.prov_state,
       prov_zip: professionalInfo.prov_zip,
+      prov_time_zone: professionalInfo.prov_time_zone || undefined,
     });
 
     // Update email in profiles table if changed
@@ -461,6 +478,25 @@ export default function Profile() {
                       placeholder="ZIP code"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="prov_time_zone">Time Zone</Label>
+                  <Select
+                    value={professionalInfo.prov_time_zone}
+                    onValueChange={(value) => setProfessionalInfo(prev => ({ ...prev, prov_time_zone: value }))}
+                  >
+                    <SelectTrigger id="prov_time_zone">
+                      <SelectValue placeholder="Select your time zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DB_ENUMS.time_zones.map(tz => (
+                        <SelectItem key={tz} value={tz}>
+                          {TIMEZONE_LABELS[tz] || tz}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <Button type="submit" disabled={isUpdating} className="w-full">
