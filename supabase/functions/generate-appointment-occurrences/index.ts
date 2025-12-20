@@ -191,7 +191,7 @@ serve(async (req) => {
                 },
                 body: JSON.stringify({
                   name: roomName,
-                  privacy: 'private',
+                  privacy: 'public',
                   properties: {
                     enable_screenshare: true,
                     enable_chat: true,
