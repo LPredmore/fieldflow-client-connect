@@ -22,7 +22,7 @@ interface CreateAppointmentDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onAppointmentCreated?: () => void;
+  onAppointmentCreated?: () => void | Promise<void>;
 }
 
 export function CreateAppointmentDialog({ 
@@ -115,9 +115,11 @@ export function CreateAppointmentDialog({
         });
       }
       
-      // Notify parent to refresh calendar
+      // Notify parent to refresh calendar and wait for it to complete
       if (onAppointmentCreated) {
-        onAppointmentCreated();
+        console.log('[CreateAppointmentDialog] Calling onAppointmentCreated callback');
+        await onAppointmentCreated();
+        console.log('[CreateAppointmentDialog] Callback completed');
       }
       setOpen(false);
       
