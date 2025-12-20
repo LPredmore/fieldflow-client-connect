@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { utcToLocalForCalendar } from '@/lib/appointmentTimezone';
 import { useToast } from '@/hooks/use-toast';
 
 export interface CalendarAppointment {
@@ -119,33 +118,9 @@ export function useCalendarAppointments() {
       }
 
       // Transform to display format
-      // The RPC returns the display_timezone, so we use it for local Date conversion
-      const transformed: CalendarAppointment[] = (data || []).map((row: any, index: number) => {
-        // Use the server-provided timezone for Luxon conversion
-        // This ensures consistency between display strings and Date objects
-        const localStart = utcToLocalForCalendar(row.start_at, row.display_timezone);
-        const localEnd = utcToLocalForCalendar(row.end_at, row.display_timezone);
-
-        // Log first appointment transformation for debugging
-        if (index === 0) {
-          console.group('[TIMEZONE DEBUG] Transformation (first appointment)');
-          console.log('Input:', {
-            rawUTC: row.start_at,
-            serverDisplayTime: row.display_time,
-            serverDisplayTimezone: row.display_timezone,
-          });
-          console.log('Output:', {
-            localStartHour: localStart.getHours(),
-            localStartMinute: localStart.getMinutes(),
-            localStartString: localStart.toString(),
-          });
-          console.log('Comparison:', {
-            serverSays: row.display_time,
-            jsDateSays: `${localStart.getHours()}:${String(localStart.getMinutes()).padStart(2, '0')}`,
-          });
-          console.groupEnd();
-        }
-
+      // No longer using utcToLocalForCalendar - RBCCalendar now handles timezone via Settings.defaultZone
+      // We keep the UTC timestamps and let the calendar component handle display
+      const transformed: CalendarAppointment[] = (data || []).map((row: any) => {
         return {
           id: row.id,
           series_id: row.series_id,
@@ -155,8 +130,8 @@ export function useCalendarAppointments() {
           clinician_name: row.clinician_name || 'Unassigned',
           service_id: row.service_id,
           service_name: row.service_name || 'Unknown Service',
-          start_at: row.start_at,   // Original UTC for reference
-          end_at: row.end_at,       // Original UTC for reference
+          start_at: row.start_at,   // Original UTC - calendar will parse this
+          end_at: row.end_at,       // Original UTC - calendar will parse this
           status: row.status as 'scheduled' | 'completed' | 'cancelled',
           is_telehealth: row.is_telehealth,
           location_name: row.location_name,
@@ -164,9 +139,7 @@ export function useCalendarAppointments() {
           created_at: row.created_at,
           updated_at: row.updated_at,
           tenant_id: row.tenant_id,
-          local_start: localStart,  // For react-big-calendar
-          local_end: localEnd,      // For react-big-calendar
-          // Pre-formatted strings from server
+          // Pre-formatted strings from server (for display in dialogs, etc.)
           display_date: row.display_date,
           display_time: row.display_time,
           display_end_time: row.display_end_time,
@@ -174,10 +147,9 @@ export function useCalendarAppointments() {
         };
       });
 
-      console.log('[useCalendarAppointments] Loaded appointments with server timezone:', {
+      console.log('[useCalendarAppointments] Loaded appointments:', {
         count: transformed.length,
-        timezone: transformed[0]?.display_timezone || 'none',
-        browserTimezone: browserTz,
+        staffTimezone: transformed[0]?.display_timezone || 'none',
       });
 
       setAppointments(transformed);

@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import { fromZonedTime } from 'date-fns-tz';
+import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 
 /**
  * Default timezone fallback
@@ -188,15 +188,31 @@ export function combineDateTimeToUTC(
  * Convert UTC datetime to user's local date and time strings.
  * Returns object with separate date and time strings for form inputs.
  * 
+ * IMPORTANT: This function NOW correctly uses the userTimezone parameter!
+ * It converts UTC to the specified timezone, not the browser's timezone.
+ * 
  * @param utcDateTime - UTC date/time string or Date object
- * @param _userTimezone - DEPRECATED: parameter kept for backwards compatibility but ignored
+ * @param userTimezone - Target timezone (IANA format). If not provided, uses browser timezone.
  * @returns Object with date (YYYY-MM-DD) and time (HH:mm) strings
  */
 export function splitUTCToLocalDateTime(
   utcDateTime: Date | string,
-  _userTimezone?: string
+  userTimezone?: string
 ): { date: string; time: string } {
-  return getLocalDateTimeStrings(utcDateTime);
+  const date = typeof utcDateTime === 'string'
+    ? parseUTCTimestamp(utcDateTime)
+    : utcDateTime;
+  
+  // If no timezone specified, fall back to browser timezone (original behavior)
+  if (!userTimezone) {
+    return getLocalDateTimeStrings(utcDateTime);
+  }
+  
+  // Use date-fns-tz to format in the specified timezone
+  return {
+    date: formatInTimeZone(date, userTimezone, 'yyyy-MM-dd'),
+    time: formatInTimeZone(date, userTimezone, 'HH:mm')
+  };
 }
 
 /**

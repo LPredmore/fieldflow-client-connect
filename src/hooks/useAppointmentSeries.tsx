@@ -2,7 +2,8 @@ import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { localToUTC, getDBTimezoneEnum, getBrowserTimezone } from '@/lib/appointmentTimezone';
+import { useStaffTimezone } from './useStaffTimezone';
+import { localToUTC, getDBTimezoneEnum } from '@/lib/appointmentTimezone';
 
 export interface AppointmentSeries {
   id: string;
@@ -52,6 +53,7 @@ export interface CreateAppointmentSeriesInput {
 export function useAppointmentSeries() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
+  const staffTimezone = useStaffTimezone();
 
   // Get the current staff_id from auth context
   const staffId = user?.staffAttributes?.staffData?.id;
@@ -76,14 +78,14 @@ export function useAppointmentSeries() {
       throw new Error('User not authenticated or staff ID not found');
     }
 
-    // Get browser timezone for conversion and metadata
-    const browserTimezone = getBrowserTimezone();
+    // Use staff timezone for conversion and metadata (NOT browser timezone)
+    // This ensures recurring appointments are created in the staff's preferred timezone
 
-    // Convert local start time to UTC for database storage
-    const startUTC = localToUTC(input.start_date, input.start_time, browserTimezone);
+    // Convert local start time to UTC for database storage using staff timezone
+    const startUTC = localToUTC(input.start_date, input.start_time, staffTimezone);
     
     // Get database enum value for timezone metadata
-    const dbTimezone = getDBTimezoneEnum(browserTimezone);
+    const dbTimezone = getDBTimezoneEnum(staffTimezone);
 
     const seriesData = {
       tenant_id: tenantId,
