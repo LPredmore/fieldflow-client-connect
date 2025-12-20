@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { utcToLocalForCalendar } from '@/lib/appointmentTimezone';
 import { useToast } from '@/hooks/use-toast';
-import { useFreshStaffTimezone } from './useStaffTimezone';
 
 export interface CalendarAppointment {
   id: string;
@@ -23,16 +22,17 @@ export interface CalendarAppointment {
   updated_at?: string;
   tenant_id: string;
   time_zone: string; // Creator's timezone (metadata, not used for rendering)
-  // Derived fields for display (converted to viewer's local timezone)
+  // Derived fields for display (converted to staff's local timezone)
   local_start?: Date;
   local_end?: Date;
+  // Pre-formatted display strings from server
+  display_date?: string;
+  display_time?: string;
+  display_end_time?: string;
+  display_timezone?: string;
 }
 
 type CalendarRange = { fromISO: string; toISO: string };
-
-function iso(d: Date) {
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, -1) + 'Z';
-}
 
 function defaultRange(): CalendarRange {
   const now = new Date();
@@ -44,17 +44,16 @@ function defaultRange(): CalendarRange {
 }
 
 /**
- * Hook to fetch calendar appointments from the appointments table.
- * Queries the actual appointments table with correct schema.
+ * Hook to fetch calendar appointments using server-side timezone conversion.
+ * Uses the get_staff_calendar_appointments RPC function which looks up
+ * prov_time_zone directly from the staff table, eliminating race conditions.
  */
 export function useCalendarAppointments() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
-  const { timezone: staffTimezone, isLoading: timezoneLoading } = useFreshStaffTimezone();
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRangeRef = useRef<string>('');
   const isFetchingRef = useRef(false);
-  const prevTimezoneRef = useRef<string | null>(null);
 
   const [range, setRange] = useState<CalendarRange>(defaultRange);
   const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);
@@ -83,33 +82,12 @@ export function useCalendarAppointments() {
     try {
       setLoading(true);
 
-      // Query the appointments table with correct columns
-      const { data, error } = await supabase
-        .from('appointments')
-        .select(`
-          id,
-          series_id,
-          client_id,
-          staff_id,
-          service_id,
-          start_at,
-          end_at,
-          status,
-          is_telehealth,
-          location_name,
-          time_zone,
-          created_at,
-          updated_at,
-          tenant_id,
-          clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred),
-          services!inner(id, name),
-          staff!inner(prov_name_f, prov_name_l, prov_name_for_clients)
-        `)
-        .eq('tenant_id', tenantId)
-        .eq('staff_id', staffId)
-        .gte('start_at', range.fromISO)
-        .lt('start_at', range.toISO)
-        .order('start_at', { ascending: true });
+      // Call the RPC function - timezone is resolved server-side from staff.prov_time_zone
+      const { data, error } = await supabase.rpc('get_staff_calendar_appointments', {
+        p_staff_id: staffId,
+        p_from_date: range.fromISO,
+        p_to_date: range.toISO
+      });
 
       if (error) {
         console.error('Error fetching calendar appointments:', error);
@@ -123,45 +101,44 @@ export function useCalendarAppointments() {
       }
 
       // Transform to display format
-      // Convert UTC timestamps from database to viewer's local timezone
-      // This ensures appointments display at the correct local time regardless of viewer's timezone
+      // The RPC returns the display_timezone, so we use it for local Date conversion
       const transformed: CalendarAppointment[] = (data || []).map((row: any) => {
-        // utcToLocalForCalendar: Database UTC → Visual Date in staff's timezone
-        // Creates Date objects with correct hour/minute for calendar display
-        const localStart = utcToLocalForCalendar(row.start_at, staffTimezone);
-        const localEnd = utcToLocalForCalendar(row.end_at, staffTimezone);
-
-        // Build client name
-        const clientName = row.clients?.pat_name_preferred || 
-          [row.clients?.pat_name_f, row.clients?.pat_name_m, row.clients?.pat_name_l]
-            .filter(Boolean).join(' ').trim() || 'Unknown Client';
-
-        // Build clinician name - prioritize prov_name_for_clients
-        const clinicianName = row.staff?.prov_name_for_clients ||
-          [row.staff?.prov_name_f, row.staff?.prov_name_l]
-            .filter(Boolean).join(' ').trim() || 'Unassigned';
+        // Use the server-provided timezone for Luxon conversion
+        // This ensures consistency between display strings and Date objects
+        const localStart = utcToLocalForCalendar(row.start_at, row.display_timezone);
+        const localEnd = utcToLocalForCalendar(row.end_at, row.display_timezone);
 
         return {
           id: row.id,
           series_id: row.series_id,
           client_id: row.client_id,
-          client_name: clientName,
+          client_name: row.client_name || 'Unknown Client',
           staff_id: row.staff_id,
-          clinician_name: clinicianName,
+          clinician_name: row.clinician_name || 'Unassigned',
           service_id: row.service_id,
-          service_name: row.services?.name || 'Unknown Service',
+          service_name: row.service_name || 'Unknown Service',
           start_at: row.start_at,   // Original UTC for reference
           end_at: row.end_at,       // Original UTC for reference
-          status: row.status,
+          status: row.status as 'scheduled' | 'completed' | 'cancelled',
           is_telehealth: row.is_telehealth,
           location_name: row.location_name,
           time_zone: row.time_zone, // Creator's timezone (metadata only)
           created_at: row.created_at,
           updated_at: row.updated_at,
           tenant_id: row.tenant_id,
-          local_start: localStart,  // For calendar display
-          local_end: localEnd,      // For calendar display
+          local_start: localStart,  // For react-big-calendar
+          local_end: localEnd,      // For react-big-calendar
+          // Pre-formatted strings from server
+          display_date: row.display_date,
+          display_time: row.display_time,
+          display_end_time: row.display_end_time,
+          display_timezone: row.display_timezone,
         };
+      });
+
+      console.log('[useCalendarAppointments] Loaded appointments with server timezone:', {
+        count: transformed.length,
+        timezone: transformed[0]?.display_timezone || 'none'
       });
 
       setAppointments(transformed);
@@ -177,7 +154,7 @@ export function useCalendarAppointments() {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [user, tenantId, range.fromISO, range.toISO, toast, staffTimezone]);
+  }, [user, tenantId, range.fromISO, range.toISO, toast]);
 
   // Manual refetch function
   const refetch = useCallback(() => {
@@ -192,7 +169,11 @@ export function useCalendarAppointments() {
       if (!user || !tenantId) throw new Error('User not authenticated');
 
       // Strip display-only fields
-      const { local_start, local_end, client_name, clinician_name, service_name, ...dbUpdates } = updates;
+      const { 
+        local_start, local_end, client_name, clinician_name, service_name,
+        display_date, display_time, display_end_time, display_timezone,
+        ...dbUpdates 
+      } = updates;
 
       const { data, error } = await supabase
         .from('appointments')
@@ -256,29 +237,12 @@ export function useCalendarAppointments() {
     }, 300);
   }, [range.fromISO, range.toISO, fetchAppointments]);
 
-  // Initial fetch - wait for timezone to be ready (not null), then fetch
-  // Also detects timezone changes and forces refetch
+  // Initial fetch - no timezone dependency since RPC handles it server-side
   useEffect(() => {
-    // Block until timezone is loaded and available
-    if (timezoneLoading || !staffTimezone) {
-      return;
-    }
-    
-    // Detect timezone change and force refetch
-    if (prevTimezoneRef.current !== null && prevTimezoneRef.current !== staffTimezone) {
-      console.log('[useCalendarAppointments] Timezone changed, forcing refetch', {
-        from: prevTimezoneRef.current,
-        to: staffTimezone
-      });
-      lastFetchRangeRef.current = '';  // Clear deduplication to allow refetch
-    }
-    prevTimezoneRef.current = staffTimezone;
-    
-    // Now safe to fetch with guaranteed fresh timezone
-    if (user && tenantId && !isFetchingRef.current) {
+    if (user && tenantId && user?.roleContext?.staffData?.id && !isFetchingRef.current) {
       fetchAppointments();
     }
-  }, [user, tenantId, timezoneLoading, staffTimezone, fetchAppointments]);
+  }, [user, tenantId, user?.roleContext?.staffData?.id, fetchAppointments]);
 
   return {
     appointments,

@@ -4574,6 +4574,32 @@ export type Database = {
           videoroom_url: string
         }[]
       }
+      get_staff_calendar_appointments: {
+        Args: { p_from_date?: string; p_staff_id: string; p_to_date?: string }
+        Returns: {
+          client_id: string
+          client_name: string
+          clinician_name: string
+          created_at: string
+          display_date: string
+          display_end_time: string
+          display_time: string
+          display_timezone: string
+          end_at: string
+          id: string
+          is_telehealth: boolean
+          location_name: string
+          series_id: string
+          service_id: string
+          service_name: string
+          staff_id: string
+          start_at: string
+          status: string
+          tenant_id: string
+          time_zone: string
+          updated_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
