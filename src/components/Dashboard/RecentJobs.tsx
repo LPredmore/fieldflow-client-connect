@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Eye, Clock, Video } from "lucide-react";
 import { useUnifiedAppointments } from "@/hooks/useUnifiedAppointments";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useUserTimezone } from "@/hooks/useUserTimezone";
-import { formatInUserTimezone } from "@/lib/timezoneUtils";
 import { GracefulDataWrapper } from "@/components/ui/graceful-data-wrapper";
 
 const getStatusColor = (status: string) => {
@@ -43,7 +41,6 @@ export default function RecentJobs({ enabled = true }: RecentJobsProps) {
   });
   
   const navigate = useNavigate();
-  const userTimezone = useUserTimezone();
 
   const appointmentsContent = (
     <div className="space-y-4">
@@ -81,13 +78,13 @@ export default function RecentJobs({ enabled = true }: RecentJobsProps) {
             </Badge>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
-              {formatInUserTimezone(appointment.start_at, userTimezone, 'h:mm a')}
+              {appointment.display_time || ''}
             </div>
           </div>
           
           <div className="mt-2 text-xs text-muted-foreground">
             <span className="font-medium">
-              {formatInUserTimezone(appointment.start_at, userTimezone, 'EEEE, MMM d, yyyy')}
+              {appointment.display_date || ''}
             </span>
             {appointment.clinician_name && (
               <span className="ml-2">• {appointment.clinician_name}</span>

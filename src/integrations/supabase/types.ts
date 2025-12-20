@@ -4540,6 +4540,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      format_timestamp_in_timezone: {
+        Args: { p_format?: string; p_timestamp: string; p_timezone: string }
+        Returns: string
+      }
+      get_client_appointments_display: {
+        Args: {
+          p_client_id: string
+          p_from_date?: string
+          p_target_timezone?: string
+          p_to_date?: string
+        }
+        Returns: {
+          display_date: string
+          display_end_time: string
+          display_time: string
+          display_timezone: string
+          end_at: string
+          id: string
+          is_telehealth: boolean
+          location_name: string
+          service_duration: number
+          service_id: string
+          service_name: string
+          staff_id: string
+          start_at: string
+          status: Database["public"]["Enums"]["appointment_status_enum"]
+          tenant_id: string
+          therapist_name: string
+          videoroom_url: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

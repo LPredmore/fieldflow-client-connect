@@ -94,8 +94,9 @@ const Index = () => {
                     <AppointmentCard
                       key={appt.id}
                       id={appt.id}
-                      clientName={appt.client_name}
-                      startAt={appt.start_at}
+                      clientName={appt.client_name || 'Unknown Client'}
+                      displayDate={appt.display_date}
+                      displayTime={appt.display_time}
                       isTelehealth={appt.is_telehealth}
                       showDocumentButton
                       onDocumentClick={handleDocumentSession}
@@ -122,8 +123,9 @@ const Index = () => {
                     <AppointmentCard
                       key={appt.id}
                       id={appt.id}
-                      clientName={appt.client_name}
-                      startAt={appt.start_at}
+                      clientName={appt.client_name || 'Unknown Client'}
+                      displayDate={appt.display_date}
+                      displayTime={appt.display_time}
                       isTelehealth={appt.is_telehealth}
                     />
                   ))}
@@ -148,8 +150,9 @@ const Index = () => {
                     <AppointmentCard
                       key={appt.id}
                       id={appt.id}
-                      clientName={appt.client_name}
-                      startAt={appt.start_at}
+                      clientName={appt.client_name || 'Unknown Client'}
+                      displayDate={appt.display_date}
+                      displayTime={appt.display_time}
                       isTelehealth={appt.is_telehealth}
                       showDocumentButton
                       onDocumentClick={handleDocumentSession}

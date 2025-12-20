@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, User, Edit, Video, MapPin, Repeat, Trash2 } from 'lucide-react';
-import { formatInUserTimezone } from '@/lib/timezoneUtils';
 import { useUserTimezone } from '@/hooks/useUserTimezone';
+import { useFormattedTime, TIME_FORMATS } from '@/hooks/useFormattedTime';
 import AppointmentForm from './AppointmentForm';
 import { RecurringEditDialog } from './RecurringEditDialog';
 import { DeleteAppointmentDialog } from './DeleteAppointmentDialog';
@@ -34,6 +34,10 @@ interface AppointmentData {
   client_phone?: string;
   service_name?: string;
   clinician_name?: string;
+  // Database-formatted display strings (optional)
+  display_date?: string;
+  display_time?: string;
+  display_end_time?: string;
 }
 
 interface AppointmentViewProps {
@@ -81,6 +85,40 @@ export default function AppointmentView({
   const [showEditScopeDialog, setShowEditScopeDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const userTimezone = useUserTimezone();
+
+  // Use database-level formatting for schedule display
+  const { formattedValue: dbDisplayDate } = useFormattedTime(
+    appointment.start_at,
+    'FMDay, FMMonth DD, YYYY',
+    userTimezone
+  );
+  const { formattedValue: dbDisplayStartTime } = useFormattedTime(
+    appointment.start_at,
+    TIME_FORMATS.TIME_12H_COMPACT,
+    userTimezone
+  );
+  const { formattedValue: dbDisplayEndTime } = useFormattedTime(
+    appointment.end_at,
+    TIME_FORMATS.TIME_12H_COMPACT,
+    userTimezone
+  );
+  const { formattedValue: dbCreatedAt } = useFormattedTime(
+    appointment.created_at,
+    'FMMonth DD, YYYY FMHH12:MI AM',
+    userTimezone
+  );
+  const { formattedValue: dbUpdatedAt } = useFormattedTime(
+    appointment.updated_at,
+    'FMMonth DD, YYYY FMHH12:MI AM',
+    userTimezone
+  );
+
+  // Use pre-formatted strings if available, otherwise use database-formatted values
+  const displayDate = appointment.display_date || dbDisplayDate || '';
+  const displayStartTime = appointment.display_time || dbDisplayStartTime || '';
+  const displayEndTime = appointment.display_end_time || dbDisplayEndTime || '';
+  const displayCreatedAt = dbCreatedAt || '';
+  const displayUpdatedAt = dbUpdatedAt || '';
 
   const {
     editSingleOccurrence,
@@ -280,22 +318,16 @@ export default function AppointmentView({
         <CardContent className="space-y-2">
           <div>
             <span className="text-sm text-muted-foreground">Date:</span>
-            <p className="font-medium">
-              {formatInUserTimezone(appointment.start_at, userTimezone, 'EEEE, MMMM d, yyyy')}
-            </p>
+            <p className="font-medium">{displayDate}</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <span className="text-sm text-muted-foreground">Start Time:</span>
-              <p className="font-medium">
-                {formatInUserTimezone(appointment.start_at, userTimezone, 'h:mm a')}
-              </p>
+              <p className="font-medium">{displayStartTime}</p>
             </div>
             <div>
               <span className="text-sm text-muted-foreground">End Time:</span>
-              <p className="font-medium">
-                {formatInUserTimezone(appointment.end_at, userTimezone, 'h:mm a')}
-              </p>
+              <p className="font-medium">{displayEndTime}</p>
             </div>
           </div>
           <div>
@@ -368,16 +400,12 @@ export default function AppointmentView({
         <CardContent className="space-y-2">
           <div>
             <span className="text-sm text-muted-foreground">Created:</span>
-            <p className="font-medium">
-              {formatInUserTimezone(appointment.created_at, userTimezone, 'MMM d, yyyy h:mm a')}
-            </p>
+            <p className="font-medium">{displayCreatedAt}</p>
           </div>
-          {appointment.updated_at && (
+          {appointment.updated_at && displayUpdatedAt && (
             <div>
               <span className="text-sm text-muted-foreground">Last Updated:</span>
-              <p className="font-medium">
-                {formatInUserTimezone(appointment.updated_at, userTimezone, 'MMM d, yyyy h:mm a')}
-              </p>
+              <p className="font-medium">{displayUpdatedAt}</p>
             </div>
           )}
           <div>
