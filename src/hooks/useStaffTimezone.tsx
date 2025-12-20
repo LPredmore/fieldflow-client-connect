@@ -18,11 +18,9 @@ export function useStaffTimezone(): string {
       return staffTimezone;
     }
     
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } catch {
-      return 'America/New_York';
-    }
+    // Fallback to America/New_York to match database RPC default
+    // This ensures storage and display use the same timezone when prov_time_zone is not set
+    return 'America/New_York';
   }, [user?.roleContext?.staffData?.prov_time_zone]);
   
   return timezone;
@@ -104,12 +102,8 @@ export function useFreshStaffTimezone(): {
     
     if (freshTimezone) return freshTimezone;
     
-    // Only use browser fallback AFTER we know DB has no timezone
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } catch {
-      return 'America/New_York';
-    }
+    // Fallback to America/New_York to match database RPC default
+    return 'America/New_York';
   }, [queryComplete, freshTimezone]);
 
   return {

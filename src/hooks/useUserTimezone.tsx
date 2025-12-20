@@ -19,13 +19,9 @@ export function useUserTimezone(): string {
       return staffTimezone;
     }
     
-    // Fallback to browser timezone
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } catch (error) {
-      console.warn('Failed to detect browser timezone, falling back to America/New_York');
-      return 'America/New_York';
-    }
+    // Fallback to America/New_York to match database RPC default
+    // This ensures storage and display use the same timezone when prov_time_zone is not set
+    return 'America/New_York';
   }, [user?.roleContext?.staffData?.prov_time_zone]);
 
   return effectiveTimezone;

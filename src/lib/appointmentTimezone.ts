@@ -15,15 +15,20 @@
 import { DateTime } from 'luxon';
 
 /**
- * Get the current browser's timezone (IANA format)
- * Example: "America/Chicago", "America/New_York"
+ * Default timezone used when staff prov_time_zone is not set.
+ * This must match the fallback in get_staff_calendar_appointments RPC.
+ */
+const DEFAULT_TIMEZONE = 'America/New_York';
+
+/**
+ * Get the default timezone for appointment operations.
  * 
  * @deprecated Use useStaffTimezone hook instead for staff views.
- * This function only returns browser timezone and does not account for
- * staff profile prov_time_zone preference.
+ * This function returns the practice default timezone (America/New_York)
+ * and does not account for staff profile prov_time_zone preference.
  */
 export function getBrowserTimezone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return DEFAULT_TIMEZONE;
 }
 
 /**
