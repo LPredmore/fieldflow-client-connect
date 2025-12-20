@@ -333,9 +333,23 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
     });
   }, [appointments]);
 
+  // Memoized Map for O(1) appointment lookup by ID
+  const appointmentsById = useMemo(() => {
+    const map = new Map<string, StaffAppointment>();
+    appointments.forEach(apt => map.set(apt.id, apt));
+    return map;
+  }, [appointments]);
+
+  // Helper to get a single appointment by ID
+  const getAppointmentById = useCallback((id: string): StaffAppointment | undefined => {
+    return appointmentsById.get(id);
+  }, [appointmentsById]);
+
   return {
     // Data
     appointments,
+    appointmentsById,
+    getAppointmentById,
     todaysAppointments,
     upcomingAppointments,
     undocumentedAppointments,

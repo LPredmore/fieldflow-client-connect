@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAppointmentManagement, ManagedAppointment, AppointmentSeries } from "@/hooks/useAppointmentManagement";
-import { useStaffAppointments } from "@/hooks/useStaffAppointments";
+import { useStaffAppointments, StaffAppointment } from "@/hooks/useStaffAppointments";
 import { useAuth } from "@/hooks/useAuth";
 import AppointmentView from "@/components/Appointments/AppointmentView";
 import AppointmentSeriesView from "@/components/Appointments/AppointmentSeriesView";
@@ -63,14 +63,17 @@ function isAppointmentSeries(item: ManagedAppointment | AppointmentSeries): item
 
 export default function Appointments() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewAppointment, setViewAppointment] = useState<ManagedAppointment | null>(null);
+  const [viewAppointmentId, setViewAppointmentId] = useState<string | null>(null);
   const [viewSeries, setViewSeries] = useState<AppointmentSeries | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteType, setDeleteType] = useState<'appointment' | 'series'>('appointment');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   
-  // Use unified staff appointments for timezone-aware display
-  const { staffTimezone } = useStaffAppointments();
+  // Use unified staff appointments for timezone-aware display with pre-formatted strings
+  const { appointments: staffAppointments, getAppointmentById, staffTimezone } = useStaffAppointments();
+  
+  // Get the selected appointment with pre-formatted display strings
+  const viewAppointment = viewAppointmentId ? getAppointmentById(viewAppointmentId) : null;
   
   // Use appointment management for CRUD and series data
   const { 
@@ -102,7 +105,8 @@ export default function Appointments() {
     if (isAppointmentSeries(item)) {
       setViewSeries(item);
     } else {
-      setViewAppointment(item);
+      // Use the appointment ID to look up the StaffAppointment with pre-formatted strings
+      setViewAppointmentId(item.id);
     }
   };
 
@@ -285,7 +289,7 @@ export default function Appointments() {
         </div>
 
         {/* Appointment View Modal */}
-        <Dialog open={!!viewAppointment} onOpenChange={() => setViewAppointment(null)}>
+        <Dialog open={!!viewAppointment} onOpenChange={() => setViewAppointmentId(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Appointment Details</DialogTitle>
@@ -294,6 +298,7 @@ export default function Appointments() {
               <AppointmentView 
                 job={viewAppointment}
                 onUpdate={updateAppointment}
+                onRefresh={refetch}
               />
             )}
           </DialogContent>
