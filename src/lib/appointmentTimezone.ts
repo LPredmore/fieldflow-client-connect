@@ -133,13 +133,15 @@ export function utcToLocal(
 /**
  * Convert UTC to a Date object that DISPLAYS at the correct local time.
  * 
- * This function creates a "visual" Date using local time components,
- * bypassing the browser's timezone interpretation. Use this for calendar
- * display where you need times to appear in a specific timezone regardless
- * of the browser's timezone.
+ * @deprecated This function is no longer needed. RBCCalendar now uses 
+ * Luxon Settings.defaultZone to handle timezone display correctly.
+ * Use DateTime.fromISO(utc, {zone: 'utc'}).toJSDate() directly and let
+ * the Luxon localizer handle timezone conversion.
  * 
- * IMPORTANT: This Date does NOT represent the correct UTC instant!
- * Use only for calendar/UI display purposes.
+ * This function creates a "visual" Date using local time components,
+ * bypassing the browser's timezone interpretation. This approach is
+ * fundamentally flawed because JavaScript Date objects cannot represent
+ * "5:00 AM in Los Angeles" - they represent a specific UTC instant.
  * 
  * @param utcTimestamp - ISO string from database (UTC)
  * @param timezone - Target timezone (IANA format, e.g., "America/Chicago")
@@ -149,7 +151,11 @@ export function utcToLocalForCalendar(
   utcTimestamp: string,
   timezone: string
 ): Date {
-  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  console.warn(
+    '[DEPRECATED] utcToLocalForCalendar is deprecated. ' +
+    'Use DateTime.fromISO(utc, {zone: "utc"}).toJSDate() with Luxon Settings.defaultZone instead.'
+  );
+  
   const utc = DateTime.fromISO(utcTimestamp, { zone: 'utc' });
   
   if (!utc.isValid) {
@@ -161,7 +167,7 @@ export function utcToLocalForCalendar(
   const local = utc.setZone(timezone);
   
   // Create Date using LOCAL components (bypasses browser TZ interpretation)
-  // This makes the Date "look like" the correct time on the calendar
+  // WARNING: This Date does NOT represent the correct UTC instant!
   const result = new Date(
     local.year,
     local.month - 1, // JS months are 0-indexed
@@ -170,42 +176,6 @@ export function utcToLocalForCalendar(
     local.minute,
     local.second
   );
-
-  // Comprehensive timezone debugging
-  const timezoneMismatch = browserTz !== timezone;
-  console.log('[TIMEZONE DEBUG] utcToLocalForCalendar:', {
-    // Inputs
-    input_utcTimestamp: utcTimestamp,
-    input_targetTimezone: timezone,
-    
-    // Browser context
-    browserTimezone: browserTz,
-    timezoneMismatch: timezoneMismatch ? '⚠️ MISMATCH' : '✅ Match',
-    
-    // Luxon intermediate values
-    luxon_utcHour: utc.hour,
-    luxon_utcMinute: utc.minute,
-    luxon_utcZone: utc.zoneName,
-    luxon_localHour: local.hour,
-    luxon_localMinute: local.minute,
-    luxon_localZone: local.zoneName,
-    
-    // Final Date object
-    result_getHours: result.getHours(),
-    result_getMinutes: result.getMinutes(),
-    result_toString: result.toString(),
-    
-    // Diagnosis
-    hourMatch: local.hour === result.getHours() ? '✅ Hours match' : '⚠️ HOURS DIFFER',
-  });
-  
-  // Warning if timezone mismatch detected
-  if (timezoneMismatch) {
-    console.warn(
-      `[TIMEZONE WARNING] Browser TZ (${browserTz}) ≠ Staff TZ (${timezone}). ` +
-      `Date object uses browser TZ interpretation - calendar may show wrong time.`
-    );
-  }
 
   return result;
 }
