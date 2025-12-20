@@ -13,6 +13,7 @@
  */
 
 import { DateTime } from 'luxon';
+import { fromZonedTime } from 'date-fns-tz';
 
 /**
  * Default timezone used when staff prov_time_zone is not set.
@@ -51,34 +52,28 @@ export function localToUTC(
 ): string {
   const zone = timezone || DEFAULT_TIMEZONE;
   
-  // Build ISO string from date and time (e.g., "2025-12-20T09:00")
-  // Using fromISO with explicit zone is more reliable than fromObject
-  const isoString = `${date}T${time}`;
+  // Parse date/time components explicitly
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
   
-  // Parse as if this time is in the specified timezone
-  const local = DateTime.fromISO(isoString, { zone });
+  // Create a Date where LOCAL components = user input
+  // Note: Date constructor uses 0-indexed months
+  const localDate = new Date(year, month - 1, day, hour, minute, 0, 0);
   
-  if (!local.isValid) {
-    console.error('[localToUTC] Invalid DateTime:', {
-      date, time, zone,
-      invalidReason: local.invalidReason,
-      invalidExplanation: local.invalidExplanation
-    });
-    throw new Error(`Invalid date/time: ${date} ${time} in ${zone}`);
-  }
-  
-  // Convert to UTC
-  const utc = local.toUTC();
+  // fromZonedTime interprets localDate's LOCAL components as being in 'zone'
+  // and returns the actual UTC instant
+  // This works because date-fns-tz bundles its own timezone database
+  const utcDate = fromZonedTime(localDate, zone);
   
   // Debug logging to verify conversion is working correctly
   console.log('[localToUTC] Timezone conversion:', {
     input: { date, time, zone },
-    localISO: local.toISO(),
-    utcISO: utc.toISO(),
-    offsetMinutes: local.offset
+    localDate: localDate.toString(),
+    utcISO: utcDate.toISOString(),
+    expectedOffset: `${zone} → UTC`
   });
   
-  return utc.toISO()!;
+  return utcDate.toISOString();
 }
 
 /**
@@ -97,19 +92,16 @@ export function localToUTCDate(
 ): Date {
   const zone = timezone || DEFAULT_TIMEZONE;
   
-  // Build ISO string and parse in the specified timezone
-  const isoString = `${date}T${time}`;
-  const local = DateTime.fromISO(isoString, { zone });
+  // Parse date/time components explicitly
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
   
-  if (!local.isValid) {
-    console.error('[localToUTCDate] Invalid DateTime:', {
-      date, time, zone,
-      invalidReason: local.invalidReason
-    });
-    throw new Error(`Invalid date/time: ${date} ${time} in ${zone}`);
-  }
+  // Create a Date where LOCAL components = user input
+  const localDate = new Date(year, month - 1, day, hour, minute, 0, 0);
   
-  return local.toUTC().toJSDate();
+  // fromZonedTime interprets localDate's LOCAL components as being in 'zone'
+  // and returns the actual UTC instant
+  return fromZonedTime(localDate, zone);
 }
 
 /**
