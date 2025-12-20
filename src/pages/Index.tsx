@@ -3,9 +3,8 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import RoleIndicator from "@/components/Layout/RoleIndicator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useUnifiedAppointments } from "@/hooks/useUnifiedAppointments";
+import { useStaffAppointments } from "@/hooks/useStaffAppointments";
 import AppointmentCard from "@/components/Dashboard/AppointmentCard";
-import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const Index = () => {
@@ -13,37 +12,15 @@ const Index = () => {
   const navigate = useNavigate();
   const isDashboardRoute = location.pathname === '/staff/dashboard';
   
+  // Use unified staff appointments hook - all timezone handling is server-side
   const { 
-    unifiedJobs: appointments,
-  } = useUnifiedAppointments({ 
+    todaysAppointments,
+    upcomingAppointments,
+    undocumentedAppointments,
+    loading,
+  } = useStaffAppointments({ 
     enabled: isDashboardRoute 
   });
-
-  // Today's appointments - start_at is today
-  const todaysAppointments = useMemo(() => {
-    const today = new Date().toDateString();
-    return appointments.filter(appt => {
-      const apptDate = new Date(appt.start_at).toDateString();
-      return apptDate === today;
-    });
-  }, [appointments]);
-
-  // Upcoming appointments - start_at is after today
-  const upcomingAppointments = useMemo(() => {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    return appointments.filter(appt => {
-      return new Date(appt.start_at) > today;
-    });
-  }, [appointments]);
-
-  // Undocumented appointments - start_at is today or before, not completed
-  const undocumentedAppointments = useMemo(() => {
-    const now = new Date();
-    return appointments.filter(appt => {
-      return new Date(appt.start_at) <= now && appt.status !== 'completed';
-    });
-  }, [appointments]);
 
   const handleDocumentSession = (appointmentId: string) => {
     navigate(`/staff/appointments?view=${appointmentId}`);
@@ -84,7 +61,13 @@ const Index = () => {
               <CardTitle className="text-lg font-semibold">Today's Appointments</CardTitle>
             </CardHeader>
             <CardContent>
-              {todaysAppointments.length === 0 ? (
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-20 bg-muted rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : todaysAppointments.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No appointments scheduled for today
                 </p>
@@ -94,7 +77,7 @@ const Index = () => {
                     <AppointmentCard
                       key={appt.id}
                       id={appt.id}
-                      clientName={appt.client_name || 'Unknown Client'}
+                      clientName={appt.client_name}
                       displayDate={appt.display_date}
                       displayTime={appt.display_time}
                       isTelehealth={appt.is_telehealth}
@@ -113,7 +96,13 @@ const Index = () => {
               <CardTitle className="text-lg font-semibold">Upcoming Appointments</CardTitle>
             </CardHeader>
             <CardContent>
-              {upcomingAppointments.length === 0 ? (
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-20 bg-muted rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : upcomingAppointments.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No upcoming appointments
                 </p>
@@ -123,7 +112,7 @@ const Index = () => {
                     <AppointmentCard
                       key={appt.id}
                       id={appt.id}
-                      clientName={appt.client_name || 'Unknown Client'}
+                      clientName={appt.client_name}
                       displayDate={appt.display_date}
                       displayTime={appt.display_time}
                       isTelehealth={appt.is_telehealth}
@@ -140,7 +129,13 @@ const Index = () => {
               <CardTitle className="text-lg font-semibold">Undocumented Appointments</CardTitle>
             </CardHeader>
             <CardContent>
-              {undocumentedAppointments.length === 0 ? (
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-20 bg-muted rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : undocumentedAppointments.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   All appointments are documented
                 </p>
@@ -150,7 +145,7 @@ const Index = () => {
                     <AppointmentCard
                       key={appt.id}
                       id={appt.id}
-                      clientName={appt.client_name || 'Unknown Client'}
+                      clientName={appt.client_name}
                       displayDate={appt.display_date}
                       displayTime={appt.display_time}
                       isTelehealth={appt.is_telehealth}

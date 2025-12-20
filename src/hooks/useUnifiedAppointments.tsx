@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use useStaffAppointments instead for staff-facing pages.
+ * This hook queries appointments directly without server-side timezone handling.
+ * useStaffAppointments provides unified timezone handling using the RPC function.
+ */
 import { useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';

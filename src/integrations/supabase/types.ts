@@ -4586,6 +4586,8 @@ export type Database = {
           display_time: string
           display_timezone: string
           end_at: string
+          end_hour: number
+          end_minute: number
           id: string
           is_telehealth: boolean
           location_name: string
@@ -4594,6 +4596,11 @@ export type Database = {
           service_name: string
           staff_id: string
           start_at: string
+          start_day: number
+          start_hour: number
+          start_minute: number
+          start_month: number
+          start_year: number
           status: string
           tenant_id: string
           time_zone: string

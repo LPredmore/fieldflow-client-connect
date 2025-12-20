@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use useStaffAppointments instead.
+ * This hook is kept for backward compatibility but useStaffAppointments provides
+ * unified timezone handling with server-side resolution.
+ */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
