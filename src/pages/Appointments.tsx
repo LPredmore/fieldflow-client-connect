@@ -25,24 +25,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAppointmentManagement, ManagedAppointment, AppointmentSeries } from "@/hooks/useAppointmentManagement";
+import { useStaffAppointments } from "@/hooks/useStaffAppointments";
 import { useAuth } from "@/hooks/useAuth";
 import AppointmentView from "@/components/Appointments/AppointmentView";
 import AppointmentSeriesView from "@/components/Appointments/AppointmentSeriesView";
 import { CreateAppointmentDialog } from "@/components/Appointments/CreateAppointmentDialog";
 import { useToast } from "@/hooks/use-toast";
-import { useUserTimezone } from "@/hooks/useUserTimezone";
-import { formatInUserTimezone } from "@/lib/timezoneUtils";
 
-const TimezoneIndicator = () => {
-  const userTimezone = useUserTimezone();
-  const timezoneName = new Intl.DateTimeFormat('en', {
-    timeZoneName: 'short'
-  }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value;
-
+const TimezoneIndicator = ({ timezone }: { timezone: string }) => {
+  if (!timezone) return null;
+  
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground">
       <Clock className="h-4 w-4" />
-      <span>Times shown in {timezoneName} ({userTimezone})</span>
+      <span>Times shown in {timezone}</span>
     </div>
   );
 };
@@ -73,6 +69,10 @@ export default function Appointments() {
   const [deleteType, setDeleteType] = useState<'appointment' | 'series'>('appointment');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   
+  // Use unified staff appointments for timezone-aware display
+  const { staffTimezone } = useStaffAppointments();
+  
+  // Use appointment management for CRUD and series data
   const { 
     appointments, 
     series, 
@@ -83,9 +83,9 @@ export default function Appointments() {
     deleteSeries,
     refetch
   } = useAppointmentManagement();
+  
   const { userRole, isAdmin } = useAuth();
   const { toast } = useToast();
-  const userTimezone = useUserTimezone();
 
   // Combine and filter appointments and series
   const allItems = [...appointments, ...series];
@@ -132,11 +132,22 @@ export default function Appointments() {
 
   const getItemDate = (item: ManagedAppointment | AppointmentSeries) => {
     if (isAppointmentSeries(item)) {
-      return item.next_occurrence_date 
-        ? formatInUserTimezone(item.next_occurrence_date, userTimezone, 'MMM d, yyyy h:mm a')
-        : 'No upcoming';
+      // For series, use the start_at formatted simply
+      if (item.next_occurrence_date) {
+        return new Date(item.next_occurrence_date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      }
+      return 'No upcoming';
     }
-    return formatInUserTimezone(item.start_at, userTimezone, 'MMM d, yyyy h:mm a');
+    // For appointments, use start_at
+    return new Date(item.start_at).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
 
   const getItemStatus = (item: ManagedAppointment | AppointmentSeries) => {
@@ -165,7 +176,7 @@ export default function Appointments() {
               <div>
                 <h1 className="text-3xl font-bold text-foreground mb-2">Appointments</h1>
                 <p className="text-muted-foreground">Manage and track your appointments</p>
-                <TimezoneIndicator />
+                <TimezoneIndicator timezone={staffTimezone} />
               </div>
               <RoleIndicator />
             </div>
@@ -216,7 +227,7 @@ export default function Appointments() {
                     <TableHead>Clinician</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Date/Time</TableHead>
+                    <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

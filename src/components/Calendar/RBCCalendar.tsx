@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Calendar, luxonLocalizer, SlotInfo } from 'react-big-calendar';
-import { DateTime, Settings } from 'luxon';
+import { DateTime } from 'luxon';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
-import { useCalendarAppointments } from '@/hooks/useCalendarAppointments';
+import { useStaffAppointments } from '@/hooks/useStaffAppointments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CalendarIcon } from 'lucide-react';
@@ -13,7 +13,6 @@ import AppointmentView from '@/components/Appointments/AppointmentView';
 import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppointmentDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useStaffTimezone } from '@/hooks/useStaffTimezone';
 
 // Luxon localizer for React Big Calendar
 const localizer = luxonLocalizer(DateTime);
@@ -27,11 +26,6 @@ function createLocalTime(hour: number, minute = 0): Date {
   const d = new Date();
   d.setHours(hour, minute, 0, 0);
   return d;
-}
-
-// Format time for display using Luxon
-function formatTime(date: Date): string {
-  return DateTime.fromJSDate(date).toFormat('h:mm a');
 }
 
 function loadWorkingHours(): { start: number; end: number } {
@@ -54,10 +48,9 @@ function saveWorkingHours(start: number, end: number) {
 }
 
 export function RBCCalendar() {
-  const { appointments, loading, refetch } = useCalendarAppointments();
+  // Use the unified staff appointments hook - timezone is handled server-side
+  const { appointments, loading, refetch, staffTimezone } = useStaffAppointments();
   const { tenantId } = useAuth();
-  const staffTimezone = useStaffTimezone();
-  const previousDefaultZoneRef = useRef<string | null>(null);
   
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -69,111 +62,57 @@ export function RBCCalendar() {
   const [workingHoursStart, setWorkingHoursStart] = useState(() => loadWorkingHours().start);
   const [workingHoursEnd, setWorkingHoursEnd] = useState(() => loadWorkingHours().end);
 
-  // Set Luxon's default zone to staff timezone for calendar rendering
-  // This ensures react-big-calendar interprets all Date objects in staff's timezone
-  useEffect(() => {
-    if (staffTimezone) {
-      // Save the previous default zone so we can restore it on unmount
-      previousDefaultZoneRef.current = Settings.defaultZone?.name || null;
-      Settings.defaultZone = staffTimezone;
-      console.log('[RBCCalendar] Set Luxon defaultZone to staff timezone:', staffTimezone);
-    }
-    
-    return () => {
-      // Restore previous default zone on unmount
-      if (previousDefaultZoneRef.current) {
-        Settings.defaultZone = previousDefaultZoneRef.current;
-        console.log('[RBCCalendar] Restored Luxon defaultZone to:', previousDefaultZoneRef.current);
-      } else {
-        Settings.defaultZone = 'system';
-        console.log('[RBCCalendar] Restored Luxon defaultZone to system');
-      }
-    };
-  }, [staffTimezone]);
-
   const handleWorkingHoursChange = useCallback((start: number, end: number) => {
     setWorkingHoursStart(start);
     setWorkingHoursEnd(end);
     saveWorkingHours(start, end);
   }, []);
 
-  // Plain local Date objects for min/max - no UTC gymnastics
-  const minTime = useMemo(() => {
-    const min = createLocalTime(workingHoursStart, 0);
-    console.log('[RBC] min:', min.toString(), 'hours:', min.getHours());
-    return min;
-  }, [workingHoursStart]);
+  // Plain local Date objects for min/max
+  const minTime = useMemo(() => createLocalTime(workingHoursStart, 0), [workingHoursStart]);
+  const maxTime = useMemo(() => createLocalTime(workingHoursEnd, 0), [workingHoursEnd]);
+  const scrollToTime = useMemo(() => createLocalTime(workingHoursStart, 0), [workingHoursStart]);
 
-  const maxTime = useMemo(() => {
-    const max = createLocalTime(workingHoursEnd, 0);
-    console.log('[RBC] max:', max.toString(), 'hours:', max.getHours());
-    return max;
-  }, [workingHoursEnd]);
-
-  const scrollToTime = useMemo(() => {
-    return createLocalTime(workingHoursStart, 0);
-  }, [workingHoursStart]);
-
-  // Get timezone info for debugging display
-  const displayTimezone = appointments[0]?.display_timezone || staffTimezone;
+  // Timezone mismatch indicator
   const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const tzMismatch = displayTimezone && displayTimezone !== browserTimezone;
+  const tzMismatch = staffTimezone && staffTimezone !== browserTimezone;
 
-  // Convert appointments to RBC event format
-  // Time Model (Fixed):
-  // - Database stores UTC timestamps (start_at, end_at)
-  // - We pass TRUE UTC Date objects to the calendar (via DateTime.fromISO(...).toJSDate())
-  // - Luxon's Settings.defaultZone is set to staff timezone
-  // - React Big Calendar (with Luxon localizer) interprets dates in the default zone
-  // - This ensures appointments display at the correct staff local time
+  // Convert appointments to RBC event format using "fake local" Dates
+  // The calendar_start and calendar_end Dates are constructed so getHours() returns
+  // the staff's local hour, which react-big-calendar uses for grid positioning
   const events = useMemo(() => {
     if (!appointments || !Array.isArray(appointments)) return [];
 
-    const mapped = appointments.map((appt) => {
-      // Create TRUE UTC Date objects by parsing UTC timestamp and converting to JS Date
-      // The Luxon localizer will then interpret these in Settings.defaultZone (staff TZ)
-      const startDate = DateTime.fromISO(appt.start_at, { zone: 'utc' }).toJSDate();
-      const endDate = DateTime.fromISO(appt.end_at, { zone: 'utc' }).toJSDate();
-      
-      return {
-        id: appt.id,
-        title: `${appt.service_name} - ${appt.client_name}`,
-        // Pass TRUE UTC Date objects - Luxon localizer handles timezone display
-        start: startDate,
-        end: endDate,
-        resource: {
-          status: appt.status,
-          client_name: appt.client_name,
-          service_name: appt.service_name,
-          series_id: appt.series_id,
-          is_telehealth: appt.is_telehealth,
-          // Include server display times for reference
-          display_time: appt.display_time,
-          display_end_time: appt.display_end_time,
-          display_timezone: appt.display_timezone,
-        },
-      };
-    });
+    const mapped = appointments.map((appt) => ({
+      id: appt.id,
+      title: `${appt.service_name} - ${appt.client_name}`,
+      // Use "fake local" Dates - getHours() returns staff's local hour
+      start: appt.calendar_start,
+      end: appt.calendar_end,
+      resource: {
+        status: appt.status,
+        client_name: appt.client_name,
+        service_name: appt.service_name,
+        series_id: appt.series_id,
+        is_telehealth: appt.is_telehealth,
+        display_time: appt.display_time,
+        display_end_time: appt.display_end_time,
+      },
+    }));
 
-    // Debug logging for calendar events
+    // Debug logging
     if (mapped.length > 0) {
       const first = mapped[0];
       const firstAppt = appointments[0];
-      
-      // Parse in staff timezone to show expected display time
-      const expectedDisplay = DateTime.fromISO(firstAppt.start_at, { zone: 'utc' })
-        .setZone(staffTimezone);
-      
-      console.group('[TIMEZONE DEBUG] Calendar Events (Fixed)');
-      console.log('Staff timezone:', staffTimezone);
-      console.log('Luxon defaultZone:', Settings.defaultZone);
-      console.log('First appointment:', {
-        rawUTC: firstAppt.start_at,
-        expectedLocalHour: expectedDisplay.hour,
-        expectedLocalMinute: expectedDisplay.minute,
-        serverDisplayTime: firstAppt?.display_time,
+      console.log('[RBCCalendar] Events mapped:', {
+        count: mapped.length,
+        staffTimezone,
+        firstEvent: {
+          displayTime: firstAppt.display_time,
+          calendarStartHour: first.start.getHours(),
+          calendarStartMinute: first.start.getMinutes(),
+        },
       });
-      console.groupEnd();
     }
 
     return mapped;
@@ -300,7 +239,7 @@ export function RBCCalendar() {
           </CardTitle>
           {tzMismatch && (
             <span className="text-xs text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-1 rounded border border-yellow-300 dark:border-yellow-700">
-              ⚠️ Browser TZ ({browserTimezone}) ≠ Staff TZ ({staffTimezone})
+              Showing times in {staffTimezone}
             </span>
           )}
         </div>
