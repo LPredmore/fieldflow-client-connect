@@ -4605,6 +4605,7 @@ export type Database = {
           tenant_id: string
           time_zone: string
           updated_at: string
+          videoroom_url: string
         }[]
       }
       has_role: {
