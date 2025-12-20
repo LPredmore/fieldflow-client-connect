@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useFormattedAppointments } from './useFormattedAppointments';
 
 /**
  * Appointment interface matching the actual `appointments` table schema
@@ -30,6 +31,11 @@ export interface Appointment {
   client_phone?: string;
   service_name?: string;
   clinician_name?: string;
+  // Database-formatted display strings
+  display_date?: string;
+  display_time?: string;
+  display_end_time?: string;
+  display_timezone?: string;
 }
 
 // Legacy alias for backward compatibility
@@ -101,7 +107,7 @@ export function useUnifiedAppointments(options?: UseUnifiedAppointmentsOptions) 
   });
 
   // Transform raw data to Appointment interface
-  const unifiedAppointments = useMemo(() => {
+  const transformedAppointments = useMemo(() => {
     if (!appointments || !Array.isArray(appointments)) return [];
 
     return appointments.map((appt: any): Appointment => {
@@ -140,6 +146,12 @@ export function useUnifiedAppointments(options?: UseUnifiedAppointmentsOptions) 
       };
     });
   }, [appointments]);
+
+  // Add database-formatted display strings to appointments
+  const { formattedAppointments: unifiedAppointments, isFormatting } = useFormattedAppointments(
+    transformedAppointments,
+    enabled && !!user && !!tenantId
+  );
 
   // Get upcoming scheduled appointments for dashboard
   const upcomingAppointments = useMemo(() => {
@@ -205,12 +217,13 @@ export function useUnifiedAppointments(options?: UseUnifiedAppointmentsOptions) 
     upcomingAppointments,
     
     // Loading states
-    loading,
+    loading: loading || isFormatting,
     error,
     isStale,
     isCircuitBreakerOpen,
     lastUpdated,
     errorType,
+    isFormatting,
     
     // Actions
     refetch,
