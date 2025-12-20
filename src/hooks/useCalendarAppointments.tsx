@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { utcToLocalForCalendar } from '@/lib/appointmentTimezone';
@@ -54,6 +54,7 @@ export function useCalendarAppointments() {
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRangeRef = useRef<string>('');
   const isFetchingRef = useRef(false);
+  const prevTimezoneRef = useRef<string | null>(null);
 
   const [range, setRange] = useState<CalendarRange>(defaultRange);
   const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);
@@ -255,12 +256,29 @@ export function useCalendarAppointments() {
     }, 300);
   }, [range.fromISO, range.toISO, fetchAppointments]);
 
-  // Initial fetch - wait for timezone to load, then fetch
-  useMemo(() => {
-    if (user && tenantId && !timezoneLoading && !isFetchingRef.current) {
+  // Initial fetch - wait for timezone to be ready (not null), then fetch
+  // Also detects timezone changes and forces refetch
+  useEffect(() => {
+    // Block until timezone is loaded and available
+    if (timezoneLoading || !staffTimezone) {
+      return;
+    }
+    
+    // Detect timezone change and force refetch
+    if (prevTimezoneRef.current !== null && prevTimezoneRef.current !== staffTimezone) {
+      console.log('[useCalendarAppointments] Timezone changed, forcing refetch', {
+        from: prevTimezoneRef.current,
+        to: staffTimezone
+      });
+      lastFetchRangeRef.current = '';  // Clear deduplication to allow refetch
+    }
+    prevTimezoneRef.current = staffTimezone;
+    
+    // Now safe to fetch with guaranteed fresh timezone
+    if (user && tenantId && !isFetchingRef.current) {
       fetchAppointments();
     }
-  }, [user, tenantId, timezoneLoading, staffTimezone]);
+  }, [user, tenantId, timezoneLoading, staffTimezone, fetchAppointments]);
 
   return {
     appointments,
