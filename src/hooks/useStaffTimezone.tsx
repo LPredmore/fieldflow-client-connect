@@ -42,22 +42,27 @@ export function useHasStaffTimezone(): boolean {
  * Use this for components that need guaranteed fresh timezone data.
  */
 export function useFreshStaffTimezone(): {
-  timezone: string;
+  timezone: string | null;  // null while loading
   isLoading: boolean;
   hasStaffTimezone: boolean;
 } {
   const { user } = useAuth();
   const [freshTimezone, setFreshTimezone] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [queryComplete, setQueryComplete] = useState(false);
 
-  // Fetch fresh timezone on mount
+  // Fetch fresh timezone on mount - BLOCKS until complete
   useEffect(() => {
     let mounted = true;
 
     const fetchTimezone = async () => {
       const staffId = user?.roleContext?.staffData?.id;
       if (!staffId) {
-        setIsLoading(false);
+        // No staff ID available yet, mark complete to use browser fallback
+        if (mounted) {
+          setQueryComplete(true);
+          setIsLoading(false);
+        }
         return;
       }
 
@@ -68,11 +73,17 @@ export function useFreshStaffTimezone(): {
           .eq('id', staffId)
           .single();
 
-        if (mounted && !error && data?.prov_time_zone) {
-          setFreshTimezone(data.prov_time_zone);
+        if (mounted) {
+          if (!error && data?.prov_time_zone) {
+            setFreshTimezone(data.prov_time_zone);
+          }
+          setQueryComplete(true);
         }
       } catch (err) {
         console.error('Failed to fetch staff timezone:', err);
+        if (mounted) {
+          setQueryComplete(true);
+        }
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -87,23 +98,23 @@ export function useFreshStaffTimezone(): {
     };
   }, [user?.roleContext?.staffData?.id]);
 
-  // Resolve timezone: fresh > cached > browser fallback
+  // Only resolve timezone AFTER query completes - blocks until fresh data
   const timezone = useMemo(() => {
+    if (!queryComplete) return null;  // Block until fresh data is available
+    
     if (freshTimezone) return freshTimezone;
     
-    const cachedTimezone = user?.roleContext?.staffData?.prov_time_zone;
-    if (cachedTimezone) return cachedTimezone;
-    
+    // Only use browser fallback AFTER we know DB has no timezone
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone;
     } catch {
       return 'America/New_York';
     }
-  }, [freshTimezone, user?.roleContext?.staffData?.prov_time_zone]);
+  }, [queryComplete, freshTimezone]);
 
   return {
     timezone,
     isLoading,
-    hasStaffTimezone: Boolean(freshTimezone || user?.roleContext?.staffData?.prov_time_zone),
+    hasStaffTimezone: Boolean(freshTimezone),
   };
 }
