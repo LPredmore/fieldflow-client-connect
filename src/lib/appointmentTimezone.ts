@@ -107,6 +107,9 @@ export function localToUTCDate(
  * @param utcTimestamp - ISO string from database (UTC)
  * @param timezone - Optional timezone override (defaults to browser timezone)
  * @returns Date object for calendar display (in local timezone)
+ * 
+ * @deprecated Use utcToLocalForCalendar for calendar display - this function
+ * loses timezone context when converting to JS Date via toJSDate().
  */
 export function utcToLocal(
   utcTimestamp: string,
@@ -125,6 +128,47 @@ export function utcToLocal(
   // Convert to the target timezone and return as JS Date
   const local = utc.setZone(zone);
   return local.toJSDate();
+}
+
+/**
+ * Convert UTC to a Date object that DISPLAYS at the correct local time.
+ * 
+ * This function creates a "visual" Date using local time components,
+ * bypassing the browser's timezone interpretation. Use this for calendar
+ * display where you need times to appear in a specific timezone regardless
+ * of the browser's timezone.
+ * 
+ * IMPORTANT: This Date does NOT represent the correct UTC instant!
+ * Use only for calendar/UI display purposes.
+ * 
+ * @param utcTimestamp - ISO string from database (UTC)
+ * @param timezone - Target timezone (IANA format, e.g., "America/Chicago")
+ * @returns Date object that visually represents the local time
+ */
+export function utcToLocalForCalendar(
+  utcTimestamp: string,
+  timezone: string
+): Date {
+  const utc = DateTime.fromISO(utcTimestamp, { zone: 'utc' });
+  
+  if (!utc.isValid) {
+    console.error('Invalid UTC timestamp:', utcTimestamp);
+    return new Date();
+  }
+  
+  // Convert to target timezone
+  const local = utc.setZone(timezone);
+  
+  // Create Date using LOCAL components (bypasses browser TZ interpretation)
+  // This makes the Date "look like" the correct time on the calendar
+  return new Date(
+    local.year,
+    local.month - 1, // JS months are 0-indexed
+    local.day,
+    local.hour,
+    local.minute,
+    local.second
+  );
 }
 
 /**

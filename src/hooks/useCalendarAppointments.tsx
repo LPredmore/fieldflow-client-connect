@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { utcToLocal } from '@/lib/appointmentTimezone';
+import { utcToLocalForCalendar } from '@/lib/appointmentTimezone';
 import { useToast } from '@/hooks/use-toast';
 import { useStaffTimezone } from './useStaffTimezone';
 
@@ -125,10 +125,10 @@ export function useCalendarAppointments() {
       // Convert UTC timestamps from database to viewer's local timezone
       // This ensures appointments display at the correct local time regardless of viewer's timezone
       const transformed: CalendarAppointment[] = (data || []).map((row: any) => {
-        // utcToLocal: Database UTC → Staff's configured timezone Date object
-        // These Date objects are ready for React Big Calendar
-        const localStart = utcToLocal(row.start_at, staffTimezone);
-        const localEnd = utcToLocal(row.end_at, staffTimezone);
+        // utcToLocalForCalendar: Database UTC → Visual Date in staff's timezone
+        // Creates Date objects with correct hour/minute for calendar display
+        const localStart = utcToLocalForCalendar(row.start_at, staffTimezone);
+        const localEnd = utcToLocalForCalendar(row.end_at, staffTimezone);
 
         // Build client name
         const clientName = row.clients?.pat_name_preferred || 
@@ -255,12 +255,12 @@ export function useCalendarAppointments() {
     }, 300);
   }, [range.fromISO, range.toISO, fetchAppointments]);
 
-  // Initial fetch
+  // Initial fetch - also refetch when timezone changes
   useMemo(() => {
     if (user && tenantId && !isFetchingRef.current) {
       fetchAppointments();
     }
-  }, [user, tenantId]);
+  }, [user, tenantId, staffTimezone]);
 
   return {
     appointments,
