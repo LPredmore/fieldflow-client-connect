@@ -1,17 +1,17 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, User, Edit, Video, MapPin, Repeat, Trash2 } from 'lucide-react';
-import { useUserTimezone } from '@/hooks/useUserTimezone';
-import { useFormattedTime, TIME_FORMATS } from '@/hooks/useFormattedTime';
+import { useFormattedTime } from '@/hooks/useFormattedTime';
 import AppointmentForm from './AppointmentForm';
 import { RecurringEditDialog } from './RecurringEditDialog';
 import { DeleteAppointmentDialog } from './DeleteAppointmentDialog';
 import { useRecurringAppointmentActions, type EditScope, type DeleteScope } from '@/hooks/useRecurringAppointmentActions';
 
 /**
- * Appointment interface matching the actual database schema
+ * Appointment interface with server-side formatted display strings
+ * This now expects data from useStaffAppointments which provides pre-formatted strings
  */
 interface AppointmentData {
   id: string;
@@ -22,7 +22,7 @@ interface AppointmentData {
   start_at: string;
   end_at: string;
   time_zone: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: string;
   is_telehealth: boolean;
   videoroom_url?: string | null;
   location_name?: string | null;
@@ -34,10 +34,11 @@ interface AppointmentData {
   client_phone?: string;
   service_name?: string;
   clinician_name?: string;
-  // Database-formatted display strings (optional)
+  // Server-side formatted display strings (from useStaffAppointments)
   display_date?: string;
   display_time?: string;
   display_end_time?: string;
+  display_timezone?: string;
 }
 
 interface AppointmentViewProps {
@@ -84,41 +85,26 @@ export default function AppointmentView({
   const [pendingFormData, setPendingFormData] = useState<any>(null);
   const [showEditScopeDialog, setShowEditScopeDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const userTimezone = useUserTimezone();
 
-  // Use database-level formatting for schedule display
-  const { formattedValue: dbDisplayDate } = useFormattedTime(
-    appointment.start_at,
-    'FMDay, FMMonth DD, YYYY',
-    userTimezone
-  );
-  const { formattedValue: dbDisplayStartTime } = useFormattedTime(
-    appointment.start_at,
-    TIME_FORMATS.TIME_12H_COMPACT,
-    userTimezone
-  );
-  const { formattedValue: dbDisplayEndTime } = useFormattedTime(
-    appointment.end_at,
-    TIME_FORMATS.TIME_12H_COMPACT,
-    userTimezone
-  );
-  const { formattedValue: dbCreatedAt } = useFormattedTime(
+  // The appointment's display timezone (from server-side resolution)
+  const appointmentTimezone = appointment.display_timezone || appointment.time_zone;
+
+  // Use server-side pre-formatted strings for main display (from useStaffAppointments)
+  const displayDate = appointment.display_date || '';
+  const displayStartTime = appointment.display_time || '';
+  const displayEndTime = appointment.display_end_time || '';
+
+  // For created_at and updated_at, use useFormattedTime with the appointment's timezone
+  const { formattedValue: displayCreatedAt } = useFormattedTime(
     appointment.created_at,
     'FMMonth DD, YYYY FMHH12:MI AM',
-    userTimezone
+    appointmentTimezone
   );
-  const { formattedValue: dbUpdatedAt } = useFormattedTime(
+  const { formattedValue: displayUpdatedAt } = useFormattedTime(
     appointment.updated_at,
     'FMMonth DD, YYYY FMHH12:MI AM',
-    userTimezone
+    appointmentTimezone
   );
-
-  // Use pre-formatted strings if available, otherwise use database-formatted values
-  const displayDate = appointment.display_date || dbDisplayDate || '';
-  const displayStartTime = appointment.display_time || dbDisplayStartTime || '';
-  const displayEndTime = appointment.display_end_time || dbDisplayEndTime || '';
-  const displayCreatedAt = dbCreatedAt || '';
-  const displayUpdatedAt = dbUpdatedAt || '';
 
   const {
     editSingleOccurrence,
@@ -217,10 +203,22 @@ export default function AppointmentView({
   );
 
   if (isEditing) {
+    // Cast to the stricter type expected by AppointmentForm
+    const formAppointment = {
+      id: appointment.id,
+      client_id: appointment.client_id,
+      service_id: appointment.service_id,
+      start_at: appointment.start_at,
+      end_at: appointment.end_at,
+      status: appointment.status as 'scheduled' | 'completed' | 'cancelled',
+      is_telehealth: appointment.is_telehealth,
+      location_name: appointment.location_name,
+    };
+    
     return (
       <>
         <AppointmentForm
-          appointment={appointment}
+          appointment={formAppointment}
           onSubmit={handleSaveEdit}
           onCancel={handleCancelEdit}
           loading={isLoading}
