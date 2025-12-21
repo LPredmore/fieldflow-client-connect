@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { getTodayInTimezone, getNowInTimezone, DEFAULT_TIMEZONE } from '@/lib/timezoneUtils';
+import { getTodayInTimezone, getDateFromFakeLocalDate, getFakeLocalNow, DEFAULT_TIMEZONE } from '@/lib/timezoneUtils';
 
 /**
  * Staff appointment with all timezone data resolved server-side.
@@ -315,23 +315,27 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
   // Derived data for dashboard - use staff timezone for consistent "today" calculation
   const todaysAppointments = useMemo(() => {
     const tz = staffTimezone || DEFAULT_TIMEZONE;
-    const today = getTodayInTimezone(tz);
+    const today = getTodayInTimezone(tz); // Returns "YYYY-MM-DD"
+    
+    const filtered = appointments.filter(appt => {
+      // Extract date from fake local Date in same YYYY-MM-DD format
+      const apptDate = getDateFromFakeLocalDate(appt.calendar_start);
+      return apptDate === today;
+    });
     
     console.log('[useStaffAppointments] Today calculation:', {
       staffTimezone: tz,
       todayInTz: today,
-      browserToday: new Date().toDateString(),
+      matchingCount: filtered.length,
+      firstApptDate: appointments[0] ? getDateFromFakeLocalDate(appointments[0].calendar_start) : 'none',
     });
     
-    return appointments.filter(appt => {
-      // calendar_start is a "fake local" Date with components in staff's timezone
-      return appt.calendar_start.toDateString() === today;
-    });
+    return filtered;
   }, [appointments, staffTimezone]);
 
   const upcomingAppointments = useMemo(() => {
     const tz = staffTimezone || DEFAULT_TIMEZONE;
-    const nowInTz = getNowInTimezone(tz);
+    const nowInTz = getFakeLocalNow(tz);
     // Set to end of today in staff's timezone
     nowInTz.setHours(23, 59, 59, 999);
     
@@ -342,7 +346,7 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
 
   const undocumentedAppointments = useMemo(() => {
     const tz = staffTimezone || DEFAULT_TIMEZONE;
-    const nowInTz = getNowInTimezone(tz);
+    const nowInTz = getFakeLocalNow(tz);
     
     return appointments.filter(appt => {
       return appt.calendar_start <= nowInTz && appt.status !== 'completed';
