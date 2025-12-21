@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { getTodayInTimezone, getNowInTimezone, DEFAULT_TIMEZONE } from '@/lib/timezoneUtils';
 
 /**
  * Staff appointment with all timezone data resolved server-side.
@@ -311,29 +312,42 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
     }
   }, [user, tenantId, user?.roleContext?.staffData?.id, enabled, fetchAppointments]);
 
-  // Derived data for dashboard
+  // Derived data for dashboard - use staff timezone for consistent "today" calculation
   const todaysAppointments = useMemo(() => {
-    const today = new Date().toDateString();
+    const tz = staffTimezone || DEFAULT_TIMEZONE;
+    const today = getTodayInTimezone(tz);
+    
+    console.log('[useStaffAppointments] Today calculation:', {
+      staffTimezone: tz,
+      todayInTz: today,
+      browserToday: new Date().toDateString(),
+    });
+    
     return appointments.filter(appt => {
-      // Use calendar_start which is in staff's timezone
+      // calendar_start is a "fake local" Date with components in staff's timezone
       return appt.calendar_start.toDateString() === today;
     });
-  }, [appointments]);
+  }, [appointments, staffTimezone]);
 
   const upcomingAppointments = useMemo(() => {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
+    const tz = staffTimezone || DEFAULT_TIMEZONE;
+    const nowInTz = getNowInTimezone(tz);
+    // Set to end of today in staff's timezone
+    nowInTz.setHours(23, 59, 59, 999);
+    
     return appointments
-      .filter(appt => appt.calendar_start > today && appt.status === 'scheduled')
+      .filter(appt => appt.calendar_start > nowInTz && appt.status === 'scheduled')
       .slice(0, 5);
-  }, [appointments]);
+  }, [appointments, staffTimezone]);
 
   const undocumentedAppointments = useMemo(() => {
-    const now = new Date();
+    const tz = staffTimezone || DEFAULT_TIMEZONE;
+    const nowInTz = getNowInTimezone(tz);
+    
     return appointments.filter(appt => {
-      return appt.calendar_start <= now && appt.status !== 'completed';
+      return appt.calendar_start <= nowInTz && appt.status !== 'completed';
     });
-  }, [appointments]);
+  }, [appointments, staffTimezone]);
 
   // Memoized Map for O(1) appointment lookup by ID
   const appointmentsById = useMemo(() => {

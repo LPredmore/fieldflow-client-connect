@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { fromZonedTime, formatInTimeZone, toZonedTime } from 'date-fns-tz';
 
 /**
  * Default timezone fallback
@@ -262,4 +262,29 @@ export function utcToCalendarInTimezone(
 export function calculateEndTime(startAt: Date | string, durationMinutes: number): Date {
   const start = typeof startAt === 'string' ? new Date(startAt) : startAt;
   return new Date(start.getTime() + durationMinutes * 60 * 1000);
+}
+
+/**
+ * Get "today" as a date string in a specific timezone.
+ * Returns format like "Sat Dec 21 2024" matching Date.toDateString() output.
+ * 
+ * @param timezone - IANA timezone string (e.g., 'America/Chicago')
+ * @returns Date string in the format used by Date.toDateString()
+ */
+export function getTodayInTimezone(timezone: string): string {
+  const now = new Date();
+  const zonedNow = toZonedTime(now, timezone);
+  return zonedNow.toDateString();
+}
+
+/**
+ * Get a Date object representing "now" adjusted to a specific timezone.
+ * Useful for comparisons like "is this appointment before/after now?"
+ * 
+ * @param timezone - IANA timezone string
+ * @returns Date object representing "now" in the specified timezone
+ */
+export function getNowInTimezone(timezone: string): Date {
+  const now = new Date();
+  return toZonedTime(now, timezone);
 }
