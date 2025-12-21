@@ -265,26 +265,69 @@ export function calculateEndTime(startAt: Date | string, durationMinutes: number
 }
 
 /**
- * Get "today" as a date string in a specific timezone.
- * Returns format like "Sat Dec 21 2024" matching Date.toDateString() output.
+ * Get "today" as a date-only string in a specific timezone.
+ * Uses formatInTimeZone to ensure correct timezone handling.
  * 
  * @param timezone - IANA timezone string (e.g., 'America/Chicago')
- * @returns Date string in the format used by Date.toDateString()
+ * @returns Date string in YYYY-MM-DD format
  */
 export function getTodayInTimezone(timezone: string): string {
   const now = new Date();
-  const zonedNow = toZonedTime(now, timezone);
-  return zonedNow.toDateString();
+  // formatInTimeZone explicitly respects the timezone parameter
+  return formatInTimeZone(now, timezone, 'yyyy-MM-dd');
 }
 
 /**
- * Get a Date object representing "now" adjusted to a specific timezone.
- * Useful for comparisons like "is this appointment before/after now?"
+ * Extract date string from a "fake local" Date object (created by createFakeLocalDate).
+ * These Dates have their local components set to match a specific timezone,
+ * so we use getFullYear/getMonth/getDate to extract them.
+ * 
+ * @param fakeLocalDate - Date object from createFakeLocalDate()
+ * @returns Date string in YYYY-MM-DD format
+ */
+export function getDateFromFakeLocalDate(fakeLocalDate: Date): string {
+  const year = fakeLocalDate.getFullYear();
+  const month = String(fakeLocalDate.getMonth() + 1).padStart(2, '0');
+  const day = String(fakeLocalDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Get the current time components in a specific timezone.
+ * Uses formatInTimeZone for accurate timezone conversion.
  * 
  * @param timezone - IANA timezone string
- * @returns Date object representing "now" in the specified timezone
+ * @returns Object with year, month, day, hour, minute in the target timezone
  */
-export function getNowInTimezone(timezone: string): Date {
+export function getNowComponentsInTimezone(timezone: string): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+} {
   const now = new Date();
-  return toZonedTime(now, timezone);
+  return {
+    year: parseInt(formatInTimeZone(now, timezone, 'yyyy'), 10),
+    month: parseInt(formatInTimeZone(now, timezone, 'MM'), 10),
+    day: parseInt(formatInTimeZone(now, timezone, 'dd'), 10),
+    hour: parseInt(formatInTimeZone(now, timezone, 'HH'), 10),
+    minute: parseInt(formatInTimeZone(now, timezone, 'mm'), 10),
+  };
+}
+
+/**
+ * Create a "fake local" Date representing "now" in a specific timezone.
+ * This Date can be compared with other fake local Dates from appointments
+ * (created via createFakeLocalDate in useStaffAppointments).
+ * 
+ * @param timezone - IANA timezone string
+ * @returns Date object with local components matching the target timezone's "now"
+ */
+export function getFakeLocalNow(timezone: string): Date {
+  const components = getNowComponentsInTimezone(timezone);
+  const d = new Date();
+  d.setFullYear(components.year, components.month - 1, components.day);
+  d.setHours(components.hour, components.minute, 0, 0);
+  return d;
 }
