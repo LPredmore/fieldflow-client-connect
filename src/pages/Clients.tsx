@@ -2,21 +2,31 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreVertical, Pencil, Trash2, Mail, Phone, MapPin, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Search, MoreVertical, Pencil, Trash2, Mail, Phone, MapPin, User, FileText } from "lucide-react";
 import { useClients, Client } from "@/hooks/useClients";
 import { ClientFormData } from "@/types/client";
 import { ClientForm } from "@/components/Clients/ClientForm";
 import { ClientStatsCards } from "@/components/Clients/ClientStatsCards";
+import { TreatmentPlanDialog } from "@/components/Clinical/TreatmentPlanDialog";
 import { getClientDisplayName } from "@/utils/clientDisplayName";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Clients() {
+  const { user } = useAuth();
   const { clients, loading, stats, createClient, updateClient, deleteClient } = useClients();
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
+  const [treatmentPlanClient, setTreatmentPlanClient] = useState<Client | null>(null);
+
+  // Get clinician name for treatment plan
+  const clinicianName = user?.staffAttributes?.staffData 
+    ? `${user.staffAttributes.staffData.prov_name_f || ''} ${user.staffAttributes.staffData.prov_name_l || ''}`.trim()
+    : '';
 
   // Filter and search clients
   const filteredClients = useMemo(() => {
@@ -111,6 +121,11 @@ export default function Clients() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setTreatmentPlanClient(client)}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Treatment Plan
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setEditingClient(client)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit
@@ -230,6 +245,14 @@ export default function Clients() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Treatment Plan Dialog */}
+      <TreatmentPlanDialog
+        open={!!treatmentPlanClient}
+        onOpenChange={(open) => !open && setTreatmentPlanClient(null)}
+        client={treatmentPlanClient}
+        clinicianName={clinicianName}
+      />
     </div>
   );
 }

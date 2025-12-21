@@ -1,0 +1,751 @@
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { format, addMonths } from 'date-fns';
+import { CalendarIcon, Plus, X, FileText, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+import { DiagnosisSelector } from './DiagnosisSelector';
+import { useTreatmentPlans, TreatmentPlan } from '@/hooks/useTreatmentPlans';
+import { useClientDiagnoses } from '@/hooks/useClientDiagnoses';
+import { useManageClientDiagnoses } from '@/hooks/useDiagnosisCodes';
+import { Client } from '@/hooks/useClients';
+import { getClientDisplayName } from '@/utils/clientDisplayName';
+
+// Form validation schema
+const treatmentPlanSchema = z.object({
+  start_date: z.date({
+    required_error: "Start date is required",
+  }),
+  plan_length: z.string().min(1, "Plan length is required"),
+  treatment_frequency: z.string().min(1, "Treatment frequency is required"),
+  problem_narrative: z.string().min(1, "Problem narrative is required"),
+  treatment_goal: z.string().min(1, "Treatment goal is required"),
+  primary_objective: z.string().min(1, "Primary objective is required"),
+  intervention_1: z.string().min(1, "At least one intervention is required"),
+  intervention_2: z.string().min(1, "Second intervention is required"),
+  secondary_objective: z.string().optional(),
+  intervention_3: z.string().optional(),
+  intervention_4: z.string().optional(),
+  tertiary_objective: z.string().optional(),
+  intervention_5: z.string().optional(),
+  intervention_6: z.string().optional(),
+  private_notes: z.string().optional(),
+});
+
+type TreatmentPlanFormValues = z.infer<typeof treatmentPlanSchema>;
+
+interface TreatmentPlanDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  client: Client | null;
+  existingPlan?: TreatmentPlan | null;
+  clinicianName?: string;
+}
+
+const PLAN_LENGTH_OPTIONS = [
+  { value: '1month', label: '1 month' },
+  { value: '3month', label: '3 months' },
+  { value: '6month', label: '6 months' },
+  { value: '9month', label: '9 months' },
+  { value: '12month', label: '12 months' },
+];
+
+const FREQUENCY_OPTIONS = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'biweekly', label: 'Bi-Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'asneeded', label: 'As Needed' },
+];
+
+export function TreatmentPlanDialog({
+  open,
+  onOpenChange,
+  client,
+  existingPlan,
+  clinicianName = '',
+}: TreatmentPlanDialogProps) {
+  const [showSecondaryObjective, setShowSecondaryObjective] = useState(false);
+  const [showTertiaryObjective, setShowTertiaryObjective] = useState(false);
+  const [selectedDiagnosisIds, setSelectedDiagnosisIds] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const { createPlan, updatePlan, loading: plansLoading } = useTreatmentPlans(client?.id);
+  const { diagnoses, refetch: refetchDiagnoses } = useClientDiagnoses(client?.id);
+  const { addDiagnosis, removeDiagnosis } = useManageClientDiagnoses(client?.id);
+
+  const isEditing = !!existingPlan;
+
+  const form = useForm<TreatmentPlanFormValues>({
+    resolver: zodResolver(treatmentPlanSchema),
+    defaultValues: {
+      start_date: new Date(),
+      plan_length: '',
+      treatment_frequency: '',
+      problem_narrative: '',
+      treatment_goal: '',
+      primary_objective: '',
+      intervention_1: '',
+      intervention_2: '',
+      secondary_objective: '',
+      intervention_3: '',
+      intervention_4: '',
+      tertiary_objective: '',
+      intervention_5: '',
+      intervention_6: '',
+      private_notes: '',
+    },
+  });
+
+  // Load existing plan data when editing
+  useEffect(() => {
+    if (existingPlan && open) {
+      form.reset({
+        start_date: new Date(existingPlan.start_date),
+        plan_length: existingPlan.plan_length || '',
+        treatment_frequency: existingPlan.treatment_frequency || '',
+        problem_narrative: existingPlan.problem_narrative || '',
+        treatment_goal: existingPlan.treatment_goal || '',
+        primary_objective: existingPlan.primary_objective || '',
+        intervention_1: existingPlan.intervention_1 || '',
+        intervention_2: existingPlan.intervention_2 || '',
+        secondary_objective: existingPlan.secondary_objective || '',
+        intervention_3: existingPlan.intervention_3 || '',
+        intervention_4: existingPlan.intervention_4 || '',
+        tertiary_objective: existingPlan.tertiary_objective || '',
+        intervention_5: existingPlan.intervention_5 || '',
+        intervention_6: existingPlan.intervention_6 || '',
+        private_notes: existingPlan.private_notes || '',
+      });
+
+      setShowSecondaryObjective(!!existingPlan.secondary_objective);
+      setShowTertiaryObjective(!!existingPlan.tertiary_objective);
+    }
+  }, [existingPlan, open, form]);
+
+  // Load existing diagnoses when opening
+  useEffect(() => {
+    if (open && diagnoses) {
+      setSelectedDiagnosisIds(diagnoses.map(d => d.diagnosis_code_id));
+    }
+  }, [open, diagnoses]);
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+      setShowSecondaryObjective(false);
+      setShowTertiaryObjective(false);
+      setSelectedDiagnosisIds([]);
+    }
+  }, [open, form]);
+
+  // Calculate next update date based on start date and plan length
+  const calculateNextUpdateDate = (startDate: Date, planLength: string): string => {
+    const monthsMap: Record<string, number> = {
+      '1month': 1,
+      '3month': 3,
+      '6month': 6,
+      '9month': 9,
+      '12month': 12,
+    };
+    const months = monthsMap[planLength];
+    if (!months) return '';
+    return format(addMonths(startDate, months), 'yyyy-MM-dd');
+  };
+
+  const handleDiagnosisChange = async (newIds: string[]) => {
+    const existingIds = diagnoses?.map(d => d.diagnosis_code_id) || [];
+    
+    // Find added diagnoses
+    const addedIds = newIds.filter(id => !existingIds.includes(id));
+    // Find removed diagnoses
+    const removedIds = existingIds.filter(id => !newIds.includes(id));
+
+    // Add new diagnoses
+    for (const id of addedIds) {
+      await addDiagnosis(id, addedIds.length === 1 && existingIds.length === 0);
+    }
+
+    // Remove diagnoses
+    for (const id of removedIds) {
+      const diagnosis = diagnoses?.find(d => d.diagnosis_code_id === id);
+      if (diagnosis) {
+        await removeDiagnosis(diagnosis.id);
+      }
+    }
+
+    await refetchDiagnoses();
+    setSelectedDiagnosisIds(newIds);
+  };
+
+  const onSubmit = async (values: TreatmentPlanFormValues) => {
+    if (!client) return;
+
+    setIsSaving(true);
+
+    try {
+      const nextUpdateDate = calculateNextUpdateDate(values.start_date, values.plan_length);
+
+      const planData = {
+        start_date: format(values.start_date, 'yyyy-MM-dd'),
+        plan_length: values.plan_length,
+        treatment_frequency: values.treatment_frequency,
+        next_update_date: nextUpdateDate,
+        problem_narrative: values.problem_narrative,
+        treatment_goal: values.treatment_goal,
+        primary_objective: values.primary_objective,
+        secondary_objective: values.secondary_objective || null,
+        tertiary_objective: values.tertiary_objective || null,
+        intervention_1: values.intervention_1,
+        intervention_2: values.intervention_2,
+        intervention_3: values.intervention_3 || null,
+        intervention_4: values.intervention_4 || null,
+        intervention_5: values.intervention_5 || null,
+        intervention_6: values.intervention_6 || null,
+        private_notes: values.private_notes || null,
+      };
+
+      if (isEditing && existingPlan) {
+        await updatePlan(existingPlan.id, planData);
+      } else {
+        await createPlan(planData);
+      }
+
+      onOpenChange(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddObjective = () => {
+    if (!showSecondaryObjective) {
+      setShowSecondaryObjective(true);
+    } else if (!showTertiaryObjective) {
+      setShowTertiaryObjective(true);
+    }
+  };
+
+  if (!client) return null;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent 
+        side="right" 
+        className="w-full sm:max-w-2xl lg:max-w-4xl overflow-y-auto"
+      >
+        <SheetHeader className="mb-6">
+          <SheetTitle className="flex items-center gap-2 text-xl">
+            <FileText className="h-5 w-5" />
+            {isEditing ? 'Edit Treatment Plan' : 'Create Treatment Plan'}
+          </SheetTitle>
+          <SheetDescription>
+            {isEditing 
+              ? 'Update the treatment plan for this client'
+              : 'Create a new treatment plan for this client'
+            }
+          </SheetDescription>
+        </SheetHeader>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Client Info - Read Only */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Client Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">Client Name</Label>
+                    <p className="font-medium">{getClientDisplayName(client)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">Date of Birth</Label>
+                    <p className="font-medium">
+                      {client.pat_dob 
+                        ? format(new Date(client.pat_dob), 'MMM d, yyyy')
+                        : 'Not set'
+                      }
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">Clinician</Label>
+                    <p className="font-medium">{clinicianName || 'Not assigned'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Plan Details */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Plan Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Start Date */}
+                  <FormField
+                    control={form.control}
+                    name="start_date"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Start Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Plan Length */}
+                  <FormField
+                    control={form.control}
+                    name="plan_length"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Plan Length</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select length" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PLAN_LENGTH_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Treatment Frequency */}
+                  <FormField
+                    control={form.control}
+                    name="treatment_frequency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Treatment Frequency</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select frequency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {FREQUENCY_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Diagnosis Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Diagnosis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DiagnosisSelector
+                  selectedIds={selectedDiagnosisIds}
+                  onChange={handleDiagnosisChange}
+                  placeholder="Search and select diagnoses..."
+                />
+                {selectedDiagnosisIds.length === 0 && (
+                  <Alert className="mt-3">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      At least one diagnosis is required for the treatment plan.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Problem & Goal */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Problem & Goal</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="problem_narrative"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Problem Narrative</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe the presenting problem..."
+                          className="min-h-[100px] resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="treatment_goal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Treatment Goal</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe the treatment goals..."
+                          className="min-h-[100px] resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Primary Objective */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Primary Objective</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="primary_objective"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Objective</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe the primary objective..."
+                          className="min-h-[80px] resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="intervention_1"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Intervention 1</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Describe intervention" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="intervention_2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Intervention 2</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Describe intervention" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Secondary Objective */}
+            {showSecondaryObjective && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center justify-between">
+                    Secondary Objective
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowSecondaryObjective(false);
+                        setShowTertiaryObjective(false);
+                        form.setValue('secondary_objective', '');
+                        form.setValue('intervention_3', '');
+                        form.setValue('intervention_4', '');
+                        form.setValue('tertiary_objective', '');
+                        form.setValue('intervention_5', '');
+                        form.setValue('intervention_6', '');
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="secondary_objective"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Objective</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Describe the secondary objective..."
+                            className="min-h-[80px] resize-none"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="intervention_3"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Intervention 3</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Describe intervention" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="intervention_4"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Intervention 4</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Describe intervention" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Tertiary Objective */}
+            {showTertiaryObjective && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center justify-between">
+                    Tertiary Objective
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowTertiaryObjective(false);
+                        form.setValue('tertiary_objective', '');
+                        form.setValue('intervention_5', '');
+                        form.setValue('intervention_6', '');
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="tertiary_objective"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Objective</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Describe the tertiary objective..."
+                            className="min-h-[80px] resize-none"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="intervention_5"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Intervention 5</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Describe intervention" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="intervention_6"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Intervention 6</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Describe intervention" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Add Objective Button */}
+            {(!showSecondaryObjective || !showTertiaryObjective) && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddObjective}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Another Objective
+              </Button>
+            )}
+
+            {/* Private Notes */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Private Notes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FormField
+                  control={form.control}
+                  name="private_notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Notes visible only to providers (not included in client documentation)..."
+                          className="min-h-[80px] resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSaving || selectedDiagnosisIds.length === 0}
+              >
+                {isSaving ? 'Saving...' : isEditing ? 'Update Plan' : 'Save Treatment Plan'}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </SheetContent>
+    </Sheet>
+  );
+}
