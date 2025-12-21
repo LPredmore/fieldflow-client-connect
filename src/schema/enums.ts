@@ -15,7 +15,7 @@ export const DB_ENUMS = {
   
   appointment_note_type_enum: ['progress', 'treatment', 'addendum'] as const,
   
-  appointment_status_enum: ['scheduled', 'completed', 'cancelled'] as const,
+  appointment_status_enum: ['scheduled', 'documented', 'cancelled', 'late_cancel/noshow'] as const,
   
   client_history_family_context_enum: ['family_of_origin', 'current_household'] as const,
   
