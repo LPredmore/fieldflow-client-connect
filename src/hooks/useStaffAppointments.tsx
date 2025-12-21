@@ -312,9 +312,10 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
     }
   }, [user, tenantId, user?.roleContext?.staffData?.id, enabled, fetchAppointments]);
 
-  // Derived data for dashboard - use staff timezone for consistent "today" calculation
+  // Derived data for dashboard - extract timezone directly from appointments to eliminate race condition
   const todaysAppointments = useMemo(() => {
-    const tz = staffTimezone || DEFAULT_TIMEZONE;
+    // Use timezone from appointment data (set by database RPC) to avoid race condition with staffTimezone state
+    const tz = appointments[0]?.display_timezone || DEFAULT_TIMEZONE;
     const today = getTodayInTimezone(tz); // Returns "YYYY-MM-DD"
     
     const filtered = appointments.filter(appt => {
@@ -324,17 +325,19 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
     });
     
     console.log('[useStaffAppointments] Today calculation:', {
-      staffTimezone: tz,
+      extractedTimezone: appointments[0]?.display_timezone,
+      effectiveTimezone: tz,
       todayInTz: today,
+      appointmentCount: appointments.length,
       matchingCount: filtered.length,
       firstApptDate: appointments[0] ? getDateFromFakeLocalDate(appointments[0].calendar_start) : 'none',
     });
     
     return filtered;
-  }, [appointments, staffTimezone]);
+  }, [appointments]);
 
   const upcomingAppointments = useMemo(() => {
-    const tz = staffTimezone || DEFAULT_TIMEZONE;
+    const tz = appointments[0]?.display_timezone || DEFAULT_TIMEZONE;
     const nowInTz = getFakeLocalNow(tz);
     // Set to end of today in staff's timezone
     nowInTz.setHours(23, 59, 59, 999);
@@ -342,16 +345,16 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
     return appointments
       .filter(appt => appt.calendar_start > nowInTz && appt.status === 'scheduled')
       .slice(0, 5);
-  }, [appointments, staffTimezone]);
+  }, [appointments]);
 
   const undocumentedAppointments = useMemo(() => {
-    const tz = staffTimezone || DEFAULT_TIMEZONE;
+    const tz = appointments[0]?.display_timezone || DEFAULT_TIMEZONE;
     const nowInTz = getFakeLocalNow(tz);
     
     return appointments.filter(appt => {
       return appt.calendar_start <= nowInTz && appt.status !== 'completed';
     });
-  }, [appointments, staffTimezone]);
+  }, [appointments]);
 
   // Memoized Map for O(1) appointment lookup by ID
   const appointmentsById = useMemo(() => {
