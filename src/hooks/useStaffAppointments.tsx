@@ -22,7 +22,7 @@ export interface StaffAppointment {
   end_at: string;
   
   // Appointment data
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'documented' | 'cancelled' | 'late_cancel/noshow';
   is_telehealth: boolean;
   location_name: string | null;
   time_zone: string; // Creator's timezone (metadata only)
@@ -177,7 +177,7 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
           service_id: row.service_id,
           start_at: row.start_at,
           end_at: row.end_at,
-          status: row.status as 'scheduled' | 'completed' | 'cancelled',
+          status: row.status as 'scheduled' | 'documented' | 'cancelled' | 'late_cancel/noshow',
           is_telehealth: row.is_telehealth,
           location_name: row.location_name,
           time_zone: row.time_zone,
@@ -352,7 +352,7 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
     const nowInTz = getFakeLocalNow(tz);
     
     return appointments.filter(appt => {
-      return appt.calendar_start <= nowInTz && appt.status !== 'completed';
+      return appt.calendar_start <= nowInTz && appt.status === 'scheduled';
     });
   }, [appointments]);
 

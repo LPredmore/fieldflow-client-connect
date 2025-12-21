@@ -1,29 +1,76 @@
+import { useState } from "react";
 import { Briefcase } from "lucide-react";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import RoleIndicator from "@/components/Layout/RoleIndicator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useStaffAppointments } from "@/hooks/useStaffAppointments";
+import { useStaffAppointments, StaffAppointment } from "@/hooks/useStaffAppointments";
 import AppointmentCard from "@/components/Dashboard/AppointmentCard";
+import { SessionDocumentationDialog, CancellationType } from "@/components/Appointments/SessionDocumentationDialog";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const isDashboardRoute = location.pathname === '/staff/dashboard';
+  
+  // Dialog state
+  const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<StaffAppointment | null>(null);
   
   // Use unified staff appointments hook - all timezone handling is server-side
   const { 
     todaysAppointments,
     upcomingAppointments,
     undocumentedAppointments,
+    updateAppointment,
     loading,
   } = useStaffAppointments({ 
     enabled: isDashboardRoute 
   });
 
   const handleDocumentSession = (appointmentId: string) => {
+    const appt = [...todaysAppointments, ...undocumentedAppointments]
+      .find(a => a.id === appointmentId);
+    setSelectedAppointment(appt || null);
+    setDocumentDialogOpen(true);
+  };
+
+  const handleSessionOccurred = (appointmentId: string) => {
+    // Future: Navigate to full documentation flow
     navigate(`/staff/appointments?view=${appointmentId}`);
+  };
+
+  const handleSessionNotOccurred = async (
+    appointmentId: string,
+    cancellationType: CancellationType,
+    notes: string
+  ) => {
+    const charge = cancellationType === 'cancelled' ? 0 : 25;
+    
+    try {
+      await updateAppointment(appointmentId, {
+        status: cancellationType,
+        charge_1: charge,
+        narrative_1: notes || null,
+      } as any); // Using 'any' because charge_1 and narrative_1 aren't in StaffAppointment interface but are valid DB fields
+      
+      toast({
+        title: cancellationType === 'cancelled' ? 'Appointment Cancelled' : 'No Show Recorded',
+        description: cancellationType === 'late_cancel/noshow' 
+          ? 'A $25 late cancellation fee has been applied.'
+          : 'The appointment has been marked as cancelled.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update appointment status. Please try again.',
+      });
+      throw error;
+    }
   };
 
   return (
@@ -159,6 +206,15 @@ const Index = () => {
           </Card>
         </div>
       </div>
+
+      {/* Session Documentation Dialog */}
+      <SessionDocumentationDialog
+        open={documentDialogOpen}
+        onOpenChange={setDocumentDialogOpen}
+        appointment={selectedAppointment}
+        onSessionOccurred={handleSessionOccurred}
+        onSessionNotOccurred={handleSessionNotOccurred}
+      />
     </ErrorBoundary>
   );
 };
