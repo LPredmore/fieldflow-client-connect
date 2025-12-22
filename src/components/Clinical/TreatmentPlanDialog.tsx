@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, addMonths } from 'date-fns';
-import { CalendarIcon, Plus, X, FileText, AlertCircle } from 'lucide-react';
+import { CalendarIcon, Plus, X, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import {
@@ -48,6 +48,7 @@ import { useClientDiagnoses } from '@/hooks/useClientDiagnoses';
 import { useManageClientDiagnoses } from '@/hooks/useDiagnosisCodes';
 import { Client } from '@/hooks/useClients';
 import { getClientDisplayName } from '@/utils/clientDisplayName';
+import { supabase } from '@/integrations/supabase/client';
 
 // Form validation schema
 const treatmentPlanSchema = z.object({
@@ -74,7 +75,7 @@ type TreatmentPlanFormValues = z.infer<typeof treatmentPlanSchema>;
 interface TreatmentPlanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  client: Client | null;
+  clientId: string | null;
   existingPlan?: TreatmentPlan | null;
   clinicianName?: string;
 }
@@ -97,7 +98,7 @@ const FREQUENCY_OPTIONS = [
 export function TreatmentPlanDialog({
   open,
   onOpenChange,
-  client,
+  clientId,
   existingPlan,
   clinicianName = '',
 }: TreatmentPlanDialogProps) {
@@ -105,10 +106,33 @@ export function TreatmentPlanDialog({
   const [showTertiaryObjective, setShowTertiaryObjective] = useState(false);
   const [selectedDiagnosisIds, setSelectedDiagnosisIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Fetch full client data when dialog opens
+  const [clientData, setClientData] = useState<Client | null>(null);
+  const [clientLoading, setClientLoading] = useState(false);
+  
+  useEffect(() => {
+    if (open && clientId) {
+      setClientLoading(true);
+      supabase
+        .from('clients')
+        .select('*')
+        .eq('id', clientId)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setClientData(data as Client);
+          }
+          setClientLoading(false);
+        });
+    } else if (!open) {
+      setClientData(null);
+    }
+  }, [open, clientId]);
 
-  const { createPlan, updatePlan, loading: plansLoading } = useTreatmentPlans(client?.id);
-  const { diagnoses, refetch: refetchDiagnoses } = useClientDiagnoses(client?.id);
-  const { addDiagnosis, removeDiagnosis } = useManageClientDiagnoses(client?.id);
+  const { createPlan, updatePlan, loading: plansLoading } = useTreatmentPlans(clientId);
+  const { diagnoses, refetch: refetchDiagnoses } = useClientDiagnoses(clientId);
+  const { addDiagnosis, removeDiagnosis } = useManageClientDiagnoses(clientId);
 
   const isEditing = !!existingPlan;
 
@@ -214,7 +238,7 @@ export function TreatmentPlanDialog({
   };
 
   const onSubmit = async (values: TreatmentPlanFormValues) => {
-    if (!client) return;
+    if (!clientId) return;
 
     setIsSaving(true);
 
@@ -259,7 +283,7 @@ export function TreatmentPlanDialog({
     }
   };
 
-  if (!client) return null;
+  if (!clientId) return null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -288,16 +312,22 @@ export function TreatmentPlanDialog({
                 <CardTitle className="text-base">Client Information</CardTitle>
               </CardHeader>
               <CardContent>
+                {clientLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading client data...
+                  </div>
+                ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <Label className="text-sm text-muted-foreground">Client Name</Label>
-                    <p className="font-medium">{getClientDisplayName(client)}</p>
+                    <p className="font-medium">{clientData ? getClientDisplayName(clientData) : 'Loading...'}</p>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-sm text-muted-foreground">Date of Birth</Label>
                     <p className="font-medium">
-                      {client.pat_dob 
-                        ? format(new Date(client.pat_dob), 'MMM d, yyyy')
+                      {clientData?.pat_dob 
+                        ? format(new Date(clientData.pat_dob), 'MMM d, yyyy')
                         : 'Not set'
                       }
                     </p>
@@ -307,6 +337,7 @@ export function TreatmentPlanDialog({
                     <p className="font-medium">{clinicianName || 'Not assigned'}</p>
                   </div>
                 </div>
+                )}
               </CardContent>
             </Card>
 

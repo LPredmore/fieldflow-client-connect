@@ -250,7 +250,7 @@ export default function Clients() {
       <TreatmentPlanDialog
         open={!!treatmentPlanClient}
         onOpenChange={(open) => !open && setTreatmentPlanClient(null)}
-        client={treatmentPlanClient}
+        clientId={treatmentPlanClient?.id ?? null}
         clinicianName={clinicianName}
       />
     </div>
