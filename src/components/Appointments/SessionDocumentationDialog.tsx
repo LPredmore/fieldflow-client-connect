@@ -16,11 +16,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StaffAppointment } from '@/hooks/useStaffAppointments';
+import { useTreatmentPlans } from '@/hooks/useTreatmentPlans';
+import { FileText, AlertTriangle, Loader2 } from 'lucide-react';
 
 export type CancellationType = 'cancelled' | 'late_cancel/noshow';
 
@@ -34,6 +37,8 @@ interface SessionDocumentationDialogProps {
     cancellationType: CancellationType,
     notes: string
   ) => Promise<void>;
+  onOpenSessionNote?: (appointment: StaffAppointment) => void;
+  onOpenTreatmentPlan?: (clientId: string, clientName: string) => void;
 }
 
 export function SessionDocumentationDialog({
@@ -42,13 +47,18 @@ export function SessionDocumentationDialog({
   appointment,
   onSessionOccurred,
   onSessionNotOccurred,
+  onOpenSessionNote,
+  onOpenTreatmentPlan,
 }: SessionDocumentationDialogProps) {
-  // UI phase: 'initial' = asking if session occurred, 'cancellation' = selecting cancellation type
-  const [phase, setPhase] = useState<'initial' | 'cancellation'>('initial');
+  // UI phase: 'initial' = asking if session occurred, 'cancellation' = selecting cancellation type, 'session_options' = showing session note options
+  const [phase, setPhase] = useState<'initial' | 'cancellation' | 'session_options'>('initial');
   const [cancellationType, setCancellationType] = useState<CancellationType | ''>('');
   const [notes, setNotes] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Check for active treatment plan
+  const { activePlan, loading: planLoading } = useTreatmentPlans(appointment?.client_id);
 
   // Reset state when dialog closes
   const handleOpenChange = (newOpen: boolean) => {
@@ -63,10 +73,8 @@ export function SessionDocumentationDialog({
   };
 
   const handleYesClick = () => {
-    if (appointment) {
-      onSessionOccurred(appointment.id);
-      handleOpenChange(false);
-    }
+    // Instead of immediately closing, show session options phase
+    setPhase('session_options');
   };
 
   const handleNoClick = () => {
@@ -94,9 +102,27 @@ export function SessionDocumentationDialog({
   };
 
   const handleBack = () => {
-    setPhase('initial');
-    setCancellationType('');
-    setNotes('');
+    if (phase === 'session_options') {
+      setPhase('initial');
+    } else {
+      setPhase('initial');
+      setCancellationType('');
+      setNotes('');
+    }
+  };
+
+  const handleCompleteSessionNote = () => {
+    if (appointment && onOpenSessionNote) {
+      handleOpenChange(false);
+      onOpenSessionNote(appointment);
+    }
+  };
+
+  const handleCreateTreatmentPlan = () => {
+    if (appointment && onOpenTreatmentPlan) {
+      handleOpenChange(false);
+      onOpenTreatmentPlan(appointment.client_id, appointment.client_name);
+    }
   };
 
   if (!appointment) return null;
@@ -133,6 +159,79 @@ export function SessionDocumentationDialog({
                   No
                 </Button>
               </div>
+            </div>
+          ) : phase === 'session_options' ? (
+            <div className="space-y-6 py-4">
+              {planLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : activePlan ? (
+                // Has active treatment plan - show session note button
+                <div className="space-y-4">
+                  <p className="text-sm text-foreground font-medium">
+                    Session confirmed. Would you like to complete the session note?
+                  </p>
+                  <Button
+                    variant="default"
+                    className="w-full"
+                    onClick={handleCompleteSessionNote}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Complete Session Note
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => handleOpenChange(false)}
+                  >
+                    Complete Later
+                  </Button>
+                </div>
+              ) : (
+                // No active treatment plan - show warning and create plan button
+                <div className="space-y-4">
+                  <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-800 dark:text-amber-200">
+                      Client must have an active Treatment Plan before creating a session note.
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <Button
+                    variant="default"
+                    className="w-full opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Complete Session Note
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleCreateTreatmentPlan}
+                  >
+                    Create Treatment Plan
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => handleOpenChange(false)}
+                  >
+                    Complete Later
+                  </Button>
+                </div>
+              )}
+              
+              <Button
+                variant="link"
+                className="w-full text-muted-foreground"
+                onClick={handleBack}
+              >
+                ← Back
+              </Button>
             </div>
           ) : (
             <div className="space-y-6 py-4">
