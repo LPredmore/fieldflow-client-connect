@@ -36,6 +36,7 @@ import { StaffAppointment } from '@/hooks/useStaffAppointments';
 import { TreatmentPlan } from '@/hooks/useTreatmentPlans';
 import { useClientDiagnoses } from '@/hooks/useClientDiagnoses';
 import { useSessionNote, SessionNoteFormData } from '@/hooks/useSessionNote';
+import { useAppointmentPrivateNote } from '@/hooks/useAppointmentPrivateNote';
 import { Loader2, FileText, Brain, AlertTriangle, ClipboardList, Lock } from 'lucide-react';
 
 const sessionNoteSchema = z.object({
@@ -62,7 +63,8 @@ const sessionNoteSchema = z.object({
   client_functioning: z.string().optional().default(''),
   client_prognosis: z.string().optional().default(''),
   client_progress: z.string().optional().default(''),
-  client_privatenote: z.string().optional().default(''),
+  // Private note is saved separately
+  private_note: z.string().optional().default(''),
 });
 
 type SessionNoteFormValues = z.infer<typeof sessionNoteSchema>;
@@ -103,6 +105,7 @@ export function SessionNoteDialog({
   
   const { diagnosisCodes, formattedDiagnoses, loading: diagnosesLoading } = useClientDiagnoses(appointment?.client_id);
   const { createSessionNote } = useSessionNote(appointment?.id);
+  const { savePrivateNote } = useAppointmentPrivateNote(appointment?.id);
 
   const form = useForm<SessionNoteFormValues>({
     resolver: zodResolver(sessionNoteSchema),
@@ -127,7 +130,7 @@ export function SessionNoteDialog({
       client_functioning: '',
       client_prognosis: '',
       client_progress: '',
-      client_privatenote: '',
+      private_note: '',
     },
   });
 
@@ -143,16 +146,24 @@ export function SessionNoteDialog({
 
     setIsSubmitting(true);
     try {
+      // Extract private note from form data (it goes to separate table)
+      const { private_note, ...clinicalData } = data;
+      
       const result = await createSessionNote(
         appointment.id,
         appointment.client_id,
         staffId,
         diagnosisCodes,
         activePlan,
-        data as SessionNoteFormData
+        clinicalData as SessionNoteFormData
       );
 
       if (!result.error) {
+        // Save private note to separate table if provided
+        if (private_note && private_note.trim()) {
+          await savePrivateNote(private_note);
+        }
+        
         onOpenChange(false);
         onSuccess?.();
       }
@@ -213,33 +224,33 @@ export function SessionNoteDialog({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Start Date</Label>
-                      <p className="font-medium">{activePlan.start_date || 'N/A'}</p>
+                      <p className="font-medium">{activePlan.treatmentplan_startdate || 'N/A'}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Plan Length</Label>
-                      <p className="font-medium">{activePlan.plan_length || 'N/A'}</p>
+                      <p className="font-medium">{activePlan.planlength || 'N/A'}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Frequency</Label>
-                      <p className="font-medium">{activePlan.treatment_frequency || 'N/A'}</p>
+                      <p className="font-medium">{activePlan.treatmentfrequency || 'N/A'}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Next Update</Label>
-                      <p className="font-medium">{activePlan.next_update_date || 'N/A'}</p>
+                      <p className="font-medium">{activePlan.next_treatmentplan_update || 'N/A'}</p>
                     </div>
                   </div>
                   <Separator />
                   <div>
                     <Label className="text-xs text-muted-foreground">Problem</Label>
-                    <p className="font-medium">{activePlan.problem_narrative || 'N/A'}</p>
+                    <p className="font-medium">{activePlan.problem || 'N/A'}</p>
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">Treatment Goal</Label>
-                    <p className="font-medium">{activePlan.treatment_goal || 'N/A'}</p>
+                    <p className="font-medium">{activePlan.treatmentgoal || 'N/A'}</p>
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">Primary Objective</Label>
-                    <p className="font-medium">{activePlan.primary_objective || 'N/A'}</p>
+                    <p className="font-medium">{activePlan.primaryobjective || 'N/A'}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -700,12 +711,12 @@ export function SessionNoteDialog({
                 <div className="flex items-center gap-2">
                   <Lock className="h-4 w-4 text-muted-foreground" />
                   <h3 className="font-semibold">Private Notes</h3>
-                  <span className="text-xs text-muted-foreground">(Not shared with client)</span>
+                  <span className="text-xs text-muted-foreground">(Only visible to you and tenant admins)</span>
                 </div>
                 
                 <FormField
                   control={form.control}
-                  name="client_privatenote"
+                  name="private_note"
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
