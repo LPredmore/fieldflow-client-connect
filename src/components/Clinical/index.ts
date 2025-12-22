@@ -2,3 +2,4 @@
 export { DiagnosisSelector } from './DiagnosisSelector';
 export { DiagnosisDisplay, DiagnosisList } from './DiagnosisDisplay';
 export { TreatmentPlanDialog } from './TreatmentPlanDialog';
+export { SessionNoteDialog } from './SessionNoteDialog';

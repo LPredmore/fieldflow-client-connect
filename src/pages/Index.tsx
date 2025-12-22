@@ -7,6 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStaffAppointments, StaffAppointment } from "@/hooks/useStaffAppointments";
 import AppointmentCard from "@/components/Dashboard/AppointmentCard";
 import { SessionDocumentationDialog, CancellationType } from "@/components/Appointments/SessionDocumentationDialog";
+import { SessionNoteDialog } from "@/components/Clinical/SessionNoteDialog";
+import { TreatmentPlanDialog } from "@/components/Clinical/TreatmentPlanDialog";
+import { useTreatmentPlans } from "@/hooks/useTreatmentPlans";
+import { useAuth } from "@/hooks/useAuth";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,11 +18,25 @@ const Index = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const isDashboardRoute = location.pathname === '/staff/dashboard';
   
   // Dialog state
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<StaffAppointment | null>(null);
+  
+  // Session Note dialog state
+  const [sessionNoteDialogOpen, setSessionNoteDialogOpen] = useState(false);
+  
+  // Treatment Plan dialog state
+  const [treatmentPlanDialogOpen, setTreatmentPlanDialogOpen] = useState(false);
+  const [selectedClientForPlan, setSelectedClientForPlan] = useState<{ id: string; name: string } | null>(null);
+  
+  // Get active treatment plan for selected appointment's client
+  const { activePlan, refetch: refetchPlans } = useTreatmentPlans(selectedAppointment?.client_id);
+  
+  // Get staff ID for session notes
+  const staffId = user?.staffAttributes?.staffData?.id;
   
   // Use unified staff appointments hook - all timezone handling is server-side
   const { 
@@ -27,6 +45,7 @@ const Index = () => {
     undocumentedAppointments,
     updateAppointment,
     loading,
+    refetch: refetchAppointments,
   } = useStaffAppointments({ 
     enabled: isDashboardRoute 
   });
@@ -39,7 +58,8 @@ const Index = () => {
   };
 
   const handleSessionOccurred = (appointmentId: string) => {
-    // Future: Navigate to full documentation flow
+    // This is now handled by the session_options phase in SessionDocumentationDialog
+    // Keeping for backwards compatibility
     navigate(`/staff/appointments?view=${appointmentId}`);
   };
 
@@ -70,6 +90,31 @@ const Index = () => {
         description: 'Failed to update appointment status. Please try again.',
       });
       throw error;
+    }
+  };
+
+  const handleOpenSessionNote = (appointment: StaffAppointment) => {
+    setSelectedAppointment(appointment);
+    setSessionNoteDialogOpen(true);
+  };
+
+  const handleOpenTreatmentPlan = (clientId: string, clientName: string) => {
+    setSelectedClientForPlan({ id: clientId, name: clientName });
+    setTreatmentPlanDialogOpen(true);
+  };
+
+  const handleSessionNoteSuccess = () => {
+    refetchAppointments();
+    setSessionNoteDialogOpen(false);
+    setSelectedAppointment(null);
+  };
+
+  const handleTreatmentPlanSuccess = () => {
+    refetchPlans();
+    setTreatmentPlanDialogOpen(false);
+    // Re-open the document dialog to allow creating session note
+    if (selectedAppointment) {
+      setDocumentDialogOpen(true);
     }
   };
 
@@ -214,7 +259,36 @@ const Index = () => {
         appointment={selectedAppointment}
         onSessionOccurred={handleSessionOccurred}
         onSessionNotOccurred={handleSessionNotOccurred}
+        onOpenSessionNote={handleOpenSessionNote}
+        onOpenTreatmentPlan={handleOpenTreatmentPlan}
       />
+
+      {/* Session Note Dialog */}
+      {selectedAppointment && activePlan && staffId && (
+        <SessionNoteDialog
+          open={sessionNoteDialogOpen}
+          onOpenChange={setSessionNoteDialogOpen}
+          appointment={selectedAppointment}
+          activePlan={activePlan}
+          staffId={staffId}
+          onSuccess={handleSessionNoteSuccess}
+        />
+      )}
+
+      {/* Treatment Plan Dialog */}
+      {selectedClientForPlan && (
+        <TreatmentPlanDialog
+          open={treatmentPlanDialogOpen}
+          onOpenChange={(open) => {
+            setTreatmentPlanDialogOpen(open);
+            if (!open) {
+              setSelectedClientForPlan(null);
+            }
+          }}
+          client={{ id: selectedClientForPlan.id, pat_name_f: selectedClientForPlan.name, pat_name_l: '' } as any}
+          clinicianName={user?.staffAttributes?.staffData?.prov_name_f + ' ' + user?.staffAttributes?.staffData?.prov_name_l}
+        />
+      )}
     </ErrorBoundary>
   );
 };
