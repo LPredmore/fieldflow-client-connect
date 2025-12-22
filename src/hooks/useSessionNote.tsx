@@ -51,7 +51,6 @@ export interface SessionNote {
   client_functioning: string | null;
   client_prognosis: string | null;
   client_progress: string | null;
-  client_privatenote: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,7 +79,6 @@ export interface SessionNoteFormData {
   client_functioning: string;
   client_prognosis: string;
   client_progress: string;
-  client_privatenote: string;
 }
 
 export function useSessionNote(appointmentId: string | undefined) {
@@ -122,29 +120,30 @@ export function useSessionNote(appointmentId: string | undefined) {
 
     try {
       // Build the session note with treatment plan snapshot
+      // Map from TreatmentPlan (DB column names) to appointment_clinical_notes columns
       const sessionNoteData = {
         tenant_id: tenantId,
         appointment_id: appointmentId,
         client_id: clientId,
         staff_id: staffId,
         client_diagnosis: diagnosisCodes,
-        // Treatment plan snapshot
-        client_treatmentplan_startdate: activePlan.start_date,
-        client_planlength: activePlan.plan_length,
-        client_treatmentfrequency: activePlan.treatment_frequency,
-        client_nexttreatmentplanupdate: activePlan.next_update_date,
-        client_problem: activePlan.problem_narrative,
-        client_treatmentgoal: activePlan.treatment_goal,
-        client_primaryobjective: activePlan.primary_objective,
-        client_secondaryobjective: activePlan.secondary_objective,
-        client_tertiaryobjective: activePlan.tertiary_objective,
-        client_intervention1: activePlan.intervention_1,
-        client_intervention2: activePlan.intervention_2,
-        client_intervention3: activePlan.intervention_3,
-        client_intervention4: activePlan.intervention_4,
-        client_intervention5: activePlan.intervention_5,
-        client_intervention6: activePlan.intervention_6,
-        // Form data
+        // Treatment plan snapshot - map from TreatmentPlan DB columns
+        client_treatmentplan_startdate: activePlan.treatmentplan_startdate,
+        client_planlength: activePlan.planlength,
+        client_treatmentfrequency: activePlan.treatmentfrequency,
+        client_nexttreatmentplanupdate: activePlan.next_treatmentplan_update,
+        client_problem: activePlan.problem,
+        client_treatmentgoal: activePlan.treatmentgoal,
+        client_primaryobjective: activePlan.primaryobjective,
+        client_secondaryobjective: activePlan.secondaryobjective,
+        client_tertiaryobjective: activePlan.tertiaryobjective,
+        client_intervention1: activePlan.intervention1,
+        client_intervention2: activePlan.intervention2,
+        client_intervention3: activePlan.intervention3,
+        client_intervention4: activePlan.intervention4,
+        client_intervention5: activePlan.intervention5,
+        client_intervention6: activePlan.intervention6,
+        // Form data (MSE, Risk Assessment, Session Content)
         ...formData,
       };
 

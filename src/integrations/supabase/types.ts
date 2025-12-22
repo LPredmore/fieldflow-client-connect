@@ -260,6 +260,44 @@ export type Database = {
           },
         ]
       }
+      appointment_private_notes: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          created_by_profile_id: string
+          id: string
+          note_content: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          created_by_profile_id: string
+          id?: string
+          note_content?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          created_by_profile_id?: string
+          id?: string
+          note_content?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_private_notes_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_series: {
         Row: {
           client_id: string
@@ -4513,6 +4551,44 @@ export type Database = {
           specialty?: Database["public"]["Enums"]["specialty_enum"] | null
         }
         Relationships: []
+      }
+      treatment_plan_private_notes: {
+        Row: {
+          created_at: string
+          created_by_profile_id: string
+          id: string
+          note_content: string | null
+          tenant_id: string
+          treatment_plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_profile_id: string
+          id?: string
+          note_content?: string | null
+          tenant_id: string
+          treatment_plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by_profile_id?: string
+          id?: string
+          note_content?: string | null
+          tenant_id?: string
+          treatment_plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatment_plan_private_notes_treatment_plan_id_fkey"
+            columns: ["treatment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "client_treatment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

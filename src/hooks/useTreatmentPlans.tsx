@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+// Interface matching actual database column names
 export interface TreatmentPlan {
   id: string;
   tenant_id: string;
@@ -11,26 +12,29 @@ export interface TreatmentPlan {
   staff_id: string;
   plan_version: number;
   is_active: boolean;
-  start_date: string;
-  plan_length: string | null;
-  treatment_frequency: string | null;
-  next_update_date: string | null;
-  problem_narrative: string | null;
-  treatment_goal: string | null;
-  primary_objective: string | null;
-  secondary_objective: string | null;
-  tertiary_objective: string | null;
-  intervention_1: string | null;
-  intervention_2: string | null;
-  intervention_3: string | null;
-  intervention_4: string | null;
-  intervention_5: string | null;
-  intervention_6: string | null;
-  private_notes: string | null;
+  supersedes_plan_id: string | null;
+  treatmentplan_startdate: string | null;
+  planlength: string | null;
+  treatmentfrequency: string | null;
+  next_treatmentplan_update: string | null;
+  problem: string | null;
+  treatmentgoal: string | null;
+  primaryobjective: string | null;
+  secondaryobjective: string | null;
+  tertiaryobjective: string | null;
+  intervention1: string | null;
+  intervention2: string | null;
+  intervention3: string | null;
+  intervention4: string | null;
+  intervention5: string | null;
+  intervention6: string | null;
+  plan_narrative: string | null;
+  created_by_profile_id: string;
   created_at: string;
   updated_at: string;
 }
 
+// Form data interface with readable names (mapped to DB columns on save)
 export interface TreatmentPlanFormData {
   start_date: string;
   plan_length: string;
@@ -47,12 +51,33 @@ export interface TreatmentPlanFormData {
   intervention_4?: string;
   intervention_5?: string;
   intervention_6?: string;
-  private_notes?: string;
+}
+
+// Maps form data to database column names
+function mapFormToDatabase(formData: TreatmentPlanFormData) {
+  return {
+    treatmentplan_startdate: formData.start_date,
+    planlength: formData.plan_length,
+    treatmentfrequency: formData.treatment_frequency,
+    next_treatmentplan_update: formData.next_update_date || null,
+    problem: formData.problem_narrative,
+    treatmentgoal: formData.treatment_goal,
+    primaryobjective: formData.primary_objective,
+    secondaryobjective: formData.secondary_objective || null,
+    tertiaryobjective: formData.tertiary_objective || null,
+    intervention1: formData.intervention_1,
+    intervention2: formData.intervention_2,
+    intervention3: formData.intervention_3 || null,
+    intervention4: formData.intervention_4 || null,
+    intervention5: formData.intervention_5 || null,
+    intervention6: formData.intervention_6 || null,
+  };
 }
 
 export function useTreatmentPlans(clientId: string | undefined) {
   const { user, tenantId } = useAuth();
   const staffId = user?.staffAttributes?.staffData?.id;
+  const profileId = user?.id;
 
   const {
     data: plans,
@@ -75,7 +100,7 @@ export function useTreatmentPlans(clientId: string | undefined) {
 
   // Create a new treatment plan
   const createPlan = useCallback(async (formData: TreatmentPlanFormData) => {
-    if (!clientId || !tenantId || !staffId) {
+    if (!clientId || !tenantId || !staffId || !profileId) {
       toast({
         title: "Error",
         description: "Missing required data. Please try again.",
@@ -97,6 +122,9 @@ export function useTreatmentPlans(clientId: string | undefined) {
       // Get the next plan version
       const nextVersion = (plans?.length || 0) + 1;
 
+      // Map form data to database columns
+      const dbData = mapFormToDatabase(formData);
+
       // Insert the new plan
       const { data, error } = await supabase
         .from('client_treatment_plans')
@@ -104,9 +132,11 @@ export function useTreatmentPlans(clientId: string | undefined) {
           tenant_id: tenantId,
           client_id: clientId,
           staff_id: staffId,
+          created_by_profile_id: profileId, // Required field!
           plan_version: nextVersion,
           is_active: true,
-          ...formData,
+          supersedes_plan_id: activePlan?.id || null,
+          ...dbData,
         })
         .select()
         .single();
@@ -130,14 +160,33 @@ export function useTreatmentPlans(clientId: string | undefined) {
       });
       return { data: null, error: err };
     }
-  }, [clientId, tenantId, staffId, activePlan, plans, refetch]);
+  }, [clientId, tenantId, staffId, profileId, activePlan, plans, refetch]);
 
   // Update an existing treatment plan
   const updatePlan = useCallback(async (planId: string, formData: Partial<TreatmentPlanFormData>) => {
     try {
+      // Map form data to database columns
+      const dbData: Record<string, unknown> = {};
+      
+      if (formData.start_date !== undefined) dbData.treatmentplan_startdate = formData.start_date;
+      if (formData.plan_length !== undefined) dbData.planlength = formData.plan_length;
+      if (formData.treatment_frequency !== undefined) dbData.treatmentfrequency = formData.treatment_frequency;
+      if (formData.next_update_date !== undefined) dbData.next_treatmentplan_update = formData.next_update_date || null;
+      if (formData.problem_narrative !== undefined) dbData.problem = formData.problem_narrative;
+      if (formData.treatment_goal !== undefined) dbData.treatmentgoal = formData.treatment_goal;
+      if (formData.primary_objective !== undefined) dbData.primaryobjective = formData.primary_objective;
+      if (formData.secondary_objective !== undefined) dbData.secondaryobjective = formData.secondary_objective || null;
+      if (formData.tertiary_objective !== undefined) dbData.tertiaryobjective = formData.tertiary_objective || null;
+      if (formData.intervention_1 !== undefined) dbData.intervention1 = formData.intervention_1;
+      if (formData.intervention_2 !== undefined) dbData.intervention2 = formData.intervention_2;
+      if (formData.intervention_3 !== undefined) dbData.intervention3 = formData.intervention_3 || null;
+      if (formData.intervention_4 !== undefined) dbData.intervention4 = formData.intervention_4 || null;
+      if (formData.intervention_5 !== undefined) dbData.intervention5 = formData.intervention_5 || null;
+      if (formData.intervention_6 !== undefined) dbData.intervention6 = formData.intervention_6 || null;
+
       const { data, error } = await supabase
         .from('client_treatment_plans')
-        .update(formData)
+        .update(dbData)
         .eq('id', planId)
         .select()
         .single();

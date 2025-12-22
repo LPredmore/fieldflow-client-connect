@@ -67,7 +67,6 @@ const treatmentPlanSchema = z.object({
   tertiary_objective: z.string().optional(),
   intervention_5: z.string().optional(),
   intervention_6: z.string().optional(),
-  private_notes: z.string().optional(),
 });
 
 type TreatmentPlanFormValues = z.infer<typeof treatmentPlanSchema>;
@@ -130,7 +129,6 @@ export function TreatmentPlanDialog({
       tertiary_objective: '',
       intervention_5: '',
       intervention_6: '',
-      private_notes: '',
     },
   });
 
@@ -138,25 +136,24 @@ export function TreatmentPlanDialog({
   useEffect(() => {
     if (existingPlan && open) {
       form.reset({
-        start_date: new Date(existingPlan.start_date),
-        plan_length: existingPlan.plan_length || '',
-        treatment_frequency: existingPlan.treatment_frequency || '',
-        problem_narrative: existingPlan.problem_narrative || '',
-        treatment_goal: existingPlan.treatment_goal || '',
-        primary_objective: existingPlan.primary_objective || '',
-        intervention_1: existingPlan.intervention_1 || '',
-        intervention_2: existingPlan.intervention_2 || '',
-        secondary_objective: existingPlan.secondary_objective || '',
-        intervention_3: existingPlan.intervention_3 || '',
-        intervention_4: existingPlan.intervention_4 || '',
-        tertiary_objective: existingPlan.tertiary_objective || '',
-        intervention_5: existingPlan.intervention_5 || '',
-        intervention_6: existingPlan.intervention_6 || '',
-        private_notes: existingPlan.private_notes || '',
+        start_date: existingPlan.treatmentplan_startdate ? new Date(existingPlan.treatmentplan_startdate) : new Date(),
+        plan_length: existingPlan.planlength || '',
+        treatment_frequency: existingPlan.treatmentfrequency || '',
+        problem_narrative: existingPlan.problem || '',
+        treatment_goal: existingPlan.treatmentgoal || '',
+        primary_objective: existingPlan.primaryobjective || '',
+        intervention_1: existingPlan.intervention1 || '',
+        intervention_2: existingPlan.intervention2 || '',
+        secondary_objective: existingPlan.secondaryobjective || '',
+        intervention_3: existingPlan.intervention3 || '',
+        intervention_4: existingPlan.intervention4 || '',
+        tertiary_objective: existingPlan.tertiaryobjective || '',
+        intervention_5: existingPlan.intervention5 || '',
+        intervention_6: existingPlan.intervention6 || '',
       });
 
-      setShowSecondaryObjective(!!existingPlan.secondary_objective);
-      setShowTertiaryObjective(!!existingPlan.tertiary_objective);
+      setShowSecondaryObjective(!!existingPlan.secondaryobjective);
+      setShowTertiaryObjective(!!existingPlan.tertiaryobjective);
     }
   }, [existingPlan, open, form]);
 
@@ -240,7 +237,6 @@ export function TreatmentPlanDialog({
         intervention_4: values.intervention_4 || null,
         intervention_5: values.intervention_5 || null,
         intervention_6: values.intervention_6 || null,
-        private_notes: values.private_notes || null,
       };
 
       if (isEditing && existingPlan) {
@@ -701,28 +697,18 @@ export function TreatmentPlanDialog({
               </Button>
             )}
 
-            {/* Private Notes */}
+            {/* Private Notes info - saved separately */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Private Notes</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">
+                  Private Notes
+                  <span className="text-xs font-normal text-muted-foreground">(Only visible to you and tenant admins)</span>
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <FormField
-                  control={form.control}
-                  name="private_notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Notes visible only to providers (not included in client documentation)..."
-                          className="min-h-[80px] resize-none"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <p className="text-sm text-muted-foreground">
+                  Private notes can be added after creating the treatment plan by editing it.
+                </p>
               </CardContent>
             </Card>
 
