@@ -30,7 +30,7 @@ const Index = () => {
   
   // Treatment Plan dialog state
   const [treatmentPlanDialogOpen, setTreatmentPlanDialogOpen] = useState(false);
-  const [selectedClientForPlan, setSelectedClientForPlan] = useState<{ id: string; name: string } | null>(null);
+  const [selectedClientIdForPlan, setSelectedClientIdForPlan] = useState<string | null>(null);
   
   // Get active treatment plan for selected appointment's client
   const { activePlan, refetch: refetchPlans } = useTreatmentPlans(selectedAppointment?.client_id);
@@ -98,8 +98,8 @@ const Index = () => {
     setSessionNoteDialogOpen(true);
   };
 
-  const handleOpenTreatmentPlan = (clientId: string, clientName: string) => {
-    setSelectedClientForPlan({ id: clientId, name: clientName });
+  const handleOpenTreatmentPlan = (clientId: string) => {
+    setSelectedClientIdForPlan(clientId);
     setTreatmentPlanDialogOpen(true);
   };
 
@@ -276,16 +276,16 @@ const Index = () => {
       )}
 
       {/* Treatment Plan Dialog */}
-      {selectedClientForPlan && (
+      {selectedClientIdForPlan && (
         <TreatmentPlanDialog
           open={treatmentPlanDialogOpen}
           onOpenChange={(open) => {
             setTreatmentPlanDialogOpen(open);
             if (!open) {
-              setSelectedClientForPlan(null);
+              setSelectedClientIdForPlan(null);
             }
           }}
-          client={{ id: selectedClientForPlan.id, pat_name_f: selectedClientForPlan.name, pat_name_l: '' } as any}
+          clientId={selectedClientIdForPlan}
           clinicianName={user?.staffAttributes?.staffData?.prov_name_f + ' ' + user?.staffAttributes?.staffData?.prov_name_l}
         />
       )}

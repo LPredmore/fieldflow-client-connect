@@ -38,7 +38,7 @@ interface SessionDocumentationDialogProps {
     notes: string
   ) => Promise<void>;
   onOpenSessionNote?: (appointment: StaffAppointment) => void;
-  onOpenTreatmentPlan?: (clientId: string, clientName: string) => void;
+  onOpenTreatmentPlan?: (clientId: string) => void;
 }
 
 export function SessionDocumentationDialog({
@@ -121,7 +121,7 @@ export function SessionDocumentationDialog({
   const handleCreateTreatmentPlan = () => {
     if (appointment && onOpenTreatmentPlan) {
       handleOpenChange(false);
-      onOpenTreatmentPlan(appointment.client_id, appointment.client_name);
+      onOpenTreatmentPlan(appointment.client_id);
     }
   };
 
