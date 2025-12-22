@@ -41,11 +41,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from '@/hooks/use-toast';
 
 import { DiagnosisSelector } from './DiagnosisSelector';
 import { useTreatmentPlans, TreatmentPlan } from '@/hooks/useTreatmentPlans';
 import { useClientDiagnoses } from '@/hooks/useClientDiagnoses';
 import { useManageClientDiagnoses } from '@/hooks/useDiagnosisCodes';
+import { useTreatmentPlanPrivateNote } from '@/hooks/useTreatmentPlanPrivateNote';
+import { useAuth } from '@/hooks/useAuth';
 import { Client } from '@/hooks/useClients';
 import { getClientDisplayName } from '@/utils/clientDisplayName';
 import { supabase } from '@/integrations/supabase/client';
@@ -106,10 +109,13 @@ export function TreatmentPlanDialog({
   const [showTertiaryObjective, setShowTertiaryObjective] = useState(false);
   const [selectedDiagnosisIds, setSelectedDiagnosisIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [privateNoteContent, setPrivateNoteContent] = useState('');
   
   // Fetch full client data when dialog opens
   const [clientData, setClientData] = useState<Client | null>(null);
   const [clientLoading, setClientLoading] = useState(false);
+  
+  const { user, tenantId } = useAuth();
   
   useEffect(() => {
     if (open && clientId) {
@@ -135,6 +141,13 @@ export function TreatmentPlanDialog({
   const { addDiagnosis, removeDiagnosis } = useManageClientDiagnoses(clientId);
 
   const isEditing = !!existingPlan;
+  
+  // Private note hook - only used when editing an existing plan
+  const { 
+    noteContent: existingNoteContent, 
+    savePrivateNote,
+    loading: privateNoteLoading 
+  } = useTreatmentPlanPrivateNote(isEditing ? existingPlan?.id : undefined);
 
   const form = useForm<TreatmentPlanFormValues>({
     resolver: zodResolver(treatmentPlanSchema),
@@ -195,8 +208,16 @@ export function TreatmentPlanDialog({
       setShowSecondaryObjective(false);
       setShowTertiaryObjective(false);
       setSelectedDiagnosisIds([]);
+      setPrivateNoteContent('');
     }
   }, [open, form]);
+  
+  // Load existing private note when editing
+  useEffect(() => {
+    if (isEditing && existingNoteContent) {
+      setPrivateNoteContent(existingNoteContent);
+    }
+  }, [isEditing, existingNoteContent]);
 
   // Calculate next update date based on start date and plan length
   const calculateNextUpdateDate = (startDate: Date, planLength: string): string => {
@@ -237,6 +258,28 @@ export function TreatmentPlanDialog({
     setSelectedDiagnosisIds(newIds);
   };
 
+  // Save private note for newly created plans (direct insert)
+  const savePrivateNoteForNewPlan = async (planId: string, content: string): Promise<boolean> => {
+    if (!tenantId || !user?.id) return false;
+    
+    try {
+      const { error } = await supabase
+        .from('treatment_plan_private_notes')
+        .insert({
+          tenant_id: tenantId,
+          treatment_plan_id: planId,
+          created_by_profile_id: user.id,
+          note_content: content,
+        });
+      
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('Error saving private note for new plan:', err);
+      return false;
+    }
+  };
+
   const onSubmit = async (values: TreatmentPlanFormValues) => {
     if (!clientId) return;
 
@@ -264,9 +307,36 @@ export function TreatmentPlanDialog({
       };
 
       if (isEditing && existingPlan) {
+        // Phase 1: Update the treatment plan
         await updatePlan(existingPlan.id, planData);
+        
+        // Phase 2: Save private note if content exists
+        if (privateNoteContent.trim()) {
+          const { error } = await savePrivateNote(privateNoteContent.trim());
+          if (error) {
+            toast({
+              title: "Note",
+              description: "Treatment plan updated, but private note could not be saved.",
+              variant: "default",
+            });
+          }
+        }
       } else {
-        await createPlan(planData);
+        // Phase 1: Create the treatment plan
+        const { data: newPlan } = await createPlan(planData);
+        const savedPlanId = newPlan?.id;
+        
+        // Phase 2: Save private note if content exists and we have a plan ID
+        if (savedPlanId && privateNoteContent.trim()) {
+          const noteSuccess = await savePrivateNoteForNewPlan(savedPlanId, privateNoteContent.trim());
+          if (!noteSuccess) {
+            toast({
+              title: "Note",
+              description: "Treatment plan created, but private note could not be saved. You can add it by editing the plan.",
+              variant: "default",
+            });
+          }
+        }
       }
 
       onOpenChange(false);
@@ -728,17 +798,26 @@ export function TreatmentPlanDialog({
               </Button>
             )}
 
-            {/* Private Notes info - saved separately */}
+            {/* Private Notes */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   Private Notes
-                  <span className="text-xs font-normal text-muted-foreground">(Only visible to you and tenant admins)</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    (Only visible to you)
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Private notes can be added after creating the treatment plan by editing it.
+                <Textarea
+                  placeholder="Add private clinical observations, reminders, or notes that only you can see..."
+                  className="min-h-[100px] resize-none"
+                  value={privateNoteContent}
+                  onChange={(e) => setPrivateNoteContent(e.target.value)}
+                  disabled={isSaving}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  These notes are personal and won't be visible to other clinicians.
                 </p>
               </CardContent>
             </Card>
