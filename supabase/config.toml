@@ -23,3 +23,6 @@ verify_jwt = true
 
 [functions.extract-insurance-card]
 verify_jwt = false
+
+[functions.generate-clinical-note]
+verify_jwt = true
