@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/form';
 import { UseFormReturn } from 'react-hook-form';
 import { StaffAppointment } from '@/hooks/useStaffAppointments';
+import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
+import { parseISO, format } from 'date-fns';
 
 interface ClientInfoSectionProps {
   form: UseFormReturn<any>;
@@ -28,6 +30,32 @@ export const ClientInfoSection: React.FC<ClientInfoSectionProps> = memo(({
   formattedDiagnoses,
   diagnosesLoading
 }) => {
+  // Fetch client's first and last name
+  const { data: clientData, loading: clientLoading } = useSupabaseQuery<{
+    id: string;
+    pat_name_f: string | null;
+    pat_name_l: string | null;
+  }>({
+    table: 'clients',
+    select: 'id, pat_name_f, pat_name_l',
+    filters: { id: appointment.client_id },
+    enabled: !!appointment.client_id,
+  });
+
+  const client = clientData?.[0];
+  
+  // Format client name from first + last
+  const clientFullName = clientLoading 
+    ? 'Loading...' 
+    : client 
+      ? `${client.pat_name_f || ''} ${client.pat_name_l || ''}`.trim() 
+      : appointment.client_name || '';
+
+  // Format session date as YYYY-MM-DD from start_at timestamp
+  const formattedSessionDate = appointment.start_at 
+    ? format(parseISO(appointment.start_at), 'yyyy-MM-dd')
+    : appointment.display_date || '';
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -42,7 +70,7 @@ export const ClientInfoSection: React.FC<ClientInfoSectionProps> = memo(({
           <div>
             <label className="block text-xs text-muted-foreground mb-1">Client Name</label>
             <Input
-              value={appointment.client_name || ''}
+              value={clientFullName}
               readOnly
               className="bg-muted/50"
             />
@@ -50,7 +78,7 @@ export const ClientInfoSection: React.FC<ClientInfoSectionProps> = memo(({
           <div>
             <label className="block text-xs text-muted-foreground mb-1">Session Date</label>
             <Input
-              value={appointment.display_date || ''}
+              value={formattedSessionDate}
               readOnly
               className="bg-muted/50"
             />
