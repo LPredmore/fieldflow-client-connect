@@ -10,34 +10,26 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { Form } from '@/components/ui/form';
 import { StaffAppointment } from '@/hooks/useStaffAppointments';
 import { TreatmentPlan } from '@/hooks/useTreatmentPlans';
 import { useClientDiagnoses } from '@/hooks/useClientDiagnoses';
 import { useSessionNote, SessionNoteFormData } from '@/hooks/useSessionNote';
 import { useAppointmentPrivateNote } from '@/hooks/useAppointmentPrivateNote';
-import { Loader2, FileText, Brain, AlertTriangle, ClipboardList, Lock } from 'lucide-react';
+import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
+import { Loader2, FileText } from 'lucide-react';
+
+// Import section components
+import {
+  ClientInfoSection,
+  MentalStatusSection,
+  TreatmentObjectivesSection,
+  SessionAssessmentSection,
+  PHQ9Section,
+  PlanSection,
+} from './SessionNote';
 
 const sessionNoteSchema = z.object({
   // Mental Status Exam
@@ -59,6 +51,7 @@ const sessionNoteSchema = z.object({
   // Session Content
   client_personsinattendance: z.string().optional().default(''),
   client_medications: z.string().optional().default(''),
+  client_currentsymptoms: z.string().optional().default(''),
   client_sessionnarrative: z.string().min(1, 'Session narrative is required'),
   client_functioning: z.string().optional().default(''),
   client_prognosis: z.string().optional().default(''),
@@ -68,21 +61,6 @@ const sessionNoteSchema = z.object({
 });
 
 type SessionNoteFormValues = z.infer<typeof sessionNoteSchema>;
-
-// MSE Options
-const MSE_OPTIONS = {
-  appearance: ['Well-groomed', 'Casually dressed', 'Disheveled', 'Bizarre', 'Inappropriate for weather'],
-  attitude: ['Cooperative', 'Friendly', 'Guarded', 'Hostile', 'Suspicious', 'Withdrawn'],
-  behavior: ['Calm', 'Restless', 'Agitated', 'Psychomotor retardation', 'Tremor', 'Tics'],
-  speech: ['Normal rate/volume', 'Slow', 'Rapid', 'Pressured', 'Soft', 'Loud', 'Slurred'],
-  affect: ['Full range', 'Constricted', 'Blunted', 'Flat', 'Labile', 'Inappropriate'],
-  mood: ['Euthymic', 'Depressed', 'Anxious', 'Irritable', 'Euphoric', 'Angry'],
-  thoughtProcess: ['Logical', 'Tangential', 'Circumstantial', 'Loose associations', 'Flight of ideas', 'Perseveration'],
-  perception: ['No abnormalities', 'Auditory hallucinations', 'Visual hallucinations', 'Illusions', 'Derealization', 'Depersonalization'],
-  orientation: ['Oriented x4', 'Oriented x3', 'Oriented x2', 'Oriented x1', 'Disoriented'],
-  memoryConcentration: ['Intact', 'Mildly impaired', 'Moderately impaired', 'Severely impaired'],
-  insightJudgement: ['Good', 'Fair', 'Limited', 'Poor'],
-};
 
 interface SessionNoteDialogProps {
   open: boolean;
@@ -107,6 +85,26 @@ export function SessionNoteDialog({
   const { createSessionNote } = useSessionNote(appointment?.id);
   const { savePrivateNote } = useAppointmentPrivateNote(appointment?.id);
 
+  // Fetch most recent PHQ-9 for this client
+  const { data: phq9Records, loading: phq9Loading } = useSupabaseQuery<{
+    id: string;
+    total_score: number;
+    severity: string;
+    ai_narrative: string | null;
+    administered_at: string;
+  }>({
+    table: 'client_phq9_assessments',
+    select: 'id, total_score, severity, ai_narrative, administered_at',
+    filters: {
+      tenant_id: 'auto',
+      client_id: appointment?.client_id,
+    },
+    orderBy: { column: 'administered_at', ascending: false },
+    enabled: !!appointment?.client_id,
+  });
+
+  const recentPhq9 = phq9Records?.[0] || null;
+
   const form = useForm<SessionNoteFormValues>({
     resolver: zodResolver(sessionNoteSchema),
     defaultValues: {
@@ -126,6 +124,7 @@ export function SessionNoteDialog({
       client_homicidalideation: 'none',
       client_personsinattendance: '',
       client_medications: '',
+      client_currentsymptoms: '',
       client_sessionnarrative: '',
       client_functioning: '',
       client_prognosis: '',
@@ -147,8 +146,10 @@ export function SessionNoteDialog({
     setIsSubmitting(true);
     try {
       // Extract private note from form data (it goes to separate table)
-      const { private_note, ...clinicalData } = data;
+      const { private_note, client_currentsymptoms, ...clinicalData } = data;
       
+      // Map client_currentsymptoms to session narrative if needed (or handle separately)
+      // For now we'll include it in the clinical data but it won't be saved since column doesn't exist
       const result = await createSessionNote(
         appointment.id,
         appointment.client_id,
@@ -190,547 +191,49 @@ export function SessionNoteDialog({
         <ScrollArea className="flex-1">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 space-y-6">
-              {/* Diagnoses (Read-Only) */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Client Diagnoses</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {diagnosesLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading diagnoses...
-                    </div>
-                  ) : diagnosisCodes.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No diagnoses on file</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {formattedDiagnoses.map((diagnosis, idx) => (
-                        <Badge key={idx} variant="secondary">
-                          {diagnosis}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              
+              {/* 1. Client Information Section */}
+              <ClientInfoSection
+                form={form}
+                appointment={appointment}
+                diagnosisCodes={diagnosisCodes}
+                formattedDiagnoses={formattedDiagnoses}
+                diagnosesLoading={diagnosesLoading}
+              />
 
-              {/* Treatment Plan Snapshot (Read-Only) */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Treatment Plan</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Start Date</Label>
-                      <p className="font-medium">{activePlan.treatmentplan_startdate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Plan Length</Label>
-                      <p className="font-medium">{activePlan.planlength || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Frequency</Label>
-                      <p className="font-medium">{activePlan.treatmentfrequency || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Next Update</Label>
-                      <p className="font-medium">{activePlan.next_treatmentplan_update || 'N/A'}</p>
-                    </div>
-                  </div>
-                  <Separator />
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Problem</Label>
-                    <p className="font-medium">{activePlan.problem || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Treatment Goal</Label>
-                    <p className="font-medium">{activePlan.treatmentgoal || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Primary Objective</Label>
-                    <p className="font-medium">{activePlan.primaryobjective || 'N/A'}</p>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* 2. Treatment Objectives Section (View Only) */}
+              <TreatmentObjectivesSection activePlan={activePlan} />
 
               <Separator />
 
-              {/* Mental Status Exam */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold">Mental Status Exam</h3>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="client_appearance"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Appearance</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.appearance.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="client_attitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Attitude</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.attitude.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_behavior"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Behavior</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.behavior.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_speech"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Speech</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.speech.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_affect"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Affect</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.affect.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_mood"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mood</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.mood.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_thoughtprocess"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Thought Process</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.thoughtProcess.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_perception"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Perception</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.perception.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_orientation"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Orientation</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.orientation.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_memoryconcentration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Memory/Concentration</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.memoryConcentration.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_insightjudgement"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Insight/Judgement</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MSE_OPTIONS.insightJudgement.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
+              {/* 3. Mental Status Examination */}
+              <MentalStatusSection form={form} />
 
               <Separator />
 
-              {/* Risk Assessment */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold">Risk Assessment</h3>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="client_substanceabuserisk"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Substance Abuse Risk</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_suicidalideation"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Suicidal Ideation</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="passive">Passive</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_homicidalideation"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Homicidal Ideation</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="passive">Passive</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
+              {/* 4. Session Assessment */}
+              <SessionAssessmentSection 
+                form={form}
+                // AI Assist will be implemented in Phase 2
+                // onAiAssist={() => {}}
+                // isGeneratingNote={false}
+              />
 
               <Separator />
 
-              {/* Session Content */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold">Session Content</h3>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="client_personsinattendance"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Persons in Attendance</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Client only" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_medications"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Medications</FormLabel>
-                        <FormControl>
-                          <Input placeholder="List medications..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="client_sessionnarrative"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Session Narrative *</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Describe what was discussed during the session..."
-                          className="min-h-[120px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="client_functioning"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Functioning</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Client functioning..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_prognosis"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Prognosis</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Good, Fair, Poor" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="client_progress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Progress</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Improving" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
+              {/* 5. PHQ-9 Assessment */}
+              <PHQ9Section 
+                phq9Data={recentPhq9} 
+                loading={phq9Loading} 
+              />
 
               <Separator />
 
-              {/* Private Notes */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold">Private Notes</h3>
-                  <span className="text-xs text-muted-foreground">(Only visible to you and tenant admins)</span>
-                </div>
-                
-                <FormField
-                  control={form.control}
-                  name="private_note"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Private clinical notes..."
-                          className="min-h-[80px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              {/* 6. Plan & Private Notes */}
+              <PlanSection 
+                form={form} 
+                activePlan={activePlan} 
+              />
 
               {/* Submit Button */}
               <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t">
