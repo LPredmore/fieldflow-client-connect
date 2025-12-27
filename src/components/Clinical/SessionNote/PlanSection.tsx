@@ -3,27 +3,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lock, FileCheck } from 'lucide-react';
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@/components/ui/form';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { UseFormReturn } from 'react-hook-form';
 import { TreatmentPlan } from '@/hooks/useTreatmentPlans';
-
 interface PlanSectionProps {
   form: UseFormReturn<any>;
   activePlan: TreatmentPlan;
 }
-
 export const PlanSection: React.FC<PlanSectionProps> = memo(({
   form,
   activePlan
 }) => {
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Plan & Signature Section */}
       <Card>
         <CardHeader className="pb-3">
@@ -36,11 +27,7 @@ export const PlanSection: React.FC<PlanSectionProps> = memo(({
           {/* Next Treatment Plan Update (read-only) */}
           <div>
             <label className="block text-xs text-muted-foreground mb-1">Next Treatment Plan Update</label>
-            <Input
-              value={activePlan.next_treatmentplan_update || 'N/A'}
-              readOnly
-              className="bg-muted/50"
-            />
+            <Input value={activePlan.next_treatmentplan_update || 'N/A'} readOnly className="bg-muted/50" />
           </div>
         </CardContent>
       </Card>
@@ -51,30 +38,20 @@ export const PlanSection: React.FC<PlanSectionProps> = memo(({
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Lock className="h-4 w-4" />
             Private Notes
-            <span className="text-xs text-muted-foreground font-normal">(Only visible to you and tenant admins)</span>
+            <span className="text-xs text-muted-foreground font-normal">(Only visible to you)</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <FormField
-            control={form.control}
-            name="private_note"
-            render={({ field }) => (
-              <FormItem>
+          <FormField control={form.control} name="private_note" render={({
+          field
+        }) => <FormItem>
                 <FormControl>
-                  <Textarea
-                    placeholder="Add a private note that only clinicians can see..."
-                    className="min-h-[100px] resize-y"
-                    {...field}
-                  />
+                  <Textarea placeholder="Add a private note that only clinicians can see..." className="min-h-[100px] resize-y" {...field} />
                 </FormControl>
                 <FormMessage />
-              </FormItem>
-            )}
-          />
+              </FormItem>} />
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 });
-
 PlanSection.displayName = 'PlanSection';
