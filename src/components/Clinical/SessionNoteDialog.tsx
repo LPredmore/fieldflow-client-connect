@@ -13,12 +13,14 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Form } from '@/components/ui/form';
+import { useToast } from '@/hooks/use-toast';
 import { StaffAppointment } from '@/hooks/useStaffAppointments';
 import { TreatmentPlan } from '@/hooks/useTreatmentPlans';
 import { useClientDiagnoses } from '@/hooks/useClientDiagnoses';
 import { useSessionNote, SessionNoteFormData } from '@/hooks/useSessionNote';
 import { useAppointmentPrivateNote } from '@/hooks/useAppointmentPrivateNote';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
+import { supabase } from '@/integrations/supabase/client';
 import { Loader2, FileText } from 'lucide-react';
 
 // Import section components
@@ -80,6 +82,9 @@ export function SessionNoteDialog({
   onSuccess,
 }: SessionNoteDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedInterventions, setSelectedInterventions] = useState<string[]>([]);
+  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
+  const { toast } = useToast();
   
   const { diagnosisCodes, formattedDiagnoses, loading: diagnosesLoading } = useClientDiagnoses(appointment?.client_id);
   const { createSessionNote } = useSessionNote(appointment?.id);
@@ -133,12 +138,64 @@ export function SessionNoteDialog({
     },
   });
 
-  // Reset form when dialog opens
+  // Reset form and state when dialog opens
   useEffect(() => {
     if (open) {
       form.reset();
+      setSelectedInterventions([]);
     }
   }, [open, form]);
+
+  // AI Assist handler
+  const handleAiAssist = async () => {
+    const currentSymptoms = form.getValues('client_currentsymptoms');
+    const sessionNarrative = form.getValues('client_sessionnarrative');
+    
+    // Validate: need at least session notes to generate
+    if (!sessionNarrative?.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please add session notes before using AI Assist",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsGeneratingNote(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-clinical-note', {
+        body: {
+          currentSymptoms,
+          sessionNarrative,
+          selectedInterventions,
+        }
+      });
+      
+      if (error) {
+        console.error('AI Assist error:', error);
+        throw error;
+      }
+      
+      if (data?.generatedNarrative) {
+        form.setValue('client_sessionnarrative', data.generatedNarrative);
+        toast({
+          title: "Note Generated",
+          description: "AI-generated clinical narrative applied. Please review before saving.",
+        });
+      } else if (data?.error) {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      console.error('AI Assist error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate clinical note. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingNote(false);
+    }
+  };
 
   const onSubmit = async (data: SessionNoteFormValues) => {
     if (!appointment) return;
@@ -201,8 +258,13 @@ export function SessionNoteDialog({
                 diagnosesLoading={diagnosesLoading}
               />
 
-              {/* 2. Treatment Objectives Section (View Only) */}
-              <TreatmentObjectivesSection activePlan={activePlan} />
+              {/* 2. Treatment Objectives Section (with intervention selection) */}
+              <TreatmentObjectivesSection 
+                activePlan={activePlan}
+                selectedInterventions={selectedInterventions}
+                onInterventionChange={setSelectedInterventions}
+                selectionEnabled={true}
+              />
 
               <Separator />
 
@@ -211,12 +273,11 @@ export function SessionNoteDialog({
 
               <Separator />
 
-              {/* 4. Session Assessment */}
+              {/* 4. Session Assessment with AI Assist */}
               <SessionAssessmentSection 
                 form={form}
-                // AI Assist will be implemented in Phase 2
-                // onAiAssist={() => {}}
-                // isGeneratingNote={false}
+                onAiAssist={handleAiAssist}
+                isGeneratingNote={isGeneratingNote}
               />
 
               <Separator />

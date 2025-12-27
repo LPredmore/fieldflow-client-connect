@@ -1,21 +1,96 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Target } from 'lucide-react';
 import { TreatmentPlan } from '@/hooks/useTreatmentPlans';
 
 interface TreatmentObjectivesSectionProps {
   activePlan: TreatmentPlan;
+  selectedInterventions?: string[];
+  onInterventionChange?: (interventions: string[]) => void;
+  selectionEnabled?: boolean;
 }
 
 export const TreatmentObjectivesSection: React.FC<TreatmentObjectivesSectionProps> = memo(({
-  activePlan
+  activePlan,
+  selectedInterventions = [],
+  onInterventionChange,
+  selectionEnabled = false,
 }) => {
-  // Check if there are any interventions at all
-  const hasInterventions = activePlan.intervention1 || activePlan.intervention2 || 
-    activePlan.intervention3 || activePlan.intervention4 || 
-    activePlan.intervention5 || activePlan.intervention6;
+  // Extract all non-null interventions from the plan
+  const allInterventions = useMemo(() => {
+    const interventions: { key: string; label: string; value: string }[] = [];
+    
+    if (activePlan.intervention1) {
+      interventions.push({ key: 'intervention1', label: 'Intervention 1', value: activePlan.intervention1 });
+    }
+    if (activePlan.intervention2) {
+      interventions.push({ key: 'intervention2', label: 'Intervention 2', value: activePlan.intervention2 });
+    }
+    if (activePlan.intervention3) {
+      interventions.push({ key: 'intervention3', label: 'Intervention 3', value: activePlan.intervention3 });
+    }
+    if (activePlan.intervention4) {
+      interventions.push({ key: 'intervention4', label: 'Intervention 4', value: activePlan.intervention4 });
+    }
+    if (activePlan.intervention5) {
+      interventions.push({ key: 'intervention5', label: 'Intervention 5', value: activePlan.intervention5 });
+    }
+    if (activePlan.intervention6) {
+      interventions.push({ key: 'intervention6', label: 'Intervention 6', value: activePlan.intervention6 });
+    }
+    
+    return interventions;
+  }, [activePlan]);
+
+  const handleInterventionToggle = (interventionValue: string, checked: boolean) => {
+    if (!onInterventionChange) return;
+    
+    if (checked) {
+      onInterventionChange([...selectedInterventions, interventionValue]);
+    } else {
+      onInterventionChange(selectedInterventions.filter(i => i !== interventionValue));
+    }
+  };
+
+  const renderInterventionItem = (intervention: { key: string; label: string; value: string }) => {
+    const isSelected = selectedInterventions.includes(intervention.value);
+    
+    if (selectionEnabled) {
+      return (
+        <div 
+          key={intervention.key}
+          className={`flex items-start gap-3 p-2 rounded-md transition-colors ${
+            isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted/50'
+          }`}
+        >
+          <Checkbox
+            id={intervention.key}
+            checked={isSelected}
+            onCheckedChange={(checked) => handleInterventionToggle(intervention.value, checked === true)}
+            className="mt-0.5"
+          />
+          <label 
+            htmlFor={intervention.key}
+            className="text-sm cursor-pointer flex-1"
+          >
+            <span className="text-xs text-muted-foreground block">{intervention.label}</span>
+            <span className={isSelected ? 'font-medium' : ''}>{intervention.value}</span>
+          </label>
+        </div>
+      );
+    }
+    
+    // View-only mode
+    return (
+      <div key={intervention.key}>
+        <Label className="text-xs text-muted-foreground">{intervention.label}</Label>
+        <p className="text-sm">{intervention.value}</p>
+      </div>
+    );
+  };
 
   return (
     <Card>
@@ -23,7 +98,11 @@ export const TreatmentObjectivesSection: React.FC<TreatmentObjectivesSectionProp
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Target className="h-4 w-4" />
           Treatment Objectives & Interventions
-          <span className="text-xs text-muted-foreground font-normal">(View Only)</span>
+          {selectionEnabled ? (
+            <span className="text-xs text-primary font-normal">(Select interventions used)</span>
+          ) : (
+            <span className="text-xs text-muted-foreground font-normal">(View Only)</span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
@@ -67,82 +146,43 @@ export const TreatmentObjectivesSection: React.FC<TreatmentObjectivesSectionProp
 
         <Separator />
 
-        {/* Primary Objective + Interventions 1-2 */}
+        {/* Primary Objective */}
         {activePlan.primaryobjective && (
-          <div className="space-y-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">Primary Objective</Label>
-              <p className="font-medium mt-1">{activePlan.primaryobjective}</p>
-            </div>
-            {(activePlan.intervention1 || activePlan.intervention2) && (
-              <div className="pl-4 border-l-2 border-muted space-y-1">
-                {activePlan.intervention1 && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Intervention 1</Label>
-                    <p className="text-sm">{activePlan.intervention1}</p>
-                  </div>
-                )}
-                {activePlan.intervention2 && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Intervention 2</Label>
-                    <p className="text-sm">{activePlan.intervention2}</p>
-                  </div>
-                )}
-              </div>
-            )}
+          <div>
+            <Label className="text-xs text-muted-foreground">Primary Objective</Label>
+            <p className="font-medium mt-1">{activePlan.primaryobjective}</p>
           </div>
         )}
 
-        {/* Secondary Objective + Interventions 3-4 */}
+        {/* Secondary Objective */}
         {activePlan.secondaryobjective && (
-          <div className="space-y-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">Secondary Objective</Label>
-              <p className="font-medium mt-1">{activePlan.secondaryobjective}</p>
-            </div>
-            {(activePlan.intervention3 || activePlan.intervention4) && (
-              <div className="pl-4 border-l-2 border-muted space-y-1">
-                {activePlan.intervention3 && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Intervention 3</Label>
-                    <p className="text-sm">{activePlan.intervention3}</p>
-                  </div>
-                )}
-                {activePlan.intervention4 && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Intervention 4</Label>
-                    <p className="text-sm">{activePlan.intervention4}</p>
-                  </div>
-                )}
-              </div>
-            )}
+          <div>
+            <Label className="text-xs text-muted-foreground">Secondary Objective</Label>
+            <p className="font-medium mt-1">{activePlan.secondaryobjective}</p>
           </div>
         )}
 
-        {/* Tertiary Objective + Interventions 5-6 */}
+        {/* Tertiary Objective */}
         {activePlan.tertiaryobjective && (
-          <div className="space-y-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">Tertiary Objective</Label>
-              <p className="font-medium mt-1">{activePlan.tertiaryobjective}</p>
-            </div>
-            {(activePlan.intervention5 || activePlan.intervention6) && (
-              <div className="pl-4 border-l-2 border-muted space-y-1">
-                {activePlan.intervention5 && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Intervention 5</Label>
-                    <p className="text-sm">{activePlan.intervention5}</p>
-                  </div>
-                )}
-                {activePlan.intervention6 && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Intervention 6</Label>
-                    <p className="text-sm">{activePlan.intervention6}</p>
-                  </div>
-                )}
-              </div>
-            )}
+          <div>
+            <Label className="text-xs text-muted-foreground">Tertiary Objective</Label>
+            <p className="font-medium mt-1">{activePlan.tertiaryobjective}</p>
           </div>
+        )}
+
+        {/* Interventions Section */}
+        {allInterventions.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground block mb-2">
+                {selectionEnabled ? 'Select Interventions Used in This Session:' : 'Interventions:'}
+              </Label>
+              <div className={selectionEnabled ? 'space-y-1' : 'space-y-2 pl-4 border-l-2 border-muted'}>
+                {allInterventions.map(renderInterventionItem)}
+              </div>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
