@@ -49,12 +49,12 @@ export interface StaffAppointment {
 
 type DateRange = { fromISO: string; toISO: string };
 
-function defaultRange(): DateRange {
+function defaultRange(lookbackDays = 7, forwardDays = 90): DateRange {
   const now = new Date();
   const from = new Date(now);
-  from.setDate(from.getDate() - 7);
+  from.setDate(from.getDate() - lookbackDays);
   const to = new Date(now);
-  to.setDate(to.getDate() + 90);
+  to.setDate(to.getDate() + forwardDays);
   return { fromISO: from.toISOString(), toISO: to.toISOString() };
 }
 
@@ -78,6 +78,8 @@ function createFakeLocalDate(
 export interface UseStaffAppointmentsOptions {
   enabled?: boolean;
   range?: DateRange;
+  lookbackDays?: number;
+  forwardDays?: number;
 }
 
 /**
@@ -96,13 +98,13 @@ export interface UseStaffAppointmentsOptions {
 export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
-  const { enabled = true } = options || {};
+  const { enabled = true, lookbackDays = 7, forwardDays = 90 } = options || {};
   
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRangeRef = useRef<string>('');
   const isFetchingRef = useRef(false);
 
-  const [range, setRangeState] = useState<DateRange>(options?.range || defaultRange);
+  const [range, setRangeState] = useState<DateRange>(options?.range || defaultRange(lookbackDays, forwardDays));
   const [appointments, setAppointments] = useState<StaffAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [staffTimezone, setStaffTimezone] = useState<string>('');

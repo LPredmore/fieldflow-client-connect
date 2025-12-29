@@ -47,7 +47,8 @@ const Index = () => {
     loading,
     refetch: refetchAppointments,
   } = useStaffAppointments({ 
-    enabled: isDashboardRoute 
+    enabled: isDashboardRoute,
+    lookbackDays: 90,
   });
 
   const handleDocumentSession = (appointmentId: string) => {

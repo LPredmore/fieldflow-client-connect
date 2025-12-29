@@ -49,7 +49,9 @@ function saveWorkingHours(start: number, end: number) {
 
 export function RBCCalendar() {
   // Use the unified staff appointments hook - timezone is handled server-side
-  const { appointments, loading, refetch, staffTimezone } = useStaffAppointments();
+  const { appointments, loading, refetch, staffTimezone } = useStaffAppointments({
+    lookbackDays: 14,
+  });
   const { tenantId } = useAuth();
   
   // Debug: log when appointments change
