@@ -57,8 +57,8 @@ const MSE_FIELDS = {
   },
   orientation: {
     label: 'Orientation',
-    defaultOption: 'Oriented x3',
-    options: ['Oriented x3', 'Oriented x4', 'Oriented x2', 'Oriented x1', 'Disoriented']
+    defaultOption: 'Oriented x4',
+    options: ['Oriented x4', 'Oriented x3', 'Oriented x2', 'Oriented x1', 'Disoriented']
   },
   memoryConcentration: {
     label: 'Memory/Concentration',
