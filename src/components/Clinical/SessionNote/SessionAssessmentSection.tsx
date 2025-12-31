@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Sparkles } from 'lucide-react';
+import { ClipboardList, Sparkles, Check, X } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -56,12 +56,18 @@ interface SessionAssessmentSectionProps {
   form: UseFormReturn<any>;
   onAiAssist?: () => void;
   isGeneratingNote?: boolean;
+  isAiAssistMode?: boolean;
+  toggleAiAssistMode?: () => void;
+  selectedInterventions?: string[];
 }
 
 export const SessionAssessmentSection: React.FC<SessionAssessmentSectionProps> = memo(({
   form,
   onAiAssist,
-  isGeneratingNote = false
+  isGeneratingNote = false,
+  isAiAssistMode = false,
+  toggleAiAssistMode,
+  selectedInterventions = [],
 }) => {
   return (
     <div className="space-y-4">
@@ -169,18 +175,48 @@ export const SessionAssessmentSection: React.FC<SessionAssessmentSectionProps> =
           <FormItem>
             <div className="flex items-center gap-2">
               <FormLabel>Session Narrative *</FormLabel>
-              {onAiAssist && (
+              
+              {/* Step 1: Enter AI Assist Mode */}
+              {toggleAiAssistMode && !isAiAssistMode && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={onAiAssist}
+                  onClick={toggleAiAssistMode}
                   className="h-6 px-2 text-xs"
                   disabled={isGeneratingNote}
                 >
                   <Sparkles className="h-3 w-3 mr-1" />
-                  {isGeneratingNote ? 'Generating...' : 'AI Assist'}
+                  AI Assist
                 </Button>
+              )}
+              
+              {/* Step 2: Cancel or Confirm AI Assist */}
+              {isAiAssistMode && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleAiAssistMode}
+                    className="h-6 px-2 text-xs"
+                    disabled={isGeneratingNote}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={onAiAssist}
+                    disabled={isGeneratingNote || selectedInterventions.length === 0}
+                    className="h-6 px-2 text-xs"
+                  >
+                    <Check className="h-3 w-3 mr-1" />
+                    {isGeneratingNote ? 'Generating...' : 'Confirm AI Assist'}
+                  </Button>
+                </>
               )}
             </div>
             <FormControl>
