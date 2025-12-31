@@ -29,8 +29,8 @@ export const ClientInfoSection: React.FC<ClientInfoSectionProps> = memo(({
   formattedDiagnoses,
   diagnosesLoading
 }) => {
-  // Use client name directly from appointment (already loaded by RPC)
-  const clientFullName = appointment.client_name || 'Unknown Client';
+  // Use legal name (first + last) for clinical documentation
+  const clientFullName = appointment.client_legal_name || 'Unknown Client';
 
   // Format session date as YYYY-MM-DD from start_at timestamp
   const formattedSessionDate = appointment.start_at 

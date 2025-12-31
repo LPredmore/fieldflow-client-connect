@@ -4654,6 +4654,7 @@ export type Database = {
         Args: { p_from_date?: string; p_staff_id: string; p_to_date?: string }
         Returns: {
           client_id: string
+          client_legal_name: string
           client_name: string
           clinician_name: string
           created_at: string

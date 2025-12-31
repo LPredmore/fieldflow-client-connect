@@ -31,7 +31,8 @@ export interface StaffAppointment {
   videoroom_url: string | null; // Daily.co video room URL for telehealth
   
   // Joined data
-  client_name: string;
+  client_name: string;           // Preferred name (for calendar/dashboard)
+  client_legal_name: string;     // First + Last name (for clinical documentation)
   service_name: string;
   clinician_name: string;
   
@@ -187,6 +188,7 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
           updated_at: row.updated_at,
           videoroom_url: row.videoroom_url || null,
           client_name: row.client_name || 'Unknown Client',
+          client_legal_name: row.client_legal_name || 'Unknown Client',
           service_name: row.service_name || 'Unknown Service',
           clinician_name: row.clinician_name || 'Unassigned',
           display_date: row.display_date,
