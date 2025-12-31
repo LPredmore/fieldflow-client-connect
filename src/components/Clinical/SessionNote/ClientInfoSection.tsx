@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/form';
 import { UseFormReturn } from 'react-hook-form';
 import { StaffAppointment } from '@/hooks/useStaffAppointments';
-import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { parseISO, format } from 'date-fns';
 
 interface ClientInfoSectionProps {
@@ -30,26 +29,8 @@ export const ClientInfoSection: React.FC<ClientInfoSectionProps> = memo(({
   formattedDiagnoses,
   diagnosesLoading
 }) => {
-  // Fetch client's first and last name
-  const { data: clientData, loading: clientLoading } = useSupabaseQuery<{
-    id: string;
-    pat_name_f: string | null;
-    pat_name_l: string | null;
-  }>({
-    table: 'clients',
-    select: 'id, pat_name_f, pat_name_l',
-    filters: { id: appointment.client_id },
-    enabled: !!appointment.client_id,
-  });
-
-  const client = clientData?.[0];
-  
-  // Format client name from first + last
-  const clientFullName = clientLoading 
-    ? 'Loading...' 
-    : client 
-      ? `${client.pat_name_f || ''} ${client.pat_name_l || ''}`.trim() 
-      : appointment.client_name || '';
+  // Use client name directly from appointment (already loaded by RPC)
+  const clientFullName = appointment.client_name || 'Unknown Client';
 
   // Format session date as YYYY-MM-DD from start_at timestamp
   const formattedSessionDate = appointment.start_at 
