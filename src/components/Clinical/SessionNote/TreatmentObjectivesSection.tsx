@@ -11,6 +11,7 @@ interface TreatmentObjectivesSectionProps {
   selectedInterventions?: string[];
   onInterventionChange?: (interventions: string[]) => void;
   selectionEnabled?: boolean;
+  isAiAssistMode?: boolean;
 }
 
 export const TreatmentObjectivesSection: React.FC<TreatmentObjectivesSectionProps> = memo(({
@@ -18,6 +19,7 @@ export const TreatmentObjectivesSection: React.FC<TreatmentObjectivesSectionProp
   selectedInterventions = [],
   onInterventionChange,
   selectionEnabled = false,
+  isAiAssistMode = false,
 }) => {
   // Extract all non-null interventions from the plan
   const allInterventions = useMemo(() => {
@@ -98,7 +100,9 @@ export const TreatmentObjectivesSection: React.FC<TreatmentObjectivesSectionProp
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Target className="h-4 w-4" />
           Treatment Objectives & Interventions
-          {selectionEnabled ? (
+          {isAiAssistMode ? (
+            <span className="text-xs text-primary font-semibold animate-pulse">(Select interventions for AI Assist)</span>
+          ) : selectionEnabled ? (
             <span className="text-xs text-primary font-normal">(Select interventions used)</span>
           ) : (
             <span className="text-xs text-muted-foreground font-normal">(View Only)</span>
@@ -176,9 +180,13 @@ export const TreatmentObjectivesSection: React.FC<TreatmentObjectivesSectionProp
             <Separator />
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground block mb-2">
-                {selectionEnabled ? 'Select Interventions Used in This Session:' : 'Interventions:'}
+                {isAiAssistMode 
+                  ? 'Select Interventions Used (required for AI Assist):' 
+                  : selectionEnabled 
+                    ? 'Select Interventions Used in This Session:' 
+                    : 'Interventions:'}
               </Label>
-              <div className={selectionEnabled ? 'space-y-1' : 'space-y-2 pl-4 border-l-2 border-muted'}>
+              <div className={`${selectionEnabled ? 'space-y-1' : 'space-y-2 pl-4 border-l-2 border-muted'} ${isAiAssistMode ? 'ring-2 ring-primary/20 rounded-md p-2 bg-primary/5' : ''}`}>
                 {allInterventions.map(renderInterventionItem)}
               </div>
             </div>

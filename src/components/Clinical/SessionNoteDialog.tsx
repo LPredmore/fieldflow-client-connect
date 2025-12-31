@@ -84,7 +84,17 @@ export function SessionNoteDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedInterventions, setSelectedInterventions] = useState<string[]>([]);
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
+  const [isAiAssistMode, setIsAiAssistMode] = useState(false);
   const { toast } = useToast();
+
+  // Toggle AI Assist mode
+  const toggleAiAssistMode = () => {
+    if (isAiAssistMode) {
+      // Exiting AI Assist mode - clear selections
+      setSelectedInterventions([]);
+    }
+    setIsAiAssistMode(!isAiAssistMode);
+  };
   
   const { diagnosisCodes, formattedDiagnoses, loading: diagnosesLoading } = useClientDiagnoses(appointment?.client_id);
   const { createSessionNote } = useSessionNote(appointment?.id);
@@ -143,19 +153,30 @@ export function SessionNoteDialog({
     if (open) {
       form.reset();
       setSelectedInterventions([]);
+      setIsAiAssistMode(false);
     }
   }, [open, form]);
 
-  // AI Assist handler
+  // AI Assist handler - requires interventions selected
   const handleAiAssist = async () => {
     const currentSymptoms = form.getValues('client_currentsymptoms');
     const sessionNarrative = form.getValues('client_sessionnarrative');
     
-    // Validate: need at least session notes to generate
+    // Validate: need session notes
     if (!sessionNarrative?.trim()) {
       toast({
         title: "Missing Information",
         description: "Please add session notes before using AI Assist",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate: need at least 1 intervention selected
+    if (selectedInterventions.length === 0) {
+      toast({
+        title: "Missing Interventions",
+        description: "Please select at least one intervention used in this session",
         variant: "destructive",
       });
       return;
@@ -178,6 +199,9 @@ export function SessionNoteDialog({
       
       if (data?.generatedNarrative) {
         form.setValue('client_sessionnarrative', data.generatedNarrative);
+        // Exit AI Assist mode and clear selections after successful generation
+        setIsAiAssistMode(false);
+        setSelectedInterventions([]);
         toast({
           title: "Note Generated",
           description: "AI-generated clinical narrative applied. Please review before saving.",
@@ -264,6 +288,7 @@ export function SessionNoteDialog({
                 selectedInterventions={selectedInterventions}
                 onInterventionChange={setSelectedInterventions}
                 selectionEnabled={true}
+                isAiAssistMode={isAiAssistMode}
               />
 
               <Separator />
@@ -278,6 +303,9 @@ export function SessionNoteDialog({
                 form={form}
                 onAiAssist={handleAiAssist}
                 isGeneratingNote={isGeneratingNote}
+                isAiAssistMode={isAiAssistMode}
+                toggleAiAssistMode={toggleAiAssistMode}
+                selectedInterventions={selectedInterventions}
               />
 
               <Separator />
