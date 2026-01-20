@@ -152,7 +152,7 @@ interface ClientRow {
   pat_city: string | null;
   pat_state: string | null;
   pat_zip: string | null;
-  pat_phone: string | null;
+  phone: string | null;
 }
 
 interface TenantRow {
@@ -215,7 +215,7 @@ export function useSessionNotePrintData({ noteId, clientId }: UseSessionNotePrin
     error: clientError,
   } = useSupabaseQuery<ClientRow>({
     table: 'clients',
-    select: 'id, pat_name_f, pat_name_m, pat_name_l, pat_name_preferred, pat_dob, pat_addr_1, pat_addr_2, pat_city, pat_state, pat_zip, pat_phone',
+    select: 'id, pat_name_f, pat_name_m, pat_name_l, pat_name_preferred, pat_dob, pat_addr_1, pat_addr_2, pat_city, pat_state, pat_zip, phone',
     filters: { id: clientId },
     enabled,
   });
@@ -364,7 +364,7 @@ export function useSessionNotePrintData({ noteId, clientId }: UseSessionNotePrin
           client.pat_state,
           client.pat_zip
         ),
-        phone: client.pat_phone,
+        phone: client.phone,
       },
       provider: {
         full_name: providerName,
