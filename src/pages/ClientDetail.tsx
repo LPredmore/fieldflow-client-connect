@@ -29,6 +29,7 @@ import {
 import { ClientForm } from '@/components/Clients/ClientForm';
 import { TreatmentPlanDialog } from '@/components/Clinical/TreatmentPlanDialog';
 import { SessionNoteViewDialog } from '@/components/Clinical/SessionNoteViewDialog';
+import { BatchSessionNotePrintDialog } from '@/components/Clinical/BatchSessionNotePrintDialog';
 import { ResponseDetailDialog } from '@/components/Forms/Responses/ResponseDetailDialog';
 import { ClientFormData } from '@/types/client';
 import { useClients } from '@/hooks/useClients';
@@ -51,6 +52,7 @@ export default function ClientDetail() {
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [isTreatmentPlanOpen, setIsTreatmentPlanOpen] = useState(false);
   const [viewingSessionNote, setViewingSessionNote] = useState<SessionNote | null>(null);
+  const [batchPrintNoteIds, setBatchPrintNoteIds] = useState<string[]>([]);
   const [viewingFormResponse, setViewingFormResponse] = useState<{
     response: FormResponseWithTemplate;
     template: { id: string; name: string; description: string | null };
@@ -103,6 +105,10 @@ export default function ClientDetail() {
     if (note) {
       setViewingSessionNote(note);
     }
+  };
+
+  const handlePrintSelectedNotes = (noteIds: string[]) => {
+    setBatchPrintNoteIds(noteIds);
   };
 
   const handleViewFormResponse = (response: FormResponseWithTemplate) => {
@@ -274,6 +280,7 @@ export default function ClientDetail() {
             sessionNotes={sessionNotes}
             onViewTreatmentPlan={handleViewTreatmentPlan}
             onViewSessionNote={handleViewSessionNote}
+            onPrintSelectedNotes={handlePrintSelectedNotes}
           />
         </TabsContent>
 
@@ -328,12 +335,19 @@ export default function ClientDetail() {
 
       {/* Session Note View Dialog */}
       <SessionNoteViewDialog
-        open={!!viewingSessionNote}
+        open={!!viewingSessionNote && batchPrintNoteIds.length === 0}
         onOpenChange={(open) => !open && setViewingSessionNote(null)}
         sessionNote={viewingSessionNote}
       />
 
-      {/* Form Response Dialog */}
+      {/* Batch Session Notes Print Dialog */}
+      <BatchSessionNotePrintDialog
+        open={batchPrintNoteIds.length > 0}
+        onOpenChange={(open) => !open && setBatchPrintNoteIds([])}
+        noteIds={batchPrintNoteIds}
+        clientId={client.id}
+      />
+
       {viewingFormResponse && (
         <ResponseDetailDialog
           open={!!viewingFormResponse}
