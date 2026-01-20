@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // import { AuthProvider } from "@/hooks/useAuth";
 import { AuthenticationProvider } from "@/providers/AuthenticationProvider";
 import { UnifiedRoutingGuard } from "@/components/routing/UnifiedRoutingGuard";
-import { RoutingDebugPanel } from "@/components/routing/RoutingDebugPanel";
 import { BrandColorProvider } from "@/components/BrandColorProvider";
 import { PermissionProvider } from "@/contexts/PermissionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -29,10 +28,6 @@ import NotFound from "./pages/NotFound";
 // Portal applications
 const StaffPortalApp = lazy(() => import("./portals/StaffPortalApp"));
 
-// Lazy load debug panel only in development
-const AuthDebugPanel = import.meta.env.DEV 
-  ? lazy(() => import("@/components/auth/AuthDebugPanel").then(m => ({ default: m.AuthDebugPanel })))
-  : null;
 
 const PageLoadingFallback = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
@@ -84,17 +79,8 @@ const App = () => {
                 <TooltipProvider>
                   <Toaster />
                   <Sonner />
-                  {/* Debug Panels - Development Only */}
-                  {/* AuthDebugPanel: Lazy loaded in dev only */}
-                  {import.meta.env.DEV && AuthDebugPanel && (
-                    <Suspense fallback={null}>
-                      <AuthDebugPanel />
-                    </Suspense>
-                  )}
                   <BrowserRouter>
                     <NavigationManager />
-                    {/* RoutingDebugPanel: Inside router - debugs routing state (requires router context) */}
-                    <RoutingDebugPanel />
                     <UnifiedRoutingGuard>
                         <Routes>
                           {/* Public routes */}

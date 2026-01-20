@@ -6,198 +6,79 @@ This document describes the monitoring and debugging tools implemented for the u
 
 The authentication system includes comprehensive logging and debugging capabilities to help developers understand and troubleshoot authentication flows, role detection, routing decisions, and system health.
 
-## Components
+## Console-Based Debugging
 
-### 1. AuthLogger Service
+All debugging is now done via browser console. The following utilities are available:
+
+### AuthLogger
 
 **Location**: `src/services/auth/AuthLogger.ts`
 
-A centralized logging utility that provides structured logging for all authentication-related operations.
-
-#### Features
-
-- **Category-based logging**: Logs are organized by category (authentication, role_detection, routing, query_deduplication, circuit_breaker, cache, session)
-- **Log levels**: DEBUG, INFO, WARN, ERROR
-- **Environment-aware**: Uses `console.debug` in development, structured JSON in production
-- **Log history**: Maintains last 100 log entries in memory
-- **Export capability**: Can export logs as JSON for analysis
-
-#### Usage
-
-```typescript
-import { authLogger } from '@/services/auth/AuthLogger';
-
-// Log authentication event
-authLogger.logAuth('User login initiated', { email: 'user@example.com' }, userId);
-
-// Log role detection
-authLogger.logRoleDetection('Role detected', { role: 'staff', isClinician: true }, userId);
-
-// Log routing decision
-authLogger.logRouting('Redirecting to dashboard', { from: '/auth', to: '/staff/dashboard' }, userId);
-
-// Log query deduplication
-authLogger.logQueryDedup('Query deduplicated', { key: 'profile:123', queuedRequests: 3 });
-
-// Log circuit breaker event
-authLogger.logCircuitBreaker('Circuit breaker opened', { failureCount: 3 });
-
-// Log cache operation
-authLogger.logCache('Cache hit', { key: 'user:123', age: 1500 });
-
-// Log session event
-authLogger.logSession('Session restored', { userId: '123' }, userId);
-
-// Log error
-authLogger.logError('authentication', 'Login failed', error, { email: 'user@example.com' });
+Access in browser console:
+```javascript
+// Import is already available in window context during development
+authLogger.getHistory()           // Get all log entries
+authLogger.getHistoryByCategory('authentication')  // Filter by category
+authLogger.getHistoryByUser(userId)  // Filter by user
+authLogger.exportLogs()           // Export as JSON string
+authLogger.clearHistory()         // Clear log history
 ```
 
-#### API
+### SessionCacheService
 
-- `logAuth(message, data?, userId?)` - Log authentication flow step
-- `logRoleDetection(message, data?, userId?)` - Log role detection event
-- `logRouting(message, data?, userId?)` - Log routing decision
-- `logQueryDedup(message, data?)` - Log query deduplication event
-- `logCircuitBreaker(message, data?)` - Log circuit breaker state change
-- `logCache(message, data?)` - Log cache operation
-- `logSession(message, data?, userId?)` - Log session event
-- `logError(category, message, error?, data?)` - Log error
-- `getHistory()` - Get all log entries
-- `getHistoryByCategory(category)` - Get logs for specific category
-- `getHistoryByUser(userId)` - Get logs for specific user
-- `clearHistory()` - Clear log history
-- `exportLogs()` - Export logs as JSON string
-
-### 2. AuthDebugPanel Component
-
-**Location**: `src/components/auth/AuthDebugPanel.tsx`
-
-A development-only UI component that displays real-time authentication state and provides manual controls.
-
-#### Features
-
-- **User State Display**: Shows current user, role, and permissions
-- **Circuit Breaker Status**: Real-time circuit breaker state with visual indicators
-- **Cache Statistics**: Shows cache size and cached keys
-- **Pending Queries**: Lists currently in-flight queries
-- **Log Viewer**: Displays recent logs with category filtering
-- **Manual Controls**: Buttons to refresh, reset, and clear cache
-- **Export Logs**: Download logs as JSON file
-- **Collapsible**: Can be minimized to stay out of the way
-
-#### Usage
-
-The debug panel is automatically included in the app when running in development mode. It appears as a floating panel in the bottom-right corner.
-
-```typescript
-import { AuthDebugPanel } from '@/components/auth/AuthDebugPanel';
-
-// In App.tsx (already added)
-<AuthDebugPanel />
+```javascript
+sessionCacheService.getStats()    // Get cache statistics
+sessionCacheService.clear()       // Clear all cached data
 ```
 
-#### Controls
+### Categories
 
-- **Refresh User Data**: Manually refresh user data from database
-- **Reset Auth**: Reset circuit breaker and clear all cached data
-- **Clear Cache**: Clear all cached authentication data
-- **Clear Logs**: Clear log history
-- **Export Logs**: Download logs as JSON file
+- `authentication` - Login/logout events
+- `role_detection` - Role detection events
+- `routing` - Routing decisions
+- `query_deduplication` - Query deduplication events
+- `circuit_breaker` - Circuit breaker state changes
+- `cache` - Cache operations
+- `session` - Session events
 
-#### Log Filtering
+## Integrated Logging
 
-Click on category buttons to filter logs by:
-- All
-- authentication
-- role_detection
-- routing
-- query_deduplication
-- circuit_breaker
-- cache
-- session
+All authentication services include comprehensive logging:
 
-### 3. Integrated Logging
-
-All authentication services now include comprehensive logging:
-
-#### QueryDeduplicator
+### QueryDeduplicator
 - Logs when queries are deduplicated
 - Logs when new queries are executed
 - Logs query completion with duration
 - Logs query failures
-- Logs cleanup events
 
-#### CircuitBreakerRecoveryService
-- Logs initialization
-- Logs success recordings
-- Logs failure recordings with threshold checks
+### CircuitBreakerRecoveryService
 - Logs state transitions (closed → open → half-open)
+- Logs failure recordings with threshold checks
 - Logs manual resets
-- Logs automatic half-open transitions
-- Logs configuration updates
 
-#### UnifiedRoleDetectionService
-- Logs role detection start
+### UnifiedRoleDetectionService
+- Logs role detection start/completion
 - Logs cache hits/misses
-- Logs profile fetching
-- Logs clinician data fetching
-- Logs permissions fetching
-- Logs role detection completion with duration
-- Logs cache invalidation
-- Logs all database errors
+- Logs database errors
 
-#### SessionCacheService
-- Logs cache set operations
-- Logs cache hits with source (memory/sessionStorage)
-- Logs cache misses
-- Logs cache expiration
-- Logs cache deletions
-- Logs cache clears
-- Logs storage errors
+### SessionCacheService
+- Logs cache set/get operations
+- Logs cache expiration and deletions
 
-#### UnifiedRoutingGuard
+### UnifiedRoutingGuard
 - Logs routing decisions for all user types
-- Logs redirect attempts
-- Logs redirect blocking (cooldown/limit)
-- Logs redirect loop detection
-- Logs authentication errors
-- Logs reset actions
+- Logs redirect attempts and blocking
 
 ## Log Entry Format
-
-Each log entry contains:
 
 ```typescript
 {
   timestamp: string;        // ISO 8601 timestamp
   level: AuthLogLevel;      // debug | info | warn | error
-  category: AuthLogCategory; // authentication | role_detection | routing | etc.
-  message: string;          // Human-readable message
-  data?: Record<string, any>; // Additional structured data
-  userId?: string;          // User ID if applicable
-}
-```
-
-## Production Logging
-
-In production, the logger:
-- Only outputs WARN and ERROR level logs
-- Uses structured JSON format
-- Can be integrated with external logging services (e.g., Sentry, LogRocket, Datadog)
-
-To integrate with an external service, modify the `logStructured` method in `AuthLogger.ts`:
-
-```typescript
-private logStructured(entry: LogEntry): void {
-  // Send to your logging service
-  if (entry.level === AuthLogLevel.ERROR) {
-    // Example: Sentry.captureMessage(entry.message, { extra: entry.data });
-  }
-  
-  // Also log to console
-  if (entry.level === AuthLogLevel.WARN || entry.level === AuthLogLevel.ERROR) {
-    console.log(JSON.stringify(entry));
-  }
+  category: AuthLogCategory;
+  message: string;
+  data?: Record<string, any>;
+  userId?: string;
 }
 ```
 
@@ -205,36 +86,28 @@ private logStructured(entry: LogEntry): void {
 
 ### 1. Investigating Authentication Issues
 
-1. Open the AuthDebugPanel (bottom-right corner in dev mode)
-2. Check the User State section for current authentication status
-3. Filter logs by "authentication" category
-4. Look for error messages or unexpected state transitions
-5. Check Circuit Breaker status for system health
-6. Use "Refresh User Data" to retry authentication
+1. Open browser DevTools console
+2. Run `authLogger.getHistoryByCategory('authentication')`
+3. Look for error messages or unexpected state transitions
+4. Check `sessionCacheService.getStats()` for cache health
 
 ### 2. Investigating Routing Issues
 
-1. Open the AuthDebugPanel
-2. Filter logs by "routing" category
+1. Open browser DevTools console
+2. Run `authLogger.getHistoryByCategory('routing')`
 3. Look for routing decisions and redirects
 4. Check for redirect loop warnings
-5. Verify user role and permissions in User State section
 
 ### 3. Investigating Performance Issues
 
-1. Open the AuthDebugPanel
-2. Filter logs by "query_deduplication" category
-3. Check Pending Queries section for stuck queries
-4. Look for query durations in logs
-5. Check Cache Statistics for cache effectiveness
+1. Run `authLogger.getHistoryByCategory('query_deduplication')`
+2. Look for query durations in logs
+3. Check `sessionCacheService.getStats()` for cache effectiveness
 
 ### 4. Investigating Circuit Breaker Issues
 
-1. Open the AuthDebugPanel
-2. Check Circuit Breaker Status section
-3. Filter logs by "circuit_breaker" category
-4. Look for failure patterns
-5. Use "Reset Auth" to manually reset circuit breaker
+1. Run `authLogger.getHistoryByCategory('circuit_breaker')`
+2. Look for failure patterns and state transitions
 
 ## Best Practices
 
@@ -247,48 +120,15 @@ private logStructured(entry: LogEntry): void {
 2. **Include context in log data**:
    - Always include userId when available
    - Include relevant IDs (tenantId, sessionId)
-   - Include timing information (duration, timestamps)
-   - Include error details for failures
+   - Include timing information
 
 3. **Don't log sensitive data**:
    - Never log passwords or tokens
-   - Redact email addresses in production
-   - Be careful with PII (personally identifiable information)
+   - Be careful with PII
 
-4. **Use the debug panel during development**:
-   - Keep it open when testing authentication flows
-   - Export logs when reporting bugs
-   - Use manual controls to test edge cases
+## Production Logging
 
-## Troubleshooting
-
-### Debug Panel Not Showing
-
-- Ensure you're running in development mode (`npm run dev`)
-- Check browser console for errors
-- Verify `import.meta.env.DEV` is true
-
-### Logs Not Appearing
-
-- Check that logging is enabled in the service
-- Verify log level is appropriate (DEBUG logs only show in dev)
-- Check browser console settings (ensure debug logs are visible)
-
-### Performance Impact
-
-- The debug panel updates every second
-- Log history is limited to 100 entries
-- In production, only WARN and ERROR logs are output
-- Consider disabling verbose logging in production
-
-## Future Enhancements
-
-Potential improvements to the monitoring system:
-
-1. **Remote Logging**: Send logs to external service (Sentry, LogRocket)
-2. **Performance Metrics**: Track timing for all operations
-3. **User Session Recording**: Record user sessions for debugging
-4. **Alert System**: Notify developers of critical errors
-5. **Log Search**: Add search functionality to log viewer
-6. **Log Persistence**: Save logs to localStorage for later analysis
-7. **Metrics Dashboard**: Visualize authentication metrics over time
+In production, the logger:
+- Only outputs WARN and ERROR level logs
+- Uses structured JSON format
+- Can be integrated with external logging services (Sentry, LogRocket, Datadog)
