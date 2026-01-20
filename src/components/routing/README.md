@@ -78,30 +78,20 @@ Displays user-friendly error messages for routing failures with recovery options
 - Technical details in development mode
 - Multiple recovery options
 
-### RoutingDebugPanel
+### CircuitBreakerRecoveryUI
 
-Development-only component that displays current routing state for debugging.
+Displays recovery options when the circuit breaker is triggered.
 
-**Features:**
-- Shows current path and auth status
-- Displays user role and attributes
-- Shows expected route based on role
-- Displays any errors
-- Only renders in development mode
+## Debugging
 
-**Usage:**
+For debugging routing issues, use the browser console:
 
-```tsx
-import { RoutingDebugPanel } from '@/components/routing';
+```javascript
+// View routing logs
+authLogger.getHistoryByCategory('routing')
 
-function App() {
-  return (
-    <div>
-      {/* Your app content */}
-      <RoutingDebugPanel />
-    </div>
-  );
-}
+// View all recent logs
+authLogger.getHistory()
 ```
 
 ## Requirements Satisfied
@@ -179,16 +169,3 @@ To test the routing guard:
    - Simulate role detection failure
    - Verify error page displays
    - Test recovery options
-
-## Debugging
-
-Enable debug logging by checking the browser console:
-
-```
-[UnifiedRoutingGuard] Determining route
-[UnifiedRoutingGuard] Routing decision
-[UnifiedRoutingGuard] Executing redirect
-[UnifiedRoutingGuard] Redirect recorded
-```
-
-In development mode, the RoutingErrorPage shows technical details for debugging.

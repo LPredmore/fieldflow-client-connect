@@ -6,5 +6,4 @@
 
 export { UnifiedRoutingGuard } from './UnifiedRoutingGuard';
 export { RoutingErrorPage } from './RoutingErrorPage';
-export { RoutingDebugPanel } from './RoutingDebugPanel';
 export { CircuitBreakerRecoveryUI } from './CircuitBreakerRecoveryUI';
