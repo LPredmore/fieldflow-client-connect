@@ -98,14 +98,16 @@ class CircuitBreakerMonitor {
     this.updateStateChangeMetrics(previousState, newState);
     this.checkForAlerts();
 
-    // Enhanced logging with context
-    console.log(`🔄 [Circuit Breaker] State change: ${previousState} → ${newState}`, {
-      timestamp: new Date(event.timestamp).toISOString(),
-      failureCount: context?.failureCount,
-      successCount: context?.successCount,
-      requestCount: context?.requestCount,
-      metrics: this.getMetricsSummary()
-    });
+    // Enhanced logging with context (dev only)
+    if (import.meta.env.DEV) {
+      console.log(`🔄 [Circuit Breaker] State change: ${previousState} → ${newState}`, {
+        timestamp: new Date(event.timestamp).toISOString(),
+        failureCount: context?.failureCount,
+        successCount: context?.successCount,
+        requestCount: context?.requestCount,
+        metrics: this.getMetricsSummary()
+      });
+    }
   }
 
   logError(errorType: string, errorMessage: string, context?: CircuitBreakerContext): void {
@@ -124,14 +126,16 @@ class CircuitBreakerMonitor {
     this.updateErrorMetrics(errorType);
     this.checkForAlerts(); // Check for alerts after error
 
-    // Enhanced error logging
-    console.error(`❌ [Circuit Breaker] Error logged: ${errorType}`, {
-      message: errorMessage,
-      timestamp: new Date(event.timestamp).toISOString(),
-      failureCount: context?.failureCount,
-      currentState: context?.currentState,
-      errorFrequency: this.getErrorFrequency(errorType)
-    });
+    // Enhanced error logging (dev only)
+    if (import.meta.env.DEV) {
+      console.error(`❌ [Circuit Breaker] Error logged: ${errorType}`, {
+        message: errorMessage,
+        timestamp: new Date(event.timestamp).toISOString(),
+        failureCount: context?.failureCount,
+        currentState: context?.currentState,
+        errorFrequency: this.getErrorFrequency(errorType)
+      });
+    }
   }
 
   logSuccess(context?: CircuitBreakerContext): void {
@@ -148,12 +152,14 @@ class CircuitBreakerMonitor {
     this.updateSuccessMetrics();
     this.checkForAlerts(); // Check for alerts after success
 
-    // Log success with context (less verbose than errors)
-    if (context?.currentState === 'HALF_OPEN') {
-      console.log(`✅ [Circuit Breaker] Success in HALF_OPEN state`, {
-        successCount: context?.successCount,
-        timestamp: new Date(event.timestamp).toISOString()
-      });
+    // Log success with context (less verbose than errors) (dev only)
+    if (import.meta.env.DEV) {
+      if (context?.currentState === 'HALF_OPEN') {
+        console.log(`✅ [Circuit Breaker] Success in HALF_OPEN state`, {
+          successCount: context?.successCount,
+          timestamp: new Date(event.timestamp).toISOString()
+        });
+      }
     }
   }
 
@@ -168,10 +174,12 @@ class CircuitBreakerMonitor {
 
     this.addEvent(event);
 
-    console.log(`🔄 [Circuit Breaker] Manual reset performed`, {
-      timestamp: new Date(event.timestamp).toISOString(),
-      previousMetrics: this.getMetricsSummary()
-    });
+    if (import.meta.env.DEV) {
+      console.log(`🔄 [Circuit Breaker] Manual reset performed`, {
+        timestamp: new Date(event.timestamp).toISOString(),
+        previousMetrics: this.getMetricsSummary()
+      });
+    }
 
     // Reset some metrics but keep historical data
     this.metrics.totalErrors = 0;
@@ -309,15 +317,19 @@ class CircuitBreakerMonitor {
   }
 
   private triggerAlert(alert: AlertInfo): void {
-    // Log alert
-    console.warn(`🚨 [Circuit Breaker Alert] ${alert.type.toUpperCase()}: ${alert.message}`, alert.data);
+    // Log alert (dev only)
+    if (import.meta.env.DEV) {
+      console.warn(`🚨 [Circuit Breaker Alert] ${alert.type.toUpperCase()}: ${alert.message}`, alert.data);
+    }
 
     // Notify callbacks
     this.alertCallbacks.forEach(callback => {
       try {
         callback(alert);
       } catch (error) {
-        console.error('Error in alert callback:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error in alert callback:', error);
+        }
       }
     });
   }
@@ -416,18 +428,24 @@ class CircuitBreakerMonitor {
 
   enable(): void {
     this.enabled = true;
-    console.log('🔄 [Circuit Breaker Monitor] Monitoring enabled');
+    if (import.meta.env.DEV) {
+      console.log('🔄 [Circuit Breaker Monitor] Monitoring enabled');
+    }
   }
 
   disable(): void {
     this.enabled = false;
-    console.log('🔄 [Circuit Breaker Monitor] Monitoring disabled');
+    if (import.meta.env.DEV) {
+      console.log('🔄 [Circuit Breaker Monitor] Monitoring disabled');
+    }
   }
 
   reset(): void {
     this.events = [];
     this.metrics = this.initializeMetrics();
-    console.log('🔄 [Circuit Breaker Monitor] Metrics and events reset');
+    if (import.meta.env.DEV) {
+      console.log('🔄 [Circuit Breaker Monitor] Metrics and events reset');
+    }
   }
 }
 

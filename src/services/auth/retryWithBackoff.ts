@@ -46,11 +46,13 @@ export async function retryWithBackoff<T>(
 
   for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
     try {
-      console.debug('[retryWithBackoff] Attempt', { attempt, maxAttempts: config.maxAttempts });
+      if (import.meta.env.DEV) {
+        console.debug('[retryWithBackoff] Attempt', { attempt, maxAttempts: config.maxAttempts });
+      }
       
       const result = await operation();
       
-      if (attempt > 1) {
+      if (import.meta.env.DEV && attempt > 1) {
         console.debug('[retryWithBackoff] Operation succeeded after retry', { attempt });
       }
       
@@ -58,17 +60,21 @@ export async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
       
-      console.debug('[retryWithBackoff] Attempt failed', {
-        attempt,
-        error: lastError.message,
-        willRetry: attempt < config.maxAttempts && config.shouldRetry(lastError)
-      });
+      if (import.meta.env.DEV) {
+        console.debug('[retryWithBackoff] Attempt failed', {
+          attempt,
+          error: lastError.message,
+          willRetry: attempt < config.maxAttempts && config.shouldRetry(lastError)
+        });
+      }
 
       // Check if we should retry
       if (attempt >= config.maxAttempts || !config.shouldRetry(lastError)) {
-        console.debug('[retryWithBackoff] Not retrying', {
-          reason: attempt >= config.maxAttempts ? 'max attempts reached' : 'error not retryable'
-        });
+        if (import.meta.env.DEV) {
+          console.debug('[retryWithBackoff] Not retrying', {
+            reason: attempt >= config.maxAttempts ? 'max attempts reached' : 'error not retryable'
+          });
+        }
         throw lastError;
       }
 
@@ -78,7 +84,9 @@ export async function retryWithBackoff<T>(
         config.maxDelay
       );
 
-      console.debug('[retryWithBackoff] Waiting before retry', { delay, attempt });
+      if (import.meta.env.DEV) {
+        console.debug('[retryWithBackoff] Waiting before retry', { delay, attempt });
+      }
       
       // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, delay));

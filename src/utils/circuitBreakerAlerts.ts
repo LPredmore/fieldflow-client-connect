@@ -39,7 +39,9 @@ class CircuitBreakerAlertManager {
     
     circuitBreakerMonitor.updateAlertConfig(config);
     
-    console.log(`🔧 [Circuit Breaker Alerts] Configured for ${env} environment`, config);
+    if (import.meta.env.DEV) {
+      console.log(`🔧 [Circuit Breaker Alerts] Configured for ${env} environment`, config);
+    }
   }
 
   private setupAlertHandlers(): void {
@@ -81,15 +83,14 @@ class CircuitBreakerAlertManager {
 
   private handleFrequentOpeningAlert(alert: AlertInfo & { timestamp: number }): void {
     // This is a high-severity alert indicating potential system issues
-    console.error(`🚨 [CRITICAL] Circuit breaker opening frequently!`, {
-      message: alert.message,
-      data: alert.data,
-      timestamp: new Date(alert.timestamp).toISOString(),
-      recommendation: 'Check for database connectivity issues, schema problems, or high load'
-    });
-
-    // In development, show a more detailed breakdown
     if (import.meta.env.DEV) {
+      console.error(`🚨 [CRITICAL] Circuit breaker opening frequently!`, {
+        message: alert.message,
+        data: alert.data,
+        timestamp: new Date(alert.timestamp).toISOString(),
+        recommendation: 'Check for database connectivity issues, schema problems, or high load'
+      });
+
       console.group('🔍 Frequent Opening Alert Details');
       console.log('Recent error types:', alert.data.recentErrors);
       console.log('Time window:', `${Number(alert.data.timeWindow) / 1000}s`);
@@ -104,38 +105,42 @@ class CircuitBreakerAlertManager {
   }
 
   private handleLongOpenDurationAlert(alert: AlertInfo & { timestamp: number }): void {
-    console.warn(`⚠️ [WARNING] Circuit breaker stuck open`, {
-      message: alert.message,
-      data: alert.data,
-      timestamp: new Date(alert.timestamp).toISOString(),
-      recommendation: 'Manual intervention may be required'
-    });
-
-    // Show recent errors that might be causing the issue
-    if (import.meta.env.DEV && alert.data.lastErrors && Array.isArray(alert.data.lastErrors)) {
-      console.group('🔍 Recent Errors Causing Long Open State');
-      alert.data.lastErrors.forEach((error: Record<string, unknown>, index: number) => {
-        console.log(`${index + 1}. ${error.errorType}: ${error.errorMessage}`);
+    if (import.meta.env.DEV) {
+      console.warn(`⚠️ [WARNING] Circuit breaker stuck open`, {
+        message: alert.message,
+        data: alert.data,
+        timestamp: new Date(alert.timestamp).toISOString(),
+        recommendation: 'Manual intervention may be required'
       });
-      console.groupEnd();
+
+      // Show recent errors that might be causing the issue
+      if (alert.data.lastErrors && Array.isArray(alert.data.lastErrors)) {
+        console.group('🔍 Recent Errors Causing Long Open State');
+        alert.data.lastErrors.forEach((error: Record<string, unknown>, index: number) => {
+          console.log(`${index + 1}. ${error.errorType}: ${error.errorMessage}`);
+        });
+        console.groupEnd();
+      }
     }
   }
 
   private handleLowReliabilityAlert(alert: AlertInfo & { timestamp: number }): void {
-    console.warn(`⚠️ [WARNING] Circuit breaker reliability degraded`, {
-      message: alert.message,
-      data: alert.data,
-      timestamp: new Date(alert.timestamp).toISOString(),
-      recommendation: 'Review error patterns and system health'
-    });
-
-    // Show error breakdown
-    if (import.meta.env.DEV && alert.data.errorBreakdown) {
-      console.group('🔍 Error Breakdown');
-      Object.entries(alert.data.errorBreakdown).forEach(([errorType, count]) => {
-        console.log(`${errorType}: ${count} occurrences`);
+    if (import.meta.env.DEV) {
+      console.warn(`⚠️ [WARNING] Circuit breaker reliability degraded`, {
+        message: alert.message,
+        data: alert.data,
+        timestamp: new Date(alert.timestamp).toISOString(),
+        recommendation: 'Review error patterns and system health'
       });
-      console.groupEnd();
+
+      // Show error breakdown
+      if (alert.data.errorBreakdown) {
+        console.group('🔍 Error Breakdown');
+        Object.entries(alert.data.errorBreakdown).forEach(([errorType, count]) => {
+          console.log(`${errorType}: ${count} occurrences`);
+        });
+        console.groupEnd();
+      }
     }
   }
 
@@ -143,14 +148,7 @@ class CircuitBreakerAlertManager {
     // In a real application, you would send alerts to external monitoring services
     // Examples: DataDog, New Relic, Sentry, PagerDuty, etc.
     
-    // For now, we'll just log that we would send it
-    console.log(`📡 [External Monitoring] Would send alert to monitoring service:`, {
-      type: alert.type,
-      severity: alert.severity,
-      message: alert.message,
-      timestamp: alert.timestamp
-    });
-
+    // Silently handle in production - no console output
     // Example implementations:
     
     // Sentry example:
@@ -199,13 +197,14 @@ class CircuitBreakerAlertManager {
 
   clearAlertHistory(): void {
     this.alertHistory = [];
-    console.log('🔄 [Circuit Breaker Alerts] Alert history cleared');
+    if (import.meta.env.DEV) {
+      console.log('🔄 [Circuit Breaker Alerts] Alert history cleared');
+    }
   }
 
   // Test method for development
   triggerTestAlert(): void {
     if (!import.meta.env.DEV) {
-      console.warn('Test alerts only available in development');
       return;
     }
 
