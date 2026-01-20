@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, Pencil, Trash2, Mail, Phone, MapPin, User, FileText } from "lucide-react";
+import { Plus, Search, MoreVertical, Pencil, Trash2, Mail, Phone, MapPin, User, FileText, Eye } from "lucide-react";
 import { useClients, Client } from "@/hooks/useClients";
 import { ClientFormData } from "@/types/client";
 import { ClientForm } from "@/components/Clients/ClientForm";
 import { ClientStatsCards } from "@/components/Clients/ClientStatsCards";
 import { TreatmentPlanDialog } from "@/components/Clinical/TreatmentPlanDialog";
+import { ClientDetailSheet } from "@/components/Clients/ClientDetailSheet";
 import { getClientDisplayName } from "@/utils/clientDisplayName";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -22,6 +23,7 @@ export default function Clients() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [treatmentPlanClient, setTreatmentPlanClient] = useState<Client | null>(null);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
 
   // Get clinician name for treatment plan
   const clinicianName = user?.staffAttributes?.staffData 
@@ -121,6 +123,10 @@ export default function Clients() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setViewingClient(client)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setTreatmentPlanClient(client)}>
                         <FileText className="mr-2 h-4 w-4" />
                         Treatment Plan
@@ -252,6 +258,21 @@ export default function Clients() {
         onOpenChange={(open) => !open && setTreatmentPlanClient(null)}
         clientId={treatmentPlanClient?.id ?? null}
         clinicianName={clinicianName}
+      />
+
+      {/* Client Detail Sheet */}
+      <ClientDetailSheet
+        open={!!viewingClient}
+        onOpenChange={(open) => !open && setViewingClient(null)}
+        clientId={viewingClient?.id ?? null}
+        onEdit={(client) => {
+          setViewingClient(null);
+          setEditingClient(client);
+        }}
+        onTreatmentPlan={(client) => {
+          setViewingClient(null);
+          setTreatmentPlanClient(client);
+        }}
       />
     </div>
   );
