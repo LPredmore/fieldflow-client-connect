@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { 
   User, 
@@ -11,9 +13,11 @@ import {
   FileText, 
   AlertTriangle,
   Target,
-  ClipboardList
+  ClipboardList,
+  Printer
 } from 'lucide-react';
 import { SessionNote } from '@/hooks/useClientDetail';
+import { SessionNotePrintDialog } from './SessionNotePrintDialog';
 
 interface SessionNoteViewDialogProps {
   open: boolean;
@@ -26,6 +30,8 @@ export function SessionNoteViewDialog({
   onOpenChange,
   sessionNote,
 }: SessionNoteViewDialogProps) {
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+
   if (!sessionNote) return null;
 
   const clinicianName = sessionNote.staff 
@@ -55,24 +61,36 @@ export function SessionNoteViewDialog({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-3xl overflow-y-auto">
-        <SheetHeader className="mb-6">
-          <SheetTitle className="text-xl flex items-center gap-2">
-            <ClipboardList className="h-5 w-5" />
-            Session Note
-          </SheetTitle>
-          <SheetDescription className="flex items-center gap-4 text-sm">
-            <span className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              {format(new Date(sessionDate), 'MMMM d, yyyy h:mm a')}
-            </span>
-            <span className="flex items-center gap-1">
-              <User className="h-4 w-4" />
-              {clinicianName}
-            </span>
-          </SheetDescription>
-        </SheetHeader>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-3xl overflow-y-auto">
+          <SheetHeader className="mb-6">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="text-xl flex items-center gap-2">
+                <ClipboardList className="h-5 w-5" />
+                Session Note
+              </SheetTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowPrintDialog(true)}
+                className="no-print"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+            </div>
+            <SheetDescription className="flex items-center gap-4 text-sm">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                {format(new Date(sessionDate), 'MMMM d, yyyy h:mm a')}
+              </span>
+              <span className="flex items-center gap-1">
+                <User className="h-4 w-4" />
+                {clinicianName}
+              </span>
+            </SheetDescription>
+          </SheetHeader>
 
         <div className="space-y-6">
           {/* Diagnoses */}
@@ -356,5 +374,13 @@ export function SessionNoteViewDialog({
         </div>
       </SheetContent>
     </Sheet>
+
+    <SessionNotePrintDialog
+      open={showPrintDialog}
+      onOpenChange={setShowPrintDialog}
+      noteId={sessionNote.id}
+      clientId={sessionNote.client_id}
+    />
+  </>
   );
 }
