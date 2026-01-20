@@ -9,6 +9,7 @@ import Index from "@/pages/Index";
 import Appointments from "@/pages/Appointments";
 import Clients from "@/pages/Clients";
 import AllClients from "@/pages/AllClients";
+import ClientDetail from "@/pages/ClientDetail";
 import Settings from "@/pages/Settings";
 import Profile from "@/pages/Profile";
 import Forms from "@/pages/Forms";
@@ -50,6 +51,7 @@ const StaffPortalApp = () => {
           {/* Core business functionality - available to all staff */}
           <Route path="/appointments" element={<Appointments />} />
           <Route path="/clients" element={<Clients />} />
+          <Route path="/clients/:clientId" element={<ClientDetail />} />
           <Route path="/profile" element={<Profile />} />
           
           {/* Admin-only: All Clients view */}
@@ -60,6 +62,17 @@ const StaffPortalApp = () => {
               fallbackMessage="You need admin privileges to view all clients."
             >
               <AllClients />
+            </AppRouter>
+          } />
+          
+          {/* Admin-only: All Clients detail view */}
+          <Route path="/allclients/:clientId" element={
+            <AppRouter 
+              allowedStates={['admin']}
+              portalType="staff"
+              fallbackMessage="You need admin privileges to view this client."
+            >
+              <ClientDetail />
             </AppRouter>
           } />
           
