@@ -160,9 +160,15 @@ export interface PCL5Assessment {
   staff_id: string | null;
   appointment_id: string | null;
   administered_at: string;
+  assessment_date: string | null;
   total_score: number;
-  severity: string;
+  meets_ptsd_cutoff: boolean;
   clinician_name_snapshot: string | null;
+  cluster_intrusion: number;
+  cluster_avoidance: number;
+  cluster_negative_alterations: number;
+  cluster_arousal: number;
+  clinical_notes: string | null;
   created_at: string;
   updated_at: string;
 }
