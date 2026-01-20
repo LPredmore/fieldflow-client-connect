@@ -18,6 +18,7 @@ export const STAFF_NAVIGATION = [
   { name: "Dashboard", href: STAFF_ROUTES.DASHBOARD, icon: Home },
   { name: "Appointments", href: STAFF_ROUTES.APPOINTMENTS, icon: Briefcase },
   { name: "Clients", href: STAFF_ROUTES.CLIENTS, icon: Users },
+  { name: "All Clients", href: STAFF_ROUTES.ALL_CLIENTS, icon: Users, requireAdmin: true },
   { name: "Invoices", href: STAFF_ROUTES.INVOICES, icon: Receipt, permission: "access_invoicing" },
   { name: "Calendar", href: STAFF_ROUTES.CALENDAR, icon: Calendar },
   { name: "Forms", href: STAFF_ROUTES.FORMS, icon: FileText, permission: "access_forms" },

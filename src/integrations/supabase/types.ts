@@ -21,7 +21,7 @@ export type Database = {
           client_appearance: string | null
           client_attitude: string | null
           client_behavior: string | null
-          client_diagnosis: string[]
+          client_diagnosis: string[] | null
           client_functioning: string | null
           client_homicidalideation:
             | Database["public"]["Enums"]["client_ideation_enum"]
@@ -73,7 +73,7 @@ export type Database = {
           client_appearance?: string | null
           client_attitude?: string | null
           client_behavior?: string | null
-          client_diagnosis: string[]
+          client_diagnosis?: string[] | null
           client_functioning?: string | null
           client_homicidalideation?:
             | Database["public"]["Enums"]["client_ideation_enum"]
@@ -125,7 +125,7 @@ export type Database = {
           client_appearance?: string | null
           client_attitude?: string | null
           client_behavior?: string | null
-          client_diagnosis?: string[]
+          client_diagnosis?: string[] | null
           client_functioning?: string | null
           client_homicidalideation?:
             | Database["public"]["Enums"]["client_ideation_enum"]
@@ -533,7 +533,7 @@ export type Database = {
           staff_id: string
           start_at: string
           status?: Database["public"]["Enums"]["appointment_status_enum"]
-          tenant_id: string
+          tenant_id?: string
           thru_date_1?: string | null
           time_zone: Database["public"]["Enums"]["time_zones"]
           units_1?: number | null
@@ -1108,6 +1108,7 @@ export type Database = {
             | Database["public"]["Enums"]["state_code_enum"]
             | null
           claim_notes: string | null
+          claim_number: string | null
           claim_status: string
           client_id: string
           client_insurance_id: string
@@ -1131,6 +1132,7 @@ export type Database = {
             | Database["public"]["Enums"]["state_code_enum"]
             | null
           claim_notes?: string | null
+          claim_number?: string | null
           claim_status?: string
           client_id: string
           client_insurance_id: string
@@ -1154,6 +1156,7 @@ export type Database = {
             | Database["public"]["Enums"]["state_code_enum"]
             | null
           claim_notes?: string | null
+          claim_number?: string | null
           claim_status?: string
           client_id?: string
           client_insurance_id?: string
@@ -1240,7 +1243,7 @@ export type Database = {
           added_at?: string
           client_id: string
           created_at?: string
-          diagnosis_code_id: string
+          diagnosis_code_id?: string
           id?: string
           is_active?: boolean
           is_primary?: boolean
@@ -3001,6 +3004,47 @@ export type Database = {
         }
         Relationships: []
       }
+      edge_function_executions: {
+        Row: {
+          duration_ms: number | null
+          error_message: string | null
+          executed_at: string | null
+          function_name: string
+          id: string
+          items_processed: number | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          duration_ms?: number | null
+          error_message?: string | null
+          executed_at?: string | null
+          function_name: string
+          id?: string
+          items_processed?: number | null
+          status: string
+          tenant_id?: string | null
+        }
+        Update: {
+          duration_ms?: number | null
+          error_message?: string | null
+          executed_at?: string | null
+          function_name?: string
+          id?: string
+          items_processed?: number | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edge_function_executions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eligibility_checks: {
         Row: {
           client_id: string
@@ -3727,6 +3771,21 @@ export type Database = {
           },
         ]
       }
+      ignore: {
+        Row: {
+          created_at: string
+          updated: string | null
+        }
+        Insert: {
+          created_at?: string
+          updated?: string | null
+        }
+        Update: {
+          created_at?: string
+          updated?: string | null
+        }
+        Relationships: []
+      }
       pat_rel: {
         Row: {
           created_at: string
@@ -3994,7 +4053,7 @@ export type Database = {
           email: string
           email_verified?: boolean
           failed_login_attempts?: number
-          id: string
+          id?: string
           is_active?: boolean
           last_login_at?: string | null
           last_login_ip?: string | null
@@ -4740,7 +4799,7 @@ export type Database = {
       pat_rel_enum: "18" | "01" | "19" | "20" | "21" | "39" | "40" | "53" | "G8"
       pat_status_enum: "New" | "Active" | "Inactive"
       phq9_severity_enum:
-        | "none_minimal"
+        | "minimal"
         | "mild"
         | "moderate"
         | "moderately_severe"
@@ -4982,7 +5041,7 @@ export const Constants = {
       pat_rel_enum: ["18", "01", "19", "20", "21", "39", "40", "53", "G8"],
       pat_status_enum: ["New", "Active", "Inactive"],
       phq9_severity_enum: [
-        "none_minimal",
+        "minimal",
         "mild",
         "moderate",
         "moderately_severe",
