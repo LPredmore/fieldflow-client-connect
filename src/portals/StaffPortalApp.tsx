@@ -8,6 +8,7 @@ import { Layout } from "@/components/Layout/Layout";
 import Index from "@/pages/Index";
 import Appointments from "@/pages/Appointments";
 import Clients from "@/pages/Clients";
+import AllClients from "@/pages/AllClients";
 import Settings from "@/pages/Settings";
 import Profile from "@/pages/Profile";
 import Forms from "@/pages/Forms";
@@ -50,6 +51,17 @@ const StaffPortalApp = () => {
           <Route path="/appointments" element={<Appointments />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/profile" element={<Profile />} />
+          
+          {/* Admin-only: All Clients view */}
+          <Route path="/allclients" element={
+            <AppRouter 
+              allowedStates={['admin']}
+              portalType="staff"
+              fallbackMessage="You need admin privileges to view all clients."
+            >
+              <AllClients />
+            </AppRouter>
+          } />
           
           {/* Legacy route redirect */}
           <Route path="/customers" element={<Navigate to="/staff/clients" replace />} />
