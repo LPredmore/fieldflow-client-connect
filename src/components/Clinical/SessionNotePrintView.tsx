@@ -10,7 +10,7 @@ export function SessionNotePrintView({ data }: SessionNotePrintViewProps) {
   
   const sessionDate = note.appointment?.start_at || note.created_at;
   const formattedDate = format(new Date(sessionDate), 'MMMM d, yyyy');
-  const formattedTime = format(new Date(sessionDate), 'h:mm a');
+  const signedDate = format(new Date(note.created_at), 'MMMM d, yyyy');
   const generatedDate = format(new Date(), 'MMMM d, yyyy \'at\' h:mm a');
 
   // Helper to format risk labels
@@ -55,7 +55,7 @@ export function SessionNotePrintView({ data }: SessionNotePrintViewProps) {
       {/* Document Title */}
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold uppercase tracking-wide">Session Note</h2>
-        <p className="text-lg">{formattedDate} at {formattedTime}</p>
+        <p className="text-lg">{formattedDate}</p>
       </div>
 
       {/* Client Information Section */}
@@ -277,20 +277,15 @@ export function SessionNotePrintView({ data }: SessionNotePrintViewProps) {
       )}
 
       {/* Signature Area */}
-      <section className="signature-area mt-12 pt-8">
-        <div className="grid grid-cols-2 gap-16">
-          <div>
-            <div className="border-b border-black h-8 mb-1" />
-            <p className="text-sm">
-              {provider.full_name}
-              {provider.credentials && `, ${provider.credentials}`}
-            </p>
-            <p className="text-xs text-gray-600">Provider Signature</p>
-          </div>
-          <div>
-            <div className="border-b border-black h-8 mb-1" />
-            <p className="text-sm">Date</p>
-          </div>
+      <section className="signature-area mt-12 pt-8 border-t border-gray-300">
+        <div className="text-center">
+          <p className="text-sm font-semibold">
+            Digitally signed by {provider.full_name}
+            {provider.credentials && `, ${provider.credentials}`}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            on {signedDate}
+          </p>
         </div>
       </section>
 
