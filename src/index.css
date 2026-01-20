@@ -149,3 +149,73 @@
 
 /* React Big Calendar Styles */
 @import '../styles/react-big-calendar.css';
+
+/* Print Styles for Session Notes and Clinical Documents */
+@media print {
+  /* Hide navigation, headers, footers, and interactive elements during print */
+  .no-print,
+  nav,
+  header:not(.letterhead),
+  .sidebar,
+  button:not(.print-button),
+  [role="dialog"]:not(.print-dialog) {
+    display: none !important;
+  }
+
+  /* Reset body for print */
+  body {
+    background: white !important;
+    color: black !important;
+    font-family: 'Times New Roman', Times, serif !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Session note print view specific styles */
+  .session-note-print {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .session-note-print .letterhead {
+    border-bottom: 2px solid black;
+    padding-bottom: 12pt;
+    margin-bottom: 18pt;
+  }
+
+  .session-note-print .section {
+    margin-bottom: 12pt;
+    page-break-inside: avoid;
+  }
+
+  .session-note-print .section-title {
+    font-weight: bold;
+    font-size: 10pt;
+    text-transform: uppercase;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4pt;
+    margin-bottom: 8pt;
+  }
+
+  /* Signature area should not break across pages */
+  .session-note-print .signature-area {
+    margin-top: 36pt;
+    page-break-inside: avoid;
+  }
+
+  /* Page break control */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  /* Ensure backgrounds and colors print correctly */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
