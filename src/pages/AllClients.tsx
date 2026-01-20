@@ -1,21 +1,21 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Plus, Search, MoreVertical, Pencil, Trash2, Mail, Phone, MapPin, User, FileText, Users, Eye } from "lucide-react";
 import { useAllClients, Client } from "@/hooks/useAllClients";
 import { ClientFormData } from "@/types/client";
 import { ClientForm } from "@/components/Clients/ClientForm";
 import { ClientStatsCards } from "@/components/Clients/ClientStatsCards";
 import { TreatmentPlanDialog } from "@/components/Clinical/TreatmentPlanDialog";
-import { ClientDetailSheet } from "@/components/Clients/ClientDetailSheet";
 import { getClientDisplayName } from "@/utils/clientDisplayName";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function AllClients() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { clients, loading, stats, createClient, updateClient, deleteClient } = useAllClients();
   const [searchTerm, setSearchTerm] = useState("");
@@ -23,7 +23,6 @@ export default function AllClients() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [treatmentPlanClient, setTreatmentPlanClient] = useState<Client | null>(null);
-  const [viewingClient, setViewingClient] = useState<Client | null>(null);
 
   // Get clinician name for treatment plan
   const clinicianName = user?.staffAttributes?.staffData 
@@ -60,6 +59,10 @@ export default function AllClients() {
       await deleteClient(deletingClient.id);
       setDeletingClient(null);
     }
+  };
+
+  const handleViewDetails = (client: Client) => {
+    navigate(`/staff/allclients/${client.id}`);
   };
 
   const formatAddress = (client: Client) => {
@@ -101,7 +104,11 @@ export default function AllClients() {
       {!loading && filteredClients && filteredClients.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredClients.map((client) => (
-            <Card key={client.id} className="shadow-material-md hover:shadow-material-lg transition-shadow duration-normal">
+            <Card 
+              key={client.id} 
+              className="shadow-material-md hover:shadow-material-lg transition-shadow duration-normal cursor-pointer"
+              onClick={() => handleViewDetails(client)}
+            >
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -118,28 +125,28 @@ export default function AllClients() {
                     </div>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setViewingClient(client)}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewDetails(client); }}>
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setTreatmentPlanClient(client)}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTreatmentPlanClient(client); }}>
                         <FileText className="mr-2 h-4 w-4" />
                         Treatment Plan
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setEditingClient(client)}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingClient(client); }}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         className="text-destructive"
-                        onClick={() => setDeletingClient(client)}
+                        onClick={(e) => { e.stopPropagation(); setDeletingClient(client); }}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
@@ -260,21 +267,6 @@ export default function AllClients() {
         onOpenChange={(open) => !open && setTreatmentPlanClient(null)}
         clientId={treatmentPlanClient?.id ?? null}
         clinicianName={clinicianName}
-      />
-
-      {/* Client Detail Sheet */}
-      <ClientDetailSheet
-        open={!!viewingClient}
-        onOpenChange={(open) => !open && setViewingClient(null)}
-        clientId={viewingClient?.id ?? null}
-        onEdit={(client) => {
-          setViewingClient(null);
-          setEditingClient(client);
-        }}
-        onTreatmentPlan={(client) => {
-          setViewingClient(null);
-          setTreatmentPlanClient(client);
-        }}
       />
     </div>
   );
