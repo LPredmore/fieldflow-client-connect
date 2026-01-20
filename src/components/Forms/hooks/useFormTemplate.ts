@@ -55,17 +55,8 @@ export function useFormTemplate(): UseFormTemplateReturn {
     formType: FormType,
     tenantId?: string
   ) => {
-    console.group(`🔍 [useFormTemplate] loadTemplate ${new Date().toISOString()}`);
-    console.log('Parameters:', { formType, tenantId });
-    
     // Use ref instead of direct templates reference to keep function stable
     const currentTemplates = templatesRef.current;
-    console.log('Templates array:', currentTemplates.map(t => ({ 
-      id: t.id, 
-      form_type: t.form_type, 
-      is_active: t.is_active, 
-      tenant_id: t.tenant_id 
-    })));
     
     // Find template by type
     const foundTemplate = currentTemplates.find(t => 
@@ -75,27 +66,15 @@ export function useFormTemplate(): UseFormTemplateReturn {
     );
 
     if (foundTemplate) {
-      console.log('✅ Template FOUND:', { 
-        id: foundTemplate.id, 
-        name: foundTemplate.name, 
-        is_active: foundTemplate.is_active 
-      });
       setTemplate(foundTemplate);
       setActiveTemplateId(foundTemplate.id!);
-      console.log('✅ setActiveTemplateId:', foundTemplate.id);
     } else {
-      console.log('⚠️ Template NOT FOUND');
       setTemplate(null);
       setActiveTemplateId(null);
-      console.log('✅ setActiveTemplateId: null');
     }
-    console.groupEnd();
   }, []); // Empty dependency array - stable function identity
 
   const loadTemplateById = useCallback(async (templateId: string) => {
-    console.group(`🔍 [useFormTemplate] loadTemplateById ${new Date().toISOString()}`);
-    console.log('templateId:', templateId);
-    
     try {
       const { data, error } = await supabase
         .from('form_templates')
@@ -120,14 +99,12 @@ export function useFormTemplate(): UseFormTemplateReturn {
         };
         setTemplate(foundTemplate);
         setActiveTemplateId(foundTemplate.id!);
-        console.log('✅ Template FOUND by ID:', foundTemplate.id);
       }
     } catch (err) {
       console.error('Error loading template by ID:', err);
       setTemplate(null);
       setActiveTemplateId(null);
     }
-    console.groupEnd();
   }, []);
 
   const saveTemplate = useCallback(async (

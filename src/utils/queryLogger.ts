@@ -136,25 +136,27 @@ class QueryLogger {
       performanceMetrics: {}
     };
 
-    // Log query start
-    console.group(`🔍 [QueryLogger] Starting Query ${queryId}`);
-    console.log('📊 Query Details:', {
-      table,
-      select: select.length > 100 ? `${select.substring(0, 100)}...` : select,
-      filters,
-      orderBy,
-      complexity: logEntry.queryComplexity,
-      cacheHit,
-      cacheAge: cacheAge ? `${cacheAge}ms` : 'N/A',
-      circuitBreakerOpen
-    });
-    
-    if (cacheHit) {
-      console.log('💾 Cache Hit - returning cached data');
-    } else if (circuitBreakerOpen) {
-      console.warn('🚫 Circuit Breaker Open - query blocked');
-    } else {
-      console.log('🚀 Executing fresh query...');
+    // Log query start (dev only)
+    if (import.meta.env.DEV) {
+      console.group(`🔍 [QueryLogger] Starting Query ${queryId}`);
+      console.log('📊 Query Details:', {
+        table,
+        select: select.length > 100 ? `${select.substring(0, 100)}...` : select,
+        filters,
+        orderBy,
+        complexity: logEntry.queryComplexity,
+        cacheHit,
+        cacheAge: cacheAge ? `${cacheAge}ms` : 'N/A',
+        circuitBreakerOpen
+      });
+      
+      if (cacheHit) {
+        console.log('💾 Cache Hit - returning cached data');
+      } else if (circuitBreakerOpen) {
+        console.warn('🚫 Circuit Breaker Open - query blocked');
+      } else {
+        console.log('🚀 Executing fresh query...');
+      }
     }
 
     this.logs.push(logEntry);
@@ -178,7 +180,9 @@ class QueryLogger {
   ): void {
     const logEntry = this.logs.find(log => log.id === queryId);
     if (!logEntry) {
-      console.warn(`[QueryLogger] Query ${queryId} not found for completion`);
+      if (import.meta.env.DEV) {
+        console.warn(`[QueryLogger] Query ${queryId} not found for completion`);
+      }
       return;
     }
 
@@ -192,19 +196,21 @@ class QueryLogger {
     logEntry.resultCount = resultCount;
     logEntry.performanceMetrics = performanceMetrics;
 
-    // Log completion
-    console.log('✅ Query Completed Successfully:', {
-      duration: `${actualDuration}ms`,
-      resultCount,
-      performanceMetrics,
-      isSlowQuery: actualDuration > this.slowQueryThreshold
-    });
-    
-    if (actualDuration > this.slowQueryThreshold) {
-      console.warn(`🐌 Slow Query Detected (${actualDuration}ms > ${this.slowQueryThreshold}ms)`);
+    // Log completion (dev only)
+    if (import.meta.env.DEV) {
+      console.log('✅ Query Completed Successfully:', {
+        duration: `${actualDuration}ms`,
+        resultCount,
+        performanceMetrics,
+        isSlowQuery: actualDuration > this.slowQueryThreshold
+      });
+      
+      if (actualDuration > this.slowQueryThreshold) {
+        console.warn(`🐌 Slow Query Detected (${actualDuration}ms > ${this.slowQueryThreshold}ms)`);
+      }
+      
+      console.groupEnd();
     }
-    
-    console.groupEnd();
 
     // Emit performance event for monitoring
     this.emitPerformanceEvent('query_completed', {
@@ -233,7 +239,9 @@ class QueryLogger {
   ): void {
     const logEntry = this.logs.find(log => log.id === queryId);
     if (!logEntry) {
-      console.warn(`[QueryLogger] Query ${queryId} not found for failure`);
+      if (import.meta.env.DEV) {
+        console.warn(`[QueryLogger] Query ${queryId} not found for failure`);
+      }
       return;
     }
 
@@ -242,25 +250,27 @@ class QueryLogger {
     logEntry.error = error;
     logEntry.retryCount = retryCount;
 
-    // Log failure with detailed context
-    console.error('❌ Query Failed:', {
-      queryId,
-      duration: `${duration}ms`,
-      error: {
-        type: error.type,
-        message: error.message,
-        code: error.code
-      },
-      retryCount,
-      context: {
-        table: logEntry.table,
-        filters: logEntry.filters,
-        complexity: logEntry.queryComplexity,
-        circuitBreakerOpen: logEntry.circuitBreakerOpen
-      }
-    });
-    
-    console.groupEnd();
+    // Log failure with detailed context (dev only)
+    if (import.meta.env.DEV) {
+      console.error('❌ Query Failed:', {
+        queryId,
+        duration: `${duration}ms`,
+        error: {
+          type: error.type,
+          message: error.message,
+          code: error.code
+        },
+        retryCount,
+        context: {
+          table: logEntry.table,
+          filters: logEntry.filters,
+          complexity: logEntry.queryComplexity,
+          circuitBreakerOpen: logEntry.circuitBreakerOpen
+        }
+      });
+      
+      console.groupEnd();
+    }
 
     // Emit error event for monitoring
     this.emitPerformanceEvent('query_failed', {
@@ -352,7 +362,9 @@ class QueryLogger {
    */
   clearLogs(): void {
     this.logs = [];
-    console.log('[QueryLogger] All logs cleared');
+    if (import.meta.env.DEV) {
+      console.log('[QueryLogger] All logs cleared');
+    }
   }
 
   /**
@@ -369,7 +381,9 @@ class QueryLogger {
     if (this.logs.length > this.maxLogEntries) {
       const excess = this.logs.length - this.maxLogEntries;
       this.logs.splice(0, excess);
-      console.log(`[QueryLogger] Trimmed ${excess} old log entries`);
+      if (import.meta.env.DEV) {
+        console.log(`[QueryLogger] Trimmed ${excess} old log entries`);
+      }
     }
   }
 
@@ -398,6 +412,8 @@ class QueryLogger {
     filters: Record<string, any>,
     orderBy?: { column: string; ascending?: boolean }
   ): void {
+    if (!import.meta.env.DEV) return;
+    
     console.group('🔍 [QueryLogger] Query Structure Analysis');
     console.log('📋 Table:', table);
     console.log('📝 Select:', select);
