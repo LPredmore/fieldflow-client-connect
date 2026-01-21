@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserTimezone } from '@/hooks/useUserTimezone';
+import { useStaffTimezone } from '@/hooks/useStaffTimezone';
 import { useServices } from '@/hooks/useServices';
 import { useClients } from '@/hooks/useClients';
 import { combineDateTimeToUTC, splitUTCToLocalDateTime } from '@/lib/timezoneUtils';
@@ -51,7 +51,7 @@ interface AppointmentFormProps {
 
 export default function AppointmentForm({ appointment, onSubmit, onCancel, loading }: AppointmentFormProps) {
   const { user } = useAuth();
-  const userTimezone = useUserTimezone();
+  const userTimezone = useStaffTimezone();
   const { toast } = useToast();
   const { services, loading: servicesLoading } = useServices();
   const { clients, loading: clientsLoading } = useClients();

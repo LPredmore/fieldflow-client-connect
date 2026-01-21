@@ -22,17 +22,6 @@ import { fromZonedTime } from 'date-fns-tz';
 const DEFAULT_TIMEZONE = 'America/New_York';
 
 /**
- * Get the default timezone for appointment operations.
- * 
- * @deprecated Use useStaffTimezone hook instead for staff views.
- * This function returns the practice default timezone (America/New_York)
- * and does not account for staff profile prov_time_zone preference.
- */
-export function getBrowserTimezone(): string {
-  return DEFAULT_TIMEZONE;
-}
-
-/**
  * Convert a local date/time selection to UTC for database storage.
  * 
  * Use this when CREATING an appointment:
@@ -42,7 +31,7 @@ export function getBrowserTimezone(): string {
  * 
  * @param date - Date string in YYYY-MM-DD format
  * @param time - Time string in HH:mm format
- * @param timezone - Optional timezone override (defaults to browser timezone)
+ * @param timezone - Optional timezone override (defaults to DEFAULT_TIMEZONE)
  * @returns ISO string in UTC for database storage
  */
 export function localToUTC(
@@ -65,13 +54,14 @@ export function localToUTC(
   // This works because date-fns-tz bundles its own timezone database
   const utcDate = fromZonedTime(localDate, zone);
   
-  // Debug logging to verify conversion is working correctly
-  console.log('[localToUTC] Timezone conversion:', {
-    input: { date, time, zone },
-    localDate: localDate.toString(),
-    utcISO: utcDate.toISOString(),
-    expectedOffset: `${zone} → UTC`
-  });
+  if (import.meta.env.DEV) {
+    console.log('[localToUTC] Timezone conversion:', {
+      input: { date, time, zone },
+      localDate: localDate.toString(),
+      utcISO: utcDate.toISOString(),
+      expectedOffset: `${zone} → UTC`
+    });
+  }
   
   return utcDate.toISOString();
 }
@@ -82,7 +72,7 @@ export function localToUTC(
  * 
  * @param date - Date string in YYYY-MM-DD format
  * @param time - Time string in HH:mm format
- * @param timezone - Optional timezone override (defaults to browser timezone)
+ * @param timezone - Optional timezone override (defaults to DEFAULT_TIMEZONE)
  * @returns Date object representing the UTC instant
  */
 export function localToUTCDate(
@@ -105,90 +95,6 @@ export function localToUTCDate(
 }
 
 /**
- * Convert a UTC timestamp from the database to a local JS Date for display.
- * 
- * Use this when READING appointments:
- * - Supabase returns UTC timestamp "2025-12-05T15:00:00Z"
- * - This converts it to the user's local time as a Date object
- * - Pass this Date to React Big Calendar
- * 
- * @param utcTimestamp - ISO string from database (UTC)
- * @param timezone - Optional timezone override (defaults to browser timezone)
- * @returns Date object for calendar display (in local timezone)
- * 
- * @deprecated Use utcToLocalForCalendar for calendar display - this function
- * loses timezone context when converting to JS Date via toJSDate().
- */
-export function utcToLocal(
-  utcTimestamp: string,
-  timezone?: string
-): Date {
-  const zone = timezone || getBrowserTimezone();
-  
-  // Parse as UTC
-  const utc = DateTime.fromISO(utcTimestamp, { zone: 'utc' });
-  
-  if (!utc.isValid) {
-    console.error('Invalid UTC timestamp:', utcTimestamp);
-    return new Date(); // Fallback to now
-  }
-  
-  // Convert to the target timezone and return as JS Date
-  const local = utc.setZone(zone);
-  return local.toJSDate();
-}
-
-/**
- * Convert UTC to a Date object that DISPLAYS at the correct local time.
- * 
- * @deprecated This function is no longer needed. RBCCalendar now uses 
- * Luxon Settings.defaultZone to handle timezone display correctly.
- * Use DateTime.fromISO(utc, {zone: 'utc'}).toJSDate() directly and let
- * the Luxon localizer handle timezone conversion.
- * 
- * This function creates a "visual" Date using local time components,
- * bypassing the browser's timezone interpretation. This approach is
- * fundamentally flawed because JavaScript Date objects cannot represent
- * "5:00 AM in Los Angeles" - they represent a specific UTC instant.
- * 
- * @param utcTimestamp - ISO string from database (UTC)
- * @param timezone - Target timezone (IANA format, e.g., "America/Chicago")
- * @returns Date object that visually represents the local time
- */
-export function utcToLocalForCalendar(
-  utcTimestamp: string,
-  timezone: string
-): Date {
-  console.warn(
-    '[DEPRECATED] utcToLocalForCalendar is deprecated. ' +
-    'Use DateTime.fromISO(utc, {zone: "utc"}).toJSDate() with Luxon Settings.defaultZone instead.'
-  );
-  
-  const utc = DateTime.fromISO(utcTimestamp, { zone: 'utc' });
-  
-  if (!utc.isValid) {
-    console.error('Invalid UTC timestamp:', utcTimestamp);
-    return new Date();
-  }
-  
-  // Convert to target timezone
-  const local = utc.setZone(timezone);
-  
-  // Create Date using LOCAL components (bypasses browser TZ interpretation)
-  // WARNING: This Date does NOT represent the correct UTC instant!
-  const result = new Date(
-    local.year,
-    local.month - 1, // JS months are 0-indexed
-    local.day,
-    local.hour,
-    local.minute,
-    local.second
-  );
-
-  return result;
-}
-
-/**
  * Convert a UTC timestamp to local date/time strings for form inputs.
  * 
  * Use this when populating edit forms with existing appointment data:
@@ -196,14 +102,14 @@ export function utcToLocalForCalendar(
  * - Convert to local strings for date and time inputs
  * 
  * @param utcTimestamp - ISO string from database (UTC)
- * @param timezone - Optional timezone override (defaults to browser timezone)
+ * @param timezone - Optional timezone override (defaults to DEFAULT_TIMEZONE)
  * @returns Object with date (YYYY-MM-DD) and time (HH:mm) strings
  */
 export function utcToLocalStrings(
   utcTimestamp: string,
   timezone?: string
 ): { date: string; time: string } {
-  const zone = timezone || getBrowserTimezone();
+  const zone = timezone || DEFAULT_TIMEZONE;
   
   const utc = DateTime.fromISO(utcTimestamp, { zone: 'utc' });
   
@@ -228,7 +134,7 @@ export function utcToLocalStrings(
  * 
  * @param utcTimestamp - ISO string from database (UTC)
  * @param formatStr - Luxon format string (default: 'h:mm a')
- * @param timezone - Optional timezone override (defaults to browser timezone)
+ * @param timezone - Optional timezone override (defaults to DEFAULT_TIMEZONE)
  * @returns Formatted string in local timezone
  */
 export function formatUTCAsLocal(
@@ -236,7 +142,7 @@ export function formatUTCAsLocal(
   formatStr: string = 'h:mm a',
   timezone?: string
 ): string {
-  const zone = timezone || getBrowserTimezone();
+  const zone = timezone || DEFAULT_TIMEZONE;
   
   const utc = DateTime.fromISO(utcTimestamp, { zone: 'utc' });
   
@@ -286,7 +192,7 @@ export function calculateEndDate(startDate: Date, durationMinutes: number): Date
  * @returns Database enum value
  */
 export function getDBTimezoneEnum(browserTimezone?: string): string {
-  const tz = browserTimezone || getBrowserTimezone();
+  const tz = browserTimezone || DEFAULT_TIMEZONE;
   
   // Map common US timezones to DB enum values
   const mapping: Record<string, string> = {

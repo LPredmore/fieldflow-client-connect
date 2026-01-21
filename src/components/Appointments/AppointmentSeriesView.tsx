@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, User, FileText, Repeat } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useUserTimezone } from '@/hooks/useUserTimezone';
+import { useStaffTimezone } from '@/hooks/useStaffTimezone';
 import { formatInUserTimezone } from '@/lib/timezoneUtils';
 import { format } from 'date-fns';
 
@@ -43,7 +43,7 @@ interface AppointmentSeriesViewProps {
 
 export default function AppointmentSeriesView({ jobSeries: series, onUpdate }: AppointmentSeriesViewProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const userTimezone = useUserTimezone();
+  const userTimezone = useStaffTimezone();
 
   const handleToggleActive = async () => {
     if (!onUpdate) return;

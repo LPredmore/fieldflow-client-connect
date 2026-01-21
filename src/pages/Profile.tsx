@@ -18,8 +18,6 @@ import { US_STATES } from '@/constants/usStates';
 import { useTreatmentApproachOptions } from '@/hooks/useTreatmentApproachOptions';
 import { MultiSelectCombobox } from '@/components/ui/multi-select-combobox';
 import { DB_ENUMS } from '@/schema/enums';
-import { clearFormatCache } from '@/hooks/useFormattedTime';
-import { clearAppointmentFormatCache } from '@/hooks/useFormattedAppointments';
 
 const TIMEZONE_LABELS: Record<string, string> = {
   'America/New_York': 'Eastern Time (ET)',
@@ -174,13 +172,8 @@ export default function Profile() {
         title: "Error updating professional information",
         description: staffResult.error.message,
       });
-    } else {
-      // Clear format caches if timezone was updated to ensure fresh formatting
-      if (professionalInfo.prov_time_zone) {
-        clearFormatCache();
-        clearAppointmentFormatCache();
-      }
     }
+    // Note: No cache clearing needed - server-side formatting via RPC uses fresh timezone on each fetch
   };
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
