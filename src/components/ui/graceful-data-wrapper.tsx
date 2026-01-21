@@ -1,7 +1,7 @@
 import React from 'react';
 import { EnhancedEmptyState } from './enhanced-empty-state';
 import { CachedDataIndicator } from './cached-data-indicator';
-import { ErrorType } from '@/utils/circuitBreaker';
+import { ErrorType } from '@/types/errorTypes';
 
 interface GracefulDataWrapperProps {
   children: React.ReactNode;
