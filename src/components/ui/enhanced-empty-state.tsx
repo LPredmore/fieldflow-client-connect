@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { ErrorType } from '@/utils/circuitBreaker';
+import { ErrorType } from '@/types/errorTypes';
 
 interface EnhancedEmptyStateProps {
   type: 'empty' | 'error' | 'circuit_breaker' | 'stale_data';
