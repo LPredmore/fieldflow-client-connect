@@ -8,12 +8,23 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type { Client, ClientFormData };
 
-export function useClients() {
+interface UseClientsOptions {
+  /**
+   * If true, returns all clients for the tenant (admin view).
+   * If false/undefined, filters by primary_staff_id (clinician's assigned clients).
+   */
+  allTenantClients?: boolean;
+}
+
+export function useClients(options?: UseClientsOptions) {
   const { user, tenantId } = useAuth();
   const [createLoading, setCreateLoading] = useState(false);
   
   // Extract staff ID from auth context for filtering
   const staffId = user?.staffAttributes?.staffData?.id;
+  
+  // Determine if we should filter by staff
+  const shouldFilterByStaff = !options?.allTenantClients && !!staffId;
   
   const {
     data: clients,
@@ -29,9 +40,9 @@ export function useClients() {
     select: '*, assigned_staff:staff!primary_staff_id(prov_name_f, prov_name_l)',
     filters: {
       tenant_id: 'auto',
-      ...(staffId ? { primary_staff_id: staffId } : {}),
+      ...(shouldFilterByStaff ? { primary_staff_id: staffId } : {}),
     },
-    enabled: !!staffId,
+    enabled: options?.allTenantClients ? !!tenantId : !!staffId,
     orderBy: { column: 'created_at', ascending: false },
     transform: (data: any[]) => 
       data.map((client: any) => {
@@ -73,7 +84,7 @@ export function useClients() {
     filters: {
       tenant_id: 'auto',
     },
-    enabled: !!staffId,
+    enabled: options?.allTenantClients ? !!tenantId : !!staffId,
   });
 
   // Statistics calculations

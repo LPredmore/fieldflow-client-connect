@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Search, MoreVertical, Pencil, Trash2, Mail, Phone, MapPin, User, FileText, Users, Eye } from "lucide-react";
-import { useAllClients, Client } from "@/hooks/useAllClients";
+import { useClients, Client } from "@/hooks/useClients";
 import { ClientFormData } from "@/types/client";
 import { ClientForm } from "@/components/Clients/ClientForm";
 import { ClientStatsCards } from "@/components/Clients/ClientStatsCards";
@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 export default function AllClients() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { clients, loading, stats, createClient, updateClient, deleteClient } = useAllClients();
+  const { clients, loading, stats, createClient, updateClient, deleteClient } = useClients({ allTenantClients: true });
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);

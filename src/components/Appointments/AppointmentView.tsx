@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, User, Edit, Video, MapPin, Repeat, Trash2 } from 'lucide-react';
-import { useFormattedTime } from '@/hooks/useFormattedTime';
+import { DateTime } from 'luxon';
 import AppointmentForm from './AppointmentForm';
 import { RecurringEditDialog } from './RecurringEditDialog';
 import { DeleteAppointmentDialog } from './DeleteAppointmentDialog';
@@ -94,17 +94,20 @@ export default function AppointmentView({
   const displayStartTime = appointment.display_time || '';
   const displayEndTime = appointment.display_end_time || '';
 
-  // For created_at and updated_at, use useFormattedTime with the appointment's timezone
-  const { formattedValue: displayCreatedAt } = useFormattedTime(
-    appointment.created_at,
-    'FMMonth DD, YYYY FMHH12:MI AM',
-    appointmentTimezone
-  );
-  const { formattedValue: displayUpdatedAt } = useFormattedTime(
-    appointment.updated_at,
-    'FMMonth DD, YYYY FMHH12:MI AM',
-    appointmentTimezone
-  );
+  // Format metadata timestamps using Luxon (no RPC call needed)
+  const displayCreatedAt = useMemo(() => {
+    if (!appointment.created_at) return '';
+    const dt = DateTime.fromISO(appointment.created_at, { zone: 'utc' });
+    if (!dt.isValid) return '';
+    return dt.setZone(appointmentTimezone).toFormat('LLLL dd, yyyy h:mm a');
+  }, [appointment.created_at, appointmentTimezone]);
+
+  const displayUpdatedAt = useMemo(() => {
+    if (!appointment.updated_at) return '';
+    const dt = DateTime.fromISO(appointment.updated_at, { zone: 'utc' });
+    if (!dt.isValid) return '';
+    return dt.setZone(appointmentTimezone).toFormat('LLLL dd, yyyy h:mm a');
+  }, [appointment.updated_at, appointmentTimezone]);
 
   const {
     editSingleOccurrence,
