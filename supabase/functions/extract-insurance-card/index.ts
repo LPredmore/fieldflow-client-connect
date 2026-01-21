@@ -17,26 +17,28 @@ serve(async (req) => {
       throw new Error('No image data provided');
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is not configured");
     }
 
-    console.log(`Extracting insurance card data from ${cardSide} using Gemini vision...`);
+    console.log(`Extracting insurance card data from ${cardSide} using OpenRouter GPT-4o-mini...`);
 
     // Different prompts for front and back of card
     const promptText = cardSide === 'front' 
       ? "Extract insurance card information from the FRONT of this card. Look for: insurance company name (payer_name), policy number, group number, member/policy holder name (first, middle, last), date of birth, sex/gender, address (street, city, state, zip), phone number, employer name, plan name, and payer ID. Return all available information."
       : "Extract insurance card information from the BACK of this card. Look for: customer service phone numbers, claims submission information, provider contact numbers, payer ID, authorization phone numbers, plan details, and any additional contact information. Also look for any policy numbers or group numbers if visible. Return all available information.";
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://lovable.dev',
+        'X-Title': 'Insurance Card Extractor',
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-4o-mini",
         messages: [
           {
             role: "user",
@@ -99,13 +101,13 @@ serve(async (req) => {
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Payment required. Please add credits to your Lovable AI workspace." }), 
+          JSON.stringify({ error: "Payment required. Please check your OpenRouter account." }), 
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${errorText}`);
+      console.error("OpenRouter API error:", response.status, errorText);
+      throw new Error(`OpenRouter API error: ${errorText}`);
     }
 
     const data = await response.json();
