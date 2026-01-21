@@ -24,8 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAppointmentManagement, ManagedAppointment, AppointmentSeries } from "@/hooks/useAppointmentManagement";
 import { useStaffAppointments, StaffAppointment } from "@/hooks/useStaffAppointments";
+import { useAppointmentSeries, AppointmentSeries } from "@/hooks/useAppointmentSeries";
 import { useAuth } from "@/hooks/useAuth";
 import AppointmentView from "@/components/Appointments/AppointmentView";
 import AppointmentSeriesView from "@/components/Appointments/AppointmentSeriesView";
@@ -46,6 +46,7 @@ const TimezoneIndicator = ({ timezone }: { timezone: string }) => {
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'completed':
+    case 'documented':
       return 'bg-success text-success-foreground';
     case 'scheduled':
       return 'bg-primary text-primary-foreground';
@@ -56,9 +57,12 @@ const getStatusColor = (status: string) => {
   }
 };
 
+// Type to represent either an appointment or a series in the combined list
+type ListItem = (StaffAppointment & { itemType: 'appointment' }) | (AppointmentSeries & { itemType: 'series' });
+
 // Type guard to check if item is AppointmentSeries
-function isAppointmentSeries(item: ManagedAppointment | AppointmentSeries): item is AppointmentSeries {
-  return 'is_active' in item && 'rrule' in item;
+function isAppointmentSeries(item: ListItem): item is (AppointmentSeries & { itemType: 'series' }) {
+  return item.itemType === 'series';
 }
 
 export default function Appointments() {
@@ -70,28 +74,40 @@ export default function Appointments() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   
   // Use unified staff appointments for timezone-aware display with pre-formatted strings
-  const { appointments: staffAppointments, getAppointmentById, staffTimezone } = useStaffAppointments();
+  const { 
+    appointments, 
+    getAppointmentById, 
+    staffTimezone,
+    updateAppointment,
+    deleteAppointment,
+    refetch: refetchAppointments,
+    loading: appointmentsLoading,
+  } = useStaffAppointments();
+  
+  // Use appointment series for series CRUD operations
+  const {
+    series,
+    updateSeries,
+    deleteSeries,
+    refetch: refetchSeries,
+    loading: seriesLoading,
+  } = useAppointmentSeries();
   
   // Get the selected appointment with pre-formatted display strings
   const viewAppointment = viewAppointmentId ? getAppointmentById(viewAppointmentId) : null;
   
-  // Use appointment management for CRUD and series data
-  const { 
-    appointments, 
-    series, 
-    loading, 
-    updateAppointment, 
-    updateSeries,
-    deleteAppointment, 
-    deleteSeries,
-    refetch
-  } = useAppointmentManagement();
-  
   const { userRole, isAdmin } = useAuth();
   const { toast } = useToast();
+  
+  const loading = appointmentsLoading || seriesLoading;
 
-  // Combine and filter appointments and series
-  const allItems = [...appointments, ...series];
+  // Combine appointments and series into a single list with type discriminator
+  const allItems: ListItem[] = [
+    ...appointments.map(a => ({ ...a, itemType: 'appointment' as const })),
+    ...series.map(s => ({ ...s, itemType: 'series' as const })),
+  ];
+  
+  // Filter based on search term
   const filteredItems = allItems.filter(item => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -101,11 +117,12 @@ export default function Appointments() {
     );
   });
 
-  const handleViewItem = (item: ManagedAppointment | AppointmentSeries) => {
+  const handleViewItem = (item: ListItem) => {
     if (isAppointmentSeries(item)) {
-      setViewSeries(item);
+      // Extract series without itemType for the modal
+      const { itemType, ...seriesData } = item;
+      setViewSeries(seriesData);
     } else {
-      // Use the appointment ID to look up the StaffAppointment with pre-formatted strings
       setViewAppointmentId(item.id);
     }
   };
@@ -134,9 +151,13 @@ export default function Appointments() {
     }
   };
 
-  const getItemDate = (item: ManagedAppointment | AppointmentSeries) => {
+  const handleRefresh = async () => {
+    await Promise.all([refetchAppointments(), refetchSeries()]);
+  };
+
+  const getItemDate = (item: ListItem) => {
     if (isAppointmentSeries(item)) {
-      // For series, use the start_at formatted simply
+      // For series, show next occurrence or "No upcoming"
       if (item.next_occurrence_date) {
         return new Date(item.next_occurrence_date).toLocaleDateString('en-US', {
           month: 'short',
@@ -146,22 +167,22 @@ export default function Appointments() {
       }
       return 'No upcoming';
     }
-    // For appointments, use start_at
-    return new Date(item.start_at).toLocaleDateString('en-US', {
+    // For appointments, use pre-formatted display_date if available
+    return item.display_date || new Date(item.start_at).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
   };
 
-  const getItemStatus = (item: ManagedAppointment | AppointmentSeries) => {
+  const getItemStatus = (item: ListItem) => {
     if (isAppointmentSeries(item)) {
       return item.is_active ? 'Active' : 'Inactive';
     }
     return item.status;
   };
 
-  const getItemStatusColor = (item: ManagedAppointment | AppointmentSeries) => {
+  const getItemStatusColor = (item: ListItem) => {
     if (isAppointmentSeries(item)) {
       return item.is_active 
         ? 'bg-success text-success-foreground' 
@@ -187,6 +208,7 @@ export default function Appointments() {
             <CreateAppointmentDialog 
               open={createDialogOpen}
               onOpenChange={setCreateDialogOpen}
+              onAppointmentCreated={handleRefresh}
               trigger={
                 <Button className="shadow-material-sm hover:shadow-material-md transition-shadow duration-fast">
                   <Plus className="h-4 w-4 mr-2" />
@@ -262,7 +284,7 @@ export default function Appointments() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {item.service_name}
-                            {'is_telehealth' in item && item.is_telehealth && (
+                            {!isAppointmentSeries(item) && item.is_telehealth && (
                               <Video className="h-4 w-4 text-muted-foreground" />
                             )}
                           </div>
@@ -298,7 +320,7 @@ export default function Appointments() {
               <AppointmentView 
                 job={viewAppointment}
                 onUpdate={updateAppointment}
-                onRefresh={refetch}
+                onRefresh={handleRefresh}
               />
             )}
           </DialogContent>

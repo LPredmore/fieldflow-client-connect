@@ -2,13 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Clock, Video } from "lucide-react";
-import { useUnifiedAppointments } from "@/hooks/useUnifiedAppointments";
+import { useStaffAppointments } from "@/hooks/useStaffAppointments";
 import { useNavigate, useLocation } from "react-router-dom";
 import { GracefulDataWrapper } from "@/components/ui/graceful-data-wrapper";
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'completed':
+    case 'documented':
       return 'bg-success text-success-foreground';
     case 'scheduled':
       return 'bg-primary text-primary-foreground';
@@ -30,13 +31,8 @@ export default function RecentJobs({ enabled = true }: RecentJobsProps) {
   const { 
     upcomingAppointments, 
     loading, 
-    error, 
     refetch,
-    isStale,
-    isCircuitBreakerOpen,
-    lastUpdated,
-    errorType
-  } = useUnifiedAppointments({ 
+  } = useStaffAppointments({ 
     enabled: enabled && isDashboardRoute 
   });
   
@@ -113,12 +109,8 @@ export default function RecentJobs({ enabled = true }: RecentJobsProps) {
       <CardContent>
         <GracefulDataWrapper
           loading={loading}
-          error={error}
-          errorType={errorType}
+          error={null}
           data={upcomingAppointments}
-          isStale={isStale}
-          isCircuitBreakerOpen={isCircuitBreakerOpen}
-          lastUpdated={lastUpdated}
           onRetry={refetch}
           onRefresh={refetch}
           emptyStateTitle="No upcoming appointments"
