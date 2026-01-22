@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useClientDetail, ClientDetailTab, FormResponseWithTemplate, SessionNote } from '@/hooks/useClientDetail';
+import { useClientFormAssignments } from '@/hooks/useClientFormAssignments';
 import { getClientDisplayName } from '@/utils/clientDisplayName';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -25,6 +26,7 @@ import {
   ClientFormsTab,
   ClientInsuranceTab,
   ClientContactsTab,
+  AssignFormDialog,
 } from '@/components/Clients/ClientDetail';
 import { ClientForm } from '@/components/Clients/ClientForm';
 import { TreatmentPlanDialog } from '@/components/Clinical/TreatmentPlanDialog';
@@ -51,6 +53,7 @@ export default function ClientDetail() {
   // Dialog states
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [isTreatmentPlanOpen, setIsTreatmentPlanOpen] = useState(false);
+  const [isAssignFormOpen, setIsAssignFormOpen] = useState(false);
   const [viewingSessionNote, setViewingSessionNote] = useState<SessionNote | null>(null);
   const [batchPrintNoteIds, setBatchPrintNoteIds] = useState<string[]>([]);
   const [viewingFormResponse, setViewingFormResponse] = useState<{
@@ -82,6 +85,26 @@ export default function ClientDetail() {
     emergencyContacts,
     tabLoading,
   } = useClientDetail({ clientId: clientId ?? null, activeTab });
+
+  // Fetch form assignments
+  const {
+    assignments: formAssignments,
+    pendingAssignments,
+    loading: assignmentsLoading,
+    assignForm,
+    cancelAssignment,
+    fetchAssignments,
+  } = useClientFormAssignments({ 
+    clientId: clientId ?? null, 
+    enabled: activeTab === 'forms' 
+  });
+
+  // Fetch assignments when switching to forms tab
+  useEffect(() => {
+    if (activeTab === 'forms' && clientId) {
+      fetchAssignments();
+    }
+  }, [activeTab, clientId, fetchAssignments]);
 
   // Get clinician name for treatment plan
   const clinicianName = user?.staffAttributes?.staffData 
@@ -297,7 +320,11 @@ export default function ClientDetail() {
           <ClientFormsTab
             loading={tabLoading.forms}
             formResponses={formResponses}
+            formAssignments={formAssignments}
+            assignmentsLoading={assignmentsLoading}
             onViewResponse={handleViewFormResponse}
+            onAssignForm={() => setIsAssignFormOpen(true)}
+            onCancelAssignment={cancelAssignment}
           />
         </TabsContent>
 
@@ -365,6 +392,15 @@ export default function ClientDetail() {
           }}
         />
       )}
+
+      {/* Assign Form Dialog */}
+      <AssignFormDialog
+        open={isAssignFormOpen}
+        onOpenChange={setIsAssignFormOpen}
+        clientId={client.id}
+        pendingTemplateIds={pendingAssignments.map(a => a.form_template_id)}
+        onAssign={assignForm}
+      />
     </div>
   );
 }

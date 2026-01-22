@@ -1361,6 +1361,90 @@ export type Database = {
           },
         ]
       }
+      client_form_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by_profile_id: string | null
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          due_at: string | null
+          form_response_id: string | null
+          form_template_id: string
+          id: string
+          notes: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by_profile_id?: string | null
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string | null
+          form_response_id?: string | null
+          form_template_id: string
+          id?: string
+          notes?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by_profile_id?: string | null
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string | null
+          form_response_id?: string | null
+          form_template_id?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_form_assignments_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_form_assignments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_form_assignments_form_response_id_fkey"
+            columns: ["form_response_id"]
+            isOneToOne: false
+            referencedRelation: "form_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_form_assignments_form_template_id_fkey"
+            columns: ["form_template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_form_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_gad7_assessments: {
         Row: {
           administered_at: string
