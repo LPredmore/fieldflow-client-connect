@@ -4,3 +4,4 @@ export { ClientAssessmentsTab } from './ClientAssessmentsTab';
 export { ClientFormsTab } from './ClientFormsTab';
 export { ClientInsuranceTab } from './ClientInsuranceTab';
 export { ClientContactsTab } from './ClientContactsTab';
+export { AssignFormDialog } from './AssignFormDialog';
