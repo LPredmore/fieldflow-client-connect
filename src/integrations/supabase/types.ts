@@ -2934,6 +2934,8 @@ export type Database = {
           created_by_profile_id: string | null
           id: string
           is_active: boolean
+          is_required: boolean | null
+          required_for: string | null
           tenant_id: string | null
           title: string
           updated_at: string
@@ -2946,6 +2948,8 @@ export type Database = {
           created_by_profile_id?: string | null
           id?: string
           is_active?: boolean
+          is_required?: boolean | null
+          required_for?: string | null
           tenant_id?: string | null
           title: string
           updated_at?: string
@@ -2958,6 +2962,8 @@ export type Database = {
           created_by_profile_id?: string | null
           id?: string
           is_active?: boolean
+          is_required?: boolean | null
+          required_for?: string | null
           tenant_id?: string | null
           title?: string
           updated_at?: string

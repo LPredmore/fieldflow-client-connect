@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { REQUIRED_CONSENTS, RequiredConsent } from '@/config/requiredConsents';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface ConsentSignature {
   id: string;
@@ -11,6 +11,13 @@ export interface ConsentSignature {
   signed_at: string;
   is_revoked: boolean;
   revoked_at: string | null;
+}
+
+export interface RequiredConsent {
+  key: string;
+  label: string;
+  required: boolean;
+  requiredFor?: string | null;
 }
 
 export interface ConsentStatus {
@@ -41,13 +48,16 @@ export function useClientConsentStatus({
   clientId, 
   enabled = true 
 }: UseClientConsentStatusOptions): UseClientConsentStatusResult {
+  const { tenantId } = useAuth();
   const [signatures, setSignatures] = useState<ConsentSignature[]>([]);
+  const [requiredConsents, setRequiredConsents] = useState<RequiredConsent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchConsentSignatures = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!clientId || !enabled) {
       setSignatures([]);
+      setRequiredConsents([]);
       return;
     }
 
@@ -55,32 +65,64 @@ export function useClientConsentStatus({
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
+      // Fetch required consent templates from database (single source of truth)
+      // Get system defaults (tenant_id IS NULL) with is_required = true
+      // Tenant-specific templates override system defaults when they exist
+      const { data: templates, error: templatesError } = await supabase
+        .from('consent_templates')
+        .select('consent_type, title, is_required, required_for')
+        .or(`tenant_id.is.null${tenantId ? `,tenant_id.eq.${tenantId}` : ''}`)
+        .eq('is_active', true)
+        .eq('is_required', true);
+
+      if (templatesError) {
+        throw templatesError;
+      }
+
+      // De-duplicate: prefer tenant-specific templates over system defaults
+      const consentMap = new Map<string, RequiredConsent>();
+      (templates || []).forEach(t => {
+        // Only add if not already present (first match wins since we're iterating)
+        // Since we want tenant-specific to override, we always overwrite
+        consentMap.set(t.consent_type, {
+          key: t.consent_type,
+          label: t.title,
+          required: t.is_required ?? true,
+          requiredFor: t.required_for,
+        });
+      });
+
+      const consentsFromDb = Array.from(consentMap.values());
+      setRequiredConsents(consentsFromDb);
+
+      // Fetch client's consent signatures
+      const { data: signatureData, error: signatureError } = await supabase
         .from('client_telehealth_consents')
         .select('id, client_id, consent_template_key, consent_template_version, signature_date, signed_at, is_revoked, revoked_at')
         .eq('client_id', clientId);
 
-      if (fetchError) {
-        throw fetchError;
+      if (signatureError) {
+        throw signatureError;
       }
 
-      setSignatures(data || []);
+      setSignatures(signatureData || []);
     } catch (err) {
-      console.error('Error fetching consent signatures:', err);
+      console.error('Error fetching consent data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch consent status');
       setSignatures([]);
+      setRequiredConsents([]);
     } finally {
       setLoading(false);
     }
-  }, [clientId, enabled]);
+  }, [clientId, enabled, tenantId]);
 
   useEffect(() => {
-    fetchConsentSignatures();
-  }, [fetchConsentSignatures]);
+    fetchData();
+  }, [fetchData]);
 
   // Map required consents to their status
   const consentStatuses = useMemo(() => {
-    return REQUIRED_CONSENTS.map((consent): ConsentStatus => {
+    return requiredConsents.map((consent): ConsentStatus => {
       // Find the most recent signature for this consent type
       const signature = signatures
         .filter(s => s.consent_template_key === consent.key)
@@ -106,7 +148,7 @@ export function useClientConsentStatus({
         revokedAt: signature.revoked_at,
       };
     });
-  }, [signatures]);
+  }, [requiredConsents, signatures]);
 
   // Calculate compliance metrics
   const { signedCount, requiredCount, isFullyCompliant } = useMemo(() => {
@@ -116,7 +158,7 @@ export function useClientConsentStatus({
     return {
       signedCount: signed.length,
       requiredCount: required.length,
-      isFullyCompliant: signed.length === required.length,
+      isFullyCompliant: required.length > 0 && signed.length === required.length,
     };
   }, [consentStatuses]);
 
@@ -124,7 +166,7 @@ export function useClientConsentStatus({
     consentStatuses,
     loading,
     error,
-    refetch: fetchConsentSignatures,
+    refetch: fetchData,
     signedCount,
     requiredCount,
     isFullyCompliant,
