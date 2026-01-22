@@ -292,7 +292,7 @@ export default function ClientDetail() {
           </TabsTrigger>
           <TabsTrigger value="forms" className="text-xs sm:text-sm">
             <FileText className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">Forms</span>
+            <span className="hidden sm:inline">Forms & Consents</span>
           </TabsTrigger>
           <TabsTrigger value="insurance" className="text-xs sm:text-sm">
             <CreditCard className="h-4 w-4 sm:mr-1" />
