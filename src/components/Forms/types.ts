@@ -96,6 +96,8 @@ export interface ConsentTemplate {
   content: ConsentContent;
   version: number;
   is_active: boolean;
+  is_required: boolean;
+  required_for?: string | null;
   is_system_default?: boolean;
   created_by_profile_id?: string;
   created_at?: string;

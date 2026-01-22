@@ -451,7 +451,14 @@ export function FormLibrary() {
                           {systemConsentTemplates.map((template) => (
                             <TableRow key={template.id}>
                               <TableCell className="font-medium">
-                                {template.title}
+                                <div className="flex items-center gap-2">
+                                  {template.title}
+                                  {template.is_required && (
+                                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
+                                      Required
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <Badge variant="outline">
@@ -521,7 +528,14 @@ export function FormLibrary() {
                           {tenantConsentTemplates.map((template) => (
                             <TableRow key={template.id}>
                               <TableCell className="font-medium">
-                                {template.title}
+                                <div className="flex items-center gap-2">
+                                  {template.title}
+                                  {template.is_required && (
+                                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
+                                      Required
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <Badge variant="outline">

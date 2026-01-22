@@ -48,6 +48,8 @@ export function useConsentTemplatesData(): UseConsentTemplatesDataReturn {
         content: item.content as ConsentContent,
         version: item.version,
         is_active: item.is_active,
+        is_required: item.is_required ?? false,
+        required_for: item.required_for,
         is_system_default: item.tenant_id === null,
         created_by_profile_id: item.created_by_profile_id,
         created_at: item.created_at,
