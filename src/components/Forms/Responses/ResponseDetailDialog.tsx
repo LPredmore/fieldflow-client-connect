@@ -48,7 +48,7 @@ export function ResponseDetailDialog({
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('form_fields')
+        .from('form_template_fields')
         .select('*')
         .eq('form_template_id', template.id)
         .order('order_index');

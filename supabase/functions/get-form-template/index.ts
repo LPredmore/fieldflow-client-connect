@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       .from('form_templates')
       .select(`
         *,
-        form_fields (*)
+        form_template_fields (*)
       `)
       .eq('form_type', formType)
       .eq('is_active', true)
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     }
 
     // Sort fields by order_index
-    const sortedFields = data.form_fields?.sort((a: any, b: any) => a.order_index - b.order_index) || [];
+    const sortedFields = data.form_template_fields?.sort((a: any, b: any) => a.order_index - b.order_index) || [];
 
     console.log(`Found template: ${data.id} with ${sortedFields.length} fields`);
 
