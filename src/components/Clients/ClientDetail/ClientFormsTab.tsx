@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, Eye, Plus, X, Clock, CheckCircle2 } from 'lucide-react';
 import { FormResponseWithTemplate } from '@/hooks/useClientDetail';
 import { ClientFormAssignment } from '@/hooks/useClientFormAssignments';
+import { ConsentStatus } from '@/hooks/useClientConsentStatus';
+import { ConsentStatusCard } from './ConsentStatusCard';
 
 interface ClientFormsTabProps {
   loading: boolean;
@@ -16,6 +18,12 @@ interface ClientFormsTabProps {
   onViewResponse: (response: FormResponseWithTemplate) => void;
   onAssignForm: () => void;
   onCancelAssignment: (assignmentId: string) => void;
+  // Consent status props
+  consentStatuses: ConsentStatus[];
+  consentLoading: boolean;
+  signedCount: number;
+  requiredCount: number;
+  isFullyCompliant: boolean;
 }
 
 export function ClientFormsTab({
@@ -26,43 +34,38 @@ export function ClientFormsTab({
   onViewResponse,
   onAssignForm,
   onCancelAssignment,
+  consentStatuses,
+  consentLoading,
+  signedCount,
+  requiredCount,
+  isFullyCompliant,
 }: ClientFormsTabProps) {
   const pendingAssignments = formAssignments.filter(a => a.status === 'pending');
   const isLoading = loading || assignmentsLoading;
 
-  if (isLoading) {
+  if (isLoading && consentLoading) {
     return (
       <div className="space-y-6">
+        <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
       </div>
     );
   }
 
-  const hasNoData = formResponses.length === 0 && pendingAssignments.length === 0;
-
-  if (hasNoData) {
-    return (
-      <Card>
-        <CardContent className="py-12">
-          <div className="text-center">
-            <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium text-foreground">No Forms</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              No forms have been assigned to or completed by this client.
-            </p>
-            <Button onClick={onAssignForm} className="mt-4">
-              <Plus className="mr-2 h-4 w-4" />
-              Assign Form
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const hasNoFormData = formResponses.length === 0 && pendingAssignments.length === 0;
 
   return (
     <div className="space-y-6">
+      {/* Consent Status Section */}
+      <ConsentStatusCard
+        consentStatuses={consentStatuses}
+        loading={consentLoading}
+        signedCount={signedCount}
+        requiredCount={requiredCount}
+        isFullyCompliant={isFullyCompliant}
+      />
+
       {/* Pending Assignments Section */}
       <Card>
         <CardHeader className="pb-3">
