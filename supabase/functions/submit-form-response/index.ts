@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 
     // Validate required fields
     const { data: fields, error: fieldsError } = await supabaseClient
-      .from('form_fields')
+      .from('form_template_fields')
       .select('field_key, is_required, label')
       .eq('form_template_id', templateId);
 

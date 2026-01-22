@@ -4682,33 +4682,61 @@ export type Database = {
         Args: { p_format?: string; p_timestamp: string; p_timezone: string }
         Returns: string
       }
-      get_client_appointments_display: {
-        Args: {
-          p_client_id: string
-          p_from_date?: string
-          p_target_timezone?: string
-          p_to_date?: string
-        }
-        Returns: {
-          display_date: string
-          display_end_time: string
-          display_time: string
-          display_timezone: string
-          end_at: string
-          id: string
-          is_telehealth: boolean
-          location_name: string
-          service_duration: number
-          service_id: string
-          service_name: string
-          staff_id: string
-          start_at: string
-          status: Database["public"]["Enums"]["appointment_status_enum"]
-          tenant_id: string
-          therapist_name: string
-          videoroom_url: string
-        }[]
-      }
+      get_client_appointments_display:
+        | {
+            Args: {
+              p_client_id: string
+              p_days_ahead?: number
+              p_target_timezone?: string
+            }
+            Returns: {
+              display_date: string
+              display_end_time: string
+              display_time: string
+              display_timezone: string
+              end_at: string
+              id: string
+              is_telehealth: boolean
+              is_today: boolean
+              location_name: string
+              service_duration: number
+              service_id: string
+              service_name: string
+              staff_id: string
+              start_at: string
+              status: Database["public"]["Enums"]["appointment_status_enum"]
+              tenant_id: string
+              therapist_name: string
+              videoroom_url: string
+            }[]
+          }
+        | {
+            Args: {
+              p_client_id: string
+              p_from_date?: string
+              p_target_timezone?: string
+              p_to_date?: string
+            }
+            Returns: {
+              display_date: string
+              display_end_time: string
+              display_time: string
+              display_timezone: string
+              end_at: string
+              id: string
+              is_telehealth: boolean
+              location_name: string
+              service_duration: number
+              service_id: string
+              service_name: string
+              staff_id: string
+              start_at: string
+              status: Database["public"]["Enums"]["appointment_status_enum"]
+              tenant_id: string
+              therapist_name: string
+              videoroom_url: string
+            }[]
+          }
       get_staff_calendar_appointments: {
         Args: { p_from_date?: string; p_staff_id: string; p_to_date?: string }
         Returns: {
