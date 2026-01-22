@@ -5,3 +5,4 @@ export { ClientFormsTab } from './ClientFormsTab';
 export { ClientInsuranceTab } from './ClientInsuranceTab';
 export { ClientContactsTab } from './ClientContactsTab';
 export { AssignFormDialog } from './AssignFormDialog';
+export { ConsentStatusCard } from './ConsentStatusCard';

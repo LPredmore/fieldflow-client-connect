@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useClientDetail, ClientDetailTab, FormResponseWithTemplate, SessionNote } from '@/hooks/useClientDetail';
 import { useClientFormAssignments } from '@/hooks/useClientFormAssignments';
+import { useClientConsentStatus } from '@/hooks/useClientConsentStatus';
 import { getClientDisplayName } from '@/utils/clientDisplayName';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -99,12 +100,24 @@ export default function ClientDetail() {
     enabled: activeTab === 'forms' 
   });
 
-  // Fetch assignments when switching to forms tab
+  // Fetch form assignments
   useEffect(() => {
     if (activeTab === 'forms' && clientId) {
       fetchAssignments();
     }
   }, [activeTab, clientId, fetchAssignments]);
+
+  // Fetch consent status (always enabled for forms tab)
+  const {
+    consentStatuses,
+    loading: consentLoading,
+    signedCount,
+    requiredCount,
+    isFullyCompliant,
+  } = useClientConsentStatus({
+    clientId: clientId ?? null,
+    enabled: activeTab === 'forms',
+  });
 
   // Get clinician name for treatment plan
   const clinicianName = user?.staffAttributes?.staffData 
@@ -325,6 +338,11 @@ export default function ClientDetail() {
             onViewResponse={handleViewFormResponse}
             onAssignForm={() => setIsAssignFormOpen(true)}
             onCancelAssignment={cancelAssignment}
+            consentStatuses={consentStatuses}
+            consentLoading={consentLoading}
+            signedCount={signedCount}
+            requiredCount={requiredCount}
+            isFullyCompliant={isFullyCompliant}
           />
         </TabsContent>
 
