@@ -3949,6 +3949,340 @@ export type Database = {
           },
         ]
       }
+      payroll_appointment_log: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          id: string
+          payroll_line_item_id: string
+          rate_applied: number
+          status_at_processing: string
+          tenant_id: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          id?: string
+          payroll_line_item_id: string
+          rate_applied: number
+          status_at_processing: string
+          tenant_id: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          id?: string
+          payroll_line_item_id?: string
+          rate_applied?: number
+          status_at_processing?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_appointment_log_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_appointment_log_payroll_line_item_id_fkey"
+            columns: ["payroll_line_item_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_line_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_appointment_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_line_items: {
+        Row: {
+          created_at: string
+          documented_amount: number
+          documented_count: number
+          documented_rate: number
+          error_message: string | null
+          id: string
+          late_cancel_amount: number
+          late_cancel_count: number
+          late_cancel_rate: number
+          mercury_status: string | null
+          mercury_transaction_id: string | null
+          noshow_amount: number
+          noshow_count: number
+          noshow_rate: number
+          payroll_run_id: string
+          recipient_id: string | null
+          staff_id: string
+          tenant_id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          documented_amount?: number
+          documented_count?: number
+          documented_rate?: number
+          error_message?: string | null
+          id?: string
+          late_cancel_amount?: number
+          late_cancel_count?: number
+          late_cancel_rate?: number
+          mercury_status?: string | null
+          mercury_transaction_id?: string | null
+          noshow_amount?: number
+          noshow_count?: number
+          noshow_rate?: number
+          payroll_run_id: string
+          recipient_id?: string | null
+          staff_id: string
+          tenant_id: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          documented_amount?: number
+          documented_count?: number
+          documented_rate?: number
+          error_message?: string | null
+          id?: string
+          late_cancel_amount?: number
+          late_cancel_count?: number
+          late_cancel_rate?: number
+          mercury_status?: string | null
+          mercury_transaction_id?: string | null
+          noshow_amount?: number
+          noshow_count?: number
+          noshow_rate?: number
+          payroll_run_id?: string
+          recipient_id?: string | null
+          staff_id?: string
+          tenant_id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_line_items_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_line_items_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_recipients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_line_items_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_line_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_rate_configs: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          rate_amount: number
+          status_code: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          rate_amount: number
+          status_code: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          rate_amount?: number
+          status_code?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_rate_configs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_recipients: {
+        Row: {
+          account_nickname: string | null
+          account_number_encrypted: string | null
+          account_number_last4: string | null
+          account_type: string
+          created_at: string
+          deposit_addr_1: string | null
+          deposit_addr_2: string | null
+          deposit_city: string | null
+          deposit_state: Database["public"]["Enums"]["state_code_enum"] | null
+          deposit_zip: string | null
+          id: string
+          is_active: boolean
+          mercury_account_id: string | null
+          mercury_recipient_id: string | null
+          recipient_name: string | null
+          routing_number_encrypted: string | null
+          routing_number_last4: string | null
+          staff_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_nickname?: string | null
+          account_number_encrypted?: string | null
+          account_number_last4?: string | null
+          account_type: string
+          created_at?: string
+          deposit_addr_1?: string | null
+          deposit_addr_2?: string | null
+          deposit_city?: string | null
+          deposit_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          deposit_zip?: string | null
+          id?: string
+          is_active?: boolean
+          mercury_account_id?: string | null
+          mercury_recipient_id?: string | null
+          recipient_name?: string | null
+          routing_number_encrypted?: string | null
+          routing_number_last4?: string | null
+          staff_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_nickname?: string | null
+          account_number_encrypted?: string | null
+          account_number_last4?: string | null
+          account_type?: string
+          created_at?: string
+          deposit_addr_1?: string | null
+          deposit_addr_2?: string | null
+          deposit_city?: string | null
+          deposit_state?: Database["public"]["Enums"]["state_code_enum"] | null
+          deposit_zip?: string | null
+          id?: string
+          is_active?: boolean
+          mercury_account_id?: string | null
+          mercury_recipient_id?: string | null
+          recipient_name?: string | null
+          routing_number_encrypted?: string | null
+          routing_number_last4?: string | null
+          staff_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_recipients_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_recipients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_runs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          period_end: string
+          period_start: string
+          processed_at: string | null
+          staff_paid_count: number
+          staff_skipped_count: number
+          status: string
+          tenant_id: string
+          total_amount: number
+          total_documented: number
+          total_late_cancel: number
+          total_noshow: number
+          triggered_by: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          processed_at?: string | null
+          staff_paid_count?: number
+          staff_skipped_count?: number
+          status?: string
+          tenant_id: string
+          total_amount?: number
+          total_documented?: number
+          total_late_cancel?: number
+          total_noshow?: number
+          triggered_by?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          processed_at?: string | null
+          staff_paid_count?: number
+          staff_skipped_count?: number
+          status?: string
+          tenant_id?: string
+          total_amount?: number
+          total_documented?: number
+          total_late_cancel?: number
+          total_noshow?: number
+          triggered_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       place_of_service: {
         Row: {
           description: string
