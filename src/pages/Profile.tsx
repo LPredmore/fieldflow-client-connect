@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Briefcase, Award, Camera, Users, Lock, Upload } from 'lucide-react';
+import { Loader2, Briefcase, Award, Camera, Users, Lock, Upload, Banknote } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useStaffData } from '@/hooks/useStaffData';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,6 +18,7 @@ import { US_STATES } from '@/constants/usStates';
 import { useTreatmentApproachOptions } from '@/hooks/useTreatmentApproachOptions';
 import { MultiSelectCombobox } from '@/components/ui/multi-select-combobox';
 import { DB_ENUMS } from '@/schema/enums';
+import { usePayrollRecipient } from '@/hooks/usePayrollRecipient';
 
 const TIMEZONE_LABELS: Record<string, string> = {
   'America/New_York': 'Eastern Time (ET)',
@@ -86,6 +87,27 @@ export default function Profile() {
     confirmPassword: '',
   });
 
+  // Direct Deposit form state
+  const [directDeposit, setDirectDeposit] = useState({
+    recipient_name: '',
+    deposit_addr_1: '',
+    deposit_addr_2: '',
+    deposit_city: '',
+    deposit_state: '',
+    deposit_zip: '',
+    routing_number: '',
+    account_number: '',
+    account_type: '',
+  });
+
+  // Payroll recipient hook
+  const { 
+    payrollRecipient, 
+    loading: payrollLoading, 
+    saving: payrollSaving,
+    upsertPayrollRecipient 
+  } = usePayrollRecipient(staff?.id);
+
   // Sync professional info from staff and profile
   useEffect(() => {
     if (staff && profile) {
@@ -127,6 +149,24 @@ export default function Profile() {
       });
     }
   }, [staff]);
+
+  // Sync direct deposit info from payroll recipient
+  useEffect(() => {
+    if (payrollRecipient) {
+      setDirectDeposit({
+        recipient_name: payrollRecipient.recipient_name || '',
+        deposit_addr_1: payrollRecipient.deposit_addr_1 || '',
+        deposit_addr_2: payrollRecipient.deposit_addr_2 || '',
+        deposit_city: payrollRecipient.deposit_city || '',
+        deposit_state: payrollRecipient.deposit_state || '',
+        deposit_zip: payrollRecipient.deposit_zip || '',
+        // Routing and account numbers are masked - user must re-enter full values
+        routing_number: '',
+        account_number: '',
+        account_type: payrollRecipient.account_type || '',
+      });
+    }
+  }, [payrollRecipient]);
 
   const handleProfessionalInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,6 +261,110 @@ export default function Profile() {
         description: result.error.message,
       });
     }
+  };
+
+  const handleDirectDepositSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staff) return;
+
+    // Validation
+    if (!directDeposit.recipient_name.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Recipient name required",
+        description: "Please enter the legal name on the bank account.",
+      });
+      return;
+    }
+
+    if (!directDeposit.deposit_addr_1.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Address required",
+        description: "Please enter the street address.",
+      });
+      return;
+    }
+
+    if (!directDeposit.deposit_city.trim()) {
+      toast({
+        variant: "destructive",
+        title: "City required",
+        description: "Please enter the city.",
+      });
+      return;
+    }
+
+    if (!directDeposit.deposit_state) {
+      toast({
+        variant: "destructive",
+        title: "State required",
+        description: "Please select a state.",
+      });
+      return;
+    }
+
+    if (!directDeposit.deposit_zip.trim()) {
+      toast({
+        variant: "destructive",
+        title: "ZIP code required",
+        description: "Please enter the ZIP code.",
+      });
+      return;
+    }
+
+    // Only validate routing/account if user is entering new values (or no existing record)
+    const hasExistingBankInfo = payrollRecipient?.routing_number_last4 && payrollRecipient?.account_number_last4;
+    const isEnteringNewBankInfo = directDeposit.routing_number || directDeposit.account_number;
+
+    if (!hasExistingBankInfo || isEnteringNewBankInfo) {
+      if (!directDeposit.routing_number) {
+        toast({
+          variant: "destructive",
+          title: "Routing number required",
+          description: "Please enter your bank's routing number.",
+        });
+        return;
+      }
+
+      if (!/^\d{9}$/.test(directDeposit.routing_number)) {
+        toast({
+          variant: "destructive",
+          title: "Invalid routing number",
+          description: "Routing number must be exactly 9 digits.",
+        });
+        return;
+      }
+
+      if (!directDeposit.account_number) {
+        toast({
+          variant: "destructive",
+          title: "Account number required",
+          description: "Please enter your bank account number.",
+        });
+        return;
+      }
+
+      if (!/^\d+$/.test(directDeposit.account_number)) {
+        toast({
+          variant: "destructive",
+          title: "Invalid account number",
+          description: "Account number must contain only digits.",
+        });
+        return;
+      }
+    }
+
+    if (!directDeposit.account_type) {
+      toast({
+        variant: "destructive",
+        title: "Account type required",
+        description: "Please select an account type.",
+      });
+      return;
+    }
+
+    await upsertPayrollRecipient(directDeposit, staff.tenant_id);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -737,7 +881,203 @@ export default function Profile() {
             </Card>
           )}
 
-          {/* Card 5: Password & Security */}
+          {/* Card 5: Direct Deposit */}
+          {staff && (
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-card-foreground">
+                  <Banknote className="h-5 w-5" />
+                  Direct Deposit
+                </CardTitle>
+                <CardDescription>
+                  Enter your bank account information for payroll
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {payrollLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <form onSubmit={handleDirectDepositSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="recipient_name">
+                        Recipient Name <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="recipient_name"
+                        value={directDeposit.recipient_name}
+                        onChange={(e) => setDirectDeposit(prev => ({ ...prev, recipient_name: e.target.value }))}
+                        placeholder="Legal name on bank account"
+                        autoComplete="off"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Legal name on bank account (person or business)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="deposit_addr_1">
+                        Street Address <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="deposit_addr_1"
+                        value={directDeposit.deposit_addr_1}
+                        onChange={(e) => setDirectDeposit(prev => ({ ...prev, deposit_addr_1: e.target.value }))}
+                        placeholder="Street address"
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="deposit_addr_2">Address Line 2</Label>
+                      <Input
+                        id="deposit_addr_2"
+                        value={directDeposit.deposit_addr_2}
+                        onChange={(e) => setDirectDeposit(prev => ({ ...prev, deposit_addr_2: e.target.value }))}
+                        placeholder="Apartment / Suite / Unit"
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="deposit_city">
+                          City <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="deposit_city"
+                          value={directDeposit.deposit_city}
+                          onChange={(e) => setDirectDeposit(prev => ({ ...prev, deposit_city: e.target.value }))}
+                          placeholder="City"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="deposit_state">
+                          State <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                          value={directDeposit.deposit_state}
+                          onValueChange={(value) => setDirectDeposit(prev => ({ ...prev, deposit_state: value }))}
+                        >
+                          <SelectTrigger id="deposit_state">
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {US_STATES.map(state => (
+                              <SelectItem key={state.value} value={state.value}>
+                                {state.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="deposit_zip">
+                          ZIP Code <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="deposit_zip"
+                          value={directDeposit.deposit_zip}
+                          onChange={(e) => setDirectDeposit(prev => ({ ...prev, deposit_zip: e.target.value }))}
+                          placeholder="ZIP code"
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="text-sm font-medium mb-4">Bank Account Details</h4>
+                      
+                      {payrollRecipient?.routing_number_last4 && payrollRecipient?.account_number_last4 && (
+                        <div className="bg-muted/50 p-3 rounded-md mb-4">
+                          <p className="text-sm text-muted-foreground">
+                            Current account on file: Routing ••••{payrollRecipient.routing_number_last4} / Account ••••{payrollRecipient.account_number_last4}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Leave fields below empty to keep current bank details, or enter new values to update.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="routing_number">
+                            Routing Number {!payrollRecipient?.routing_number_last4 && <span className="text-destructive">*</span>}
+                          </Label>
+                          <Input
+                            id="routing_number"
+                            value={directDeposit.routing_number}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 9);
+                              setDirectDeposit(prev => ({ ...prev, routing_number: value }));
+                            }}
+                            placeholder={payrollRecipient?.routing_number_last4 ? `••••${payrollRecipient.routing_number_last4}` : "9 digits"}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={9}
+                            autoComplete="off"
+                          />
+                          <p className="text-sm text-muted-foreground">Must be exactly 9 digits</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="account_number">
+                            Account Number {!payrollRecipient?.account_number_last4 && <span className="text-destructive">*</span>}
+                          </Label>
+                          <Input
+                            id="account_number"
+                            value={directDeposit.account_number}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '');
+                              setDirectDeposit(prev => ({ ...prev, account_number: value }));
+                            }}
+                            placeholder={payrollRecipient?.account_number_last4 ? `••••${payrollRecipient.account_number_last4}` : "Account number"}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            autoComplete="off"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="account_type">
+                          Account Type <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                          value={directDeposit.account_type}
+                          onValueChange={(value) => setDirectDeposit(prev => ({ ...prev, account_type: value }))}
+                        >
+                          <SelectTrigger id="account_type">
+                            <SelectValue placeholder="Select account type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="personalChecking">Personal Checking</SelectItem>
+                            <SelectItem value="personalSavings">Personal Savings</SelectItem>
+                            <SelectItem value="businessChecking">Business Checking</SelectItem>
+                            <SelectItem value="businessSavings">Business Savings</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Button type="submit" disabled={payrollSaving} className="w-full">
+                      {payrollSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Update Direct Deposit Information'
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Card 6: Password & Security */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-card-foreground">
