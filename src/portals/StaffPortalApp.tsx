@@ -1,8 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, ReactNode } from "react";
 import { AppRouter } from "@/components/AppRouter";
-import { PermissionGuard } from "@/components/Permissions/PermissionGuard";
 import { Layout } from "@/components/Layout/Layout";
+import { useAuth } from "@/contexts/AuthenticationContext";
+import { isAdminOrAccountOwner } from "@/utils/permissionUtils";
 
 // Core pages - load immediately for better performance
 import Index from "@/pages/Index";
@@ -23,6 +24,31 @@ const PageLoadingFallback = () => (
     <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
   </div>
 );
+
+/**
+ * Guard component that restricts access to ADMIN or ACCOUNT_OWNER staff roles
+ */
+const AdminOnlyRoute = ({ children, fallbackMessage }: { children: ReactNode, fallbackMessage: string }) => {
+  const { user, isLoading } = useAuth();
+  const staffRoleCodes = user?.staffAttributes?.staffRoleCodes;
+  const canAccess = isAdminOrAccountOwner(staffRoleCodes);
+  
+  if (isLoading) {
+    return <PageLoadingFallback />;
+  }
+  
+  if (!canAccess) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="max-w-md text-center space-y-4">
+          <p className="text-muted-foreground">{fallbackMessage}</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
+};
 
 const StaffPortalApp = () => {
   return (
@@ -54,39 +80,28 @@ const StaffPortalApp = () => {
           <Route path="/clients/:clientId" element={<ClientDetail />} />
           <Route path="/profile" element={<Profile />} />
           
-          {/* Admin-only: All Clients view */}
+          {/* Admin-only: All Clients view (ADMIN or ACCOUNT_OWNER staff roles) */}
           <Route path="/allclients" element={
-            <AppRouter 
-              allowedStates={['admin']}
-              portalType="staff"
-              fallbackMessage="You need admin privileges to view all clients."
-            >
+            <AdminOnlyRoute fallbackMessage="You need Admin or Account Owner privileges to view all clients.">
               <AllClients />
-            </AppRouter>
+            </AdminOnlyRoute>
           } />
           
-          {/* Admin-only: All Clients detail view */}
+          {/* Admin-only: All Clients detail view (ADMIN or ACCOUNT_OWNER staff roles) */}
           <Route path="/allclients/:clientId" element={
-            <AppRouter 
-              allowedStates={['admin']}
-              portalType="staff"
-              fallbackMessage="You need admin privileges to view this client."
-            >
+            <AdminOnlyRoute fallbackMessage="You need Admin or Account Owner privileges to view this client.">
               <ClientDetail />
-            </AppRouter>
+            </AdminOnlyRoute>
           } />
           
           {/* Legacy route redirect */}
           <Route path="/customers" element={<Navigate to="/staff/clients" replace />} />
           
-          {/* Permission-protected routes */}
+          {/* Admin-only: Forms (ADMIN or ACCOUNT_OWNER staff roles) */}
           <Route path="/forms" element={
-            <PermissionGuard 
-              requiredPermissions={['access_forms']}
-              fallbackMessage="You need Forms permission to access this page."
-            >
+            <AdminOnlyRoute fallbackMessage="You need Admin or Account Owner privileges to access Forms.">
               <Forms />
-            </PermissionGuard>
+            </AdminOnlyRoute>
           } />
           
           <Route path="/calendar" element={
@@ -95,15 +110,11 @@ const StaffPortalApp = () => {
             </Suspense>
           } />
           
-          {/* Admin-only routes */}
+          {/* Admin-only: Settings (ADMIN or ACCOUNT_OWNER staff roles) */}
           <Route path="/settings" element={
-            <AppRouter 
-              allowedStates={['admin']}
-              portalType="staff"
-              fallbackMessage="You need admin privileges to access settings."
-            >
+            <AdminOnlyRoute fallbackMessage="You need Admin or Account Owner privileges to access Settings.">
               <Settings />
-            </AppRouter>
+            </AdminOnlyRoute>
           } />
             </Routes>
           </Layout>

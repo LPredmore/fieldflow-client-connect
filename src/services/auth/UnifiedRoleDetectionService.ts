@@ -25,6 +25,7 @@ export interface UserRoleContext {
   profile: UserProfile;
   staffData?: StaffData;
   signupIncomplete?: boolean;
+  staffRoleCodes?: string[];
 }
 
 export interface UserProfile {
@@ -211,6 +212,7 @@ export class UnifiedRoleDetectionService {
     // Step 4: Fetch staff data if user is staff
     let staffData: StaffData | null = null;
     let isClinician = false;
+    let staffRoleCodes: string[] = [];
 
     if (isStaff || isAdmin) {
       staffData = await queryDeduplicator.deduplicate(
@@ -219,18 +221,20 @@ export class UnifiedRoleDetectionService {
       );
 
       if (staffData) {
-        // Determine if clinical based on staff_role_assignments
+        // Determine if clinical based on staff_role_assignments and get role codes
         const { data: roleAssignments } = await supabase
           .from('staff_role_assignments')
-          .select('staff_role_id, staff_roles!inner(is_clinical)')
+          .select('staff_role_id, staff_roles!inner(is_clinical, code)')
           .eq('staff_id', staffData.id);
 
         isClinician = roleAssignments?.some((ra: any) => ra.staff_roles?.is_clinical) || false;
+        staffRoleCodes = roleAssignments?.map((ra: any) => ra.staff_roles?.code).filter(Boolean) || [];
 
         authLogger.logRoleDetection('Staff data fetched', {
           staffId: staffData.id,
           provStatus: staffData.prov_status,
-          isClinician
+          isClinician,
+          staffRoleCodes
         }, userId);
       } else {
         authLogger.logRoleDetection('No staff record found', {}, userId);
@@ -267,7 +271,8 @@ export class UnifiedRoleDetectionService {
       permissions,
       tenantId,
       profile,
-      staffData: staffData || undefined
+      staffData: staffData || undefined,
+      staffRoleCodes: staffRoleCodes.length > 0 ? staffRoleCodes : undefined
     };
 
     const duration = Date.now() - startTime;

@@ -129,3 +129,23 @@ export const getDefaultPermissions = (role: 'admin' | 'staff' | 'client' | null)
     supervisor: false,
   };
 };
+
+/**
+ * Check if user has any of the specified staff roles
+ */
+export const hasStaffRole = (
+  staffRoleCodes: string[] | undefined, 
+  requiredRoles: string[]
+): boolean => {
+  if (!staffRoleCodes || staffRoleCodes.length === 0) return false;
+  return requiredRoles.some(role => 
+    staffRoleCodes.includes(role.toUpperCase())
+  );
+};
+
+/**
+ * Check if user has ADMIN or ACCOUNT_OWNER staff role
+ */
+export const isAdminOrAccountOwner = (staffRoleCodes: string[] | undefined): boolean => {
+  return hasStaffRole(staffRoleCodes, ['ADMIN', 'ACCOUNT_OWNER']);
+};

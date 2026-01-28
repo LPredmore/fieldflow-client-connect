@@ -21,7 +21,7 @@ export const STAFF_NAVIGATION = [
   { name: "All Clients", href: STAFF_ROUTES.ALL_CLIENTS, icon: Users, requireAdmin: true },
   { name: "Invoices", href: STAFF_ROUTES.INVOICES, icon: Receipt, permission: "access_invoicing" },
   { name: "Calendar", href: STAFF_ROUTES.CALENDAR, icon: Calendar },
-  { name: "Forms", href: STAFF_ROUTES.FORMS, icon: FileText, permission: "access_forms" },
+  { name: "Forms", href: STAFF_ROUTES.FORMS, icon: FileText, requireAdmin: true },
   { name: "Profile", href: STAFF_ROUTES.PROFILE, icon: User },
   { name: "Settings", href: STAFF_ROUTES.SETTINGS, icon: Settings, requireAdmin: true },
 ] as const;
