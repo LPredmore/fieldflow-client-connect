@@ -38,6 +38,8 @@ export const STAFF_PROVIDER_TABLES = {
       prov_treatment_approaches: { type: 'text[]', nullable: true },
       prov_accepting_new_clients: { type: 'boolean', nullable: false, default: 'false' },
       prov_min_client_age: { type: 'integer', nullable: false, default: '18' },
+      prov_dob: { type: 'date', nullable: true },
+      prov_degree: { type: 'text', nullable: true },
       created_at: { type: 'timestamptz', nullable: false, default: 'now()' },
       updated_at: { type: 'timestamptz', nullable: false, default: 'now()' },
     },

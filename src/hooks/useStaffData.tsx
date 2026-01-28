@@ -40,6 +40,8 @@ export interface StaffMember {
   /** Boolean in database - convert to "Yes"/"No" for display only */
   prov_accepting_new_clients?: boolean | null;
   prov_time_zone?: string | null;
+  prov_dob?: string | null;
+  prov_degree?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +69,8 @@ interface StaffUpdateData {
   /** Boolean in database */
   prov_accepting_new_clients?: boolean;
   prov_time_zone?: string;
+  prov_dob?: string | null;
+  prov_degree?: string | null;
 }
 
 export function useStaffData() {

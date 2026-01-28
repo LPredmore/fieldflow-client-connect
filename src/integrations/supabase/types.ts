@@ -5325,6 +5325,8 @@ export type Database = {
           prov_addr_2: string | null
           prov_bio: string | null
           prov_city: string | null
+          prov_degree: string | null
+          prov_dob: string | null
           prov_field: Database["public"]["Enums"]["specialty_enum"] | null
           prov_image_url: string | null
           prov_license_number: string | null
@@ -5359,6 +5361,8 @@ export type Database = {
           prov_addr_2?: string | null
           prov_bio?: string | null
           prov_city?: string | null
+          prov_degree?: string | null
+          prov_dob?: string | null
           prov_field?: Database["public"]["Enums"]["specialty_enum"] | null
           prov_image_url?: string | null
           prov_license_number?: string | null
@@ -5393,6 +5397,8 @@ export type Database = {
           prov_addr_2?: string | null
           prov_bio?: string | null
           prov_city?: string | null
+          prov_degree?: string | null
+          prov_dob?: string | null
           prov_field?: Database["public"]["Enums"]["specialty_enum"] | null
           prov_image_url?: string | null
           prov_license_number?: string | null
