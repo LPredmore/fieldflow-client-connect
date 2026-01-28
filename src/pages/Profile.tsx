@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Briefcase, Award, Camera, Users, Lock, Upload, Banknote } from 'lucide-react';
+import { Loader2, Briefcase, Award, Camera, Users, Lock, Upload, Banknote, Calendar as CalendarIcon } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useStaffData } from '@/hooks/useStaffData';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,6 +19,10 @@ import { useTreatmentApproachOptions } from '@/hooks/useTreatmentApproachOptions
 import { MultiSelectCombobox } from '@/components/ui/multi-select-combobox';
 import { DB_ENUMS } from '@/schema/enums';
 import { usePayrollRecipient } from '@/hooks/usePayrollRecipient';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const TIMEZONE_LABELS: Record<string, string> = {
   'America/New_York': 'Eastern Time (ET)',
@@ -64,12 +68,14 @@ export default function Profile() {
     prov_state: '',
     prov_zip: '',
     prov_time_zone: '',
+    prov_dob: '',
   });
 
   // Licensing & Credentials form state
   const [credentials, setCredentials] = useState({
     prov_npi: '',
     prov_taxonomy: '',
+    prov_degree: '',
   });
 
   // Client Facing Information form state
@@ -123,6 +129,7 @@ export default function Profile() {
         prov_state: staff.prov_state || '',
         prov_zip: staff.prov_zip || '',
         prov_time_zone: staff.prov_time_zone || '',
+        prov_dob: staff.prov_dob || '',
       });
     }
   }, [staff, profile]);
@@ -133,6 +140,7 @@ export default function Profile() {
       setCredentials({
         prov_npi: staff.prov_npi || '',
         prov_taxonomy: staff.prov_taxonomy || '',
+        prov_degree: staff.prov_degree || '',
       });
     }
   }, [staff]);
@@ -186,6 +194,7 @@ export default function Profile() {
       prov_state: professionalInfo.prov_state,
       prov_zip: professionalInfo.prov_zip,
       prov_time_zone: professionalInfo.prov_time_zone || undefined,
+      prov_dob: professionalInfo.prov_dob || null,
     });
 
     // Update email in profiles table if changed
@@ -225,6 +234,7 @@ export default function Profile() {
     const result = await updateStaffInfo({
       prov_npi: credentials.prov_npi,
       prov_taxonomy: credentials.prov_taxonomy,
+      prov_degree: credentials.prov_degree || null,
     });
 
     setIsUpdating(false);
@@ -625,23 +635,62 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="prov_time_zone">Time Zone</Label>
-                  <Select
-                    value={professionalInfo.prov_time_zone}
-                    onValueChange={(value) => setProfessionalInfo(prev => ({ ...prev, prov_time_zone: value }))}
-                  >
-                    <SelectTrigger id="prov_time_zone">
-                      <SelectValue placeholder="Select your time zone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DB_ENUMS.time_zones.map(tz => (
-                        <SelectItem key={tz} value={tz}>
-                          {TIMEZONE_LABELS[tz] || tz}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_time_zone">Time Zone</Label>
+                    <Select
+                      value={professionalInfo.prov_time_zone}
+                      onValueChange={(value) => setProfessionalInfo(prev => ({ ...prev, prov_time_zone: value }))}
+                    >
+                      <SelectTrigger id="prov_time_zone">
+                        <SelectValue placeholder="Select your time zone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DB_ENUMS.time_zones.map(tz => (
+                          <SelectItem key={tz} value={tz}>
+                            {TIMEZONE_LABELS[tz] || tz}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Date of Birth</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !professionalInfo.prov_dob && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {professionalInfo.prov_dob ? (
+                            format(parseISO(professionalInfo.prov_dob), 'PPP')
+                          ) : (
+                            <span>Select date of birth</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={professionalInfo.prov_dob ? parseISO(professionalInfo.prov_dob) : undefined}
+                          onSelect={(date) => setProfessionalInfo(prev => ({ 
+                            ...prev, 
+                            prov_dob: date ? format(date, 'yyyy-MM-dd') : '' 
+                          }))}
+                          disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
+                          captionLayout="dropdown-buttons"
+                          fromYear={1930}
+                          toYear={new Date().getFullYear()}
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
                 <Button type="submit" disabled={isUpdating} className="w-full">
@@ -671,6 +720,19 @@ export default function Profile() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="prov_degree">Highest Degree</Label>
+                  <Input
+                    id="prov_degree"
+                    value={credentials.prov_degree}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, prov_degree: e.target.value }))}
+                    placeholder="e.g., Ph.D., Psy.D., M.S., M.A."
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Your highest earned academic degree (e.g., Ph.D., Psy.D., M.S.W., M.A.)
+                  </p>
+                </div>
+
                 <LicenseManagement 
                   staffId={staff.id} 
                   specialty={staff.prov_field}
