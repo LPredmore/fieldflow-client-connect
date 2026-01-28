@@ -1,208 +1,353 @@
 
-# Restrict Settings, All Clients, and Forms Access to Admin/Account Owner Roles
+# Implementation Plan: Add Date of Birth and Highest Degree Fields to Staff Profile
 
 ## Overview
 
-Modify the application so that only users with the `ADMIN` or `ACCOUNT_OWNER` staff roles (from `staff_role_assignments` table) can access three pages:
-- **Settings** (`/staff/settings`)
-- **All Clients** (`/staff/allclients`)
-- **Forms** (`/staff/forms`)
+Add two new fields to the `/staff/profile` page:
+1. **`prov_dob`** ("Date of Birth") - positioned to the right of the Time Zone field
+2. **`prov_degree`** ("Highest Degree") - positioned at the top of the Licensing & Credentials section
+
+Both fields are already present in the database (`prov_dob` as `date`, `prov_degree` as `text`).
+
+---
 
 ## Current State Analysis
 
-### Staff Roles in Database
-The `staff_roles` table contains:
-| Code | Name |
-|------|------|
-| `ACCOUNT_OWNER` | Account Owner |
-| `ADMIN` | Admin |
-| `BILLING` | Billing |
-| `SUPERVISOR` | Clinical Supervisor |
-| `CLINICIAN` | Clinician |
-| `OFFICE` | Office Staff |
-| `TELEHEALTH` | Telehealth |
+### Database Schema
+Verified columns exist in `staff` table:
+- `prov_dob`: `date`, nullable
+- `prov_degree`: `text`, nullable
 
-### Current Access Control
-- **Settings**: Uses `AppRouter allowedStates={['admin']}` - checks `user_roles.role = 'admin'`
-- **All Clients**: Uses `AppRouter allowedStates={['admin']}` - same as above
-- **Forms**: Uses `PermissionGuard requiredPermissions={['access_forms']}` - permission-based
+### TypeScript Types
+The Supabase generated types (`src/integrations/supabase/types.ts`) do **NOT** include these columns yet. They were added after the last type generation.
 
-### Problem
-The current `isAdmin` flag comes from `user_roles` table (`role = 'admin'`), NOT from staff role assignments. We need to also check staff roles `ADMIN` and `ACCOUNT_OWNER` from `staff_role_assignments`.
+### Affected Files
+| File | Current State | Changes Needed |
+|------|--------------|----------------|
+| `src/integrations/supabase/types.ts` | Missing `prov_dob`, `prov_degree` | Will auto-regenerate |
+| `src/hooks/useStaffData.tsx` | `StaffMember` interface missing new fields | Add fields to interface |
+| `src/pages/Profile.tsx` | No DOB or degree fields | Add to form state, UI, and submission |
+| `src/schema/tables/staff-provider.ts` | Missing new columns | Add column definitions |
 
-## Implementation Approach
+---
 
-We will extend the existing permission/role checking system to include staff role-based access.
+## Technical Decisions
 
-### Step 1: Add Staff Roles to Authentication Context
+### Date Picker Pattern: Popover + Calendar with pointer-events-auto
 
-Modify `UnifiedRoleDetectionService.ts` to also fetch and store staff role codes in the user context:
+**Decision**: Use the established Popover + Calendar pattern from `TreatmentPlanDialog.tsx` and `FieldRenderer.tsx`, but add `pointer-events-auto` class to the Calendar component per Shadcn best practices.
+
+**Rationale**:
+1. **Consistency**: The codebase already uses this pattern in `TreatmentPlanDialog.tsx` (lines 428-454) and `DynamicForm/FieldRenderer.tsx` (lines 113-139)
+2. **UX for Birth Dates**: The Calendar component with `captionLayout="dropdown-buttons"` allows users to quickly jump between months/years - critical for selecting dates decades in the past
+3. **Accessibility**: The Popover + Calendar combo provides proper ARIA labeling and keyboard navigation
+4. **Interactivity Fix**: Adding `pointer-events-auto` to the Calendar className ensures the calendar remains interactive inside popovers (per Shadcn documentation)
+
+### State Management: Extend `professionalInfo` State Object
+
+**Decision**: Add `prov_dob` to the existing `professionalInfo` state object since it will be saved with the Professional Information form.
+
+**Rationale**:
+1. **Form Cohesion**: DOB is being placed in the Professional Information section (next to Time Zone), so it should submit with that form
+2. **Single Update Call**: All Professional Information fields update in a single `updateStaffInfo()` call
+3. **Existing Pattern**: Follows how other fields are grouped by form section
+
+### Credentials State Extension
+
+**Decision**: Add `prov_degree` to the existing `credentials` state object since it belongs in the Licensing & Credentials section.
+
+**Rationale**:
+1. **Form Cohesion**: Degree is in the Licensing & Credentials section, so it should submit with credentials form
+2. **Single Update Call**: Degree updates with NPI and Taxonomy in one operation
+3. **Logical Grouping**: Highest degree is a professional credential
+
+### Date Storage Format
+
+**Decision**: Store dates as ISO strings (`YYYY-MM-DD`) and parse them back to Date objects for the Calendar.
+
+**Rationale**:
+1. **Database Compatibility**: The `prov_dob` column is type `date`, which expects `YYYY-MM-DD` format
+2. **Existing Pattern**: `staff_licenses.issue_date` and `staff_licenses.expiration_date` follow this pattern
+3. **date-fns Integration**: Using `format(date, 'yyyy-MM-dd')` for storage and `parseISO()` for retrieval
+
+---
+
+## Implementation Steps
+
+### Step 1: Update Schema Definition
+Update `src/schema/tables/staff-provider.ts` to include the new columns:
 
 ```typescript
-// Add to UserRoleContext interface:
-staffRoleCodes?: string[];
-
-// In fetchUserRoleData(), after fetching roleAssignments:
-const staffRoleCodes = roleAssignments?.map((ra: any) => 
-  // Need to also get the code from staff_roles
-).filter(Boolean) || [];
-
-// Include in roleContext:
-staffRoleCodes,
+// In staff columns object, add:
+prov_dob: { type: 'date', nullable: true },
+prov_degree: { type: 'text', nullable: true },
 ```
 
-Since the service already fetches `staff_role_assignments` to determine `is_clinical`, we'll extend it to also capture role codes.
+### Step 2: Update useStaffData Hook Interfaces
+Update `src/hooks/useStaffData.tsx`:
 
-### Step 2: Extend User Type with Staff Roles
-
-Update `AuthenticationContext.tsx` to include staff role codes in the User type:
-
+1. Add to `StaffMember` interface:
 ```typescript
-// In StaffAttributes interface, add:
-staffRoleCodes?: string[];
+prov_dob?: string | null;
+prov_degree?: string | null;
 ```
 
-### Step 3: Add Helper Function for Staff Role Check
-
-Create a utility function `hasStaffRole` in `permissionUtils.ts`:
-
+2. Add to `StaffUpdateData` interface:
 ```typescript
-export const hasStaffRole = (
-  staffRoleCodes: string[] | undefined, 
-  requiredRoles: string[]
-): boolean => {
-  if (!staffRoleCodes || staffRoleCodes.length === 0) return false;
-  return requiredRoles.some(role => 
-    staffRoleCodes.includes(role.toUpperCase())
-  );
-};
-
-export const isAdminOrAccountOwner = (staffRoleCodes: string[] | undefined): boolean => {
-  return hasStaffRole(staffRoleCodes, ['ADMIN', 'ACCOUNT_OWNER']);
-};
+prov_dob?: string | null;
+prov_degree?: string | null;
 ```
 
-### Step 4: Add Permission Check to usePermissionChecks Hook
+### Step 3: Update Profile.tsx
 
-Extend `usePermissionChecks.tsx` to include staff role checks:
-
+#### 3a. Add Imports
 ```typescript
-// Import useAuth to get staff role codes
-const { user } = useAuth();
-const staffRoleCodes = user?.staffAttributes?.staffRoleCodes;
-
-// Add to returned checks:
-isAdminOrAccountOwner: isAdminOrAccountOwner(staffRoleCodes),
-hasStaffRole: (roles: string[]) => hasStaffRole(staffRoleCodes, roles),
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 ```
 
-### Step 5: Update Navigation.tsx
-
-Modify the navigation filtering to use the new role check instead of just `isAdmin`:
-
+#### 3b. Extend `professionalInfo` State
+Add `prov_dob` to the state initialization:
 ```typescript
-// Add to imports:
-import { isAdminOrAccountOwner } from '@/utils/permissionUtils';
-
-// In NavigationContent:
-const staffRoleCodes = user?.staffAttributes?.staffRoleCodes;
-const canAccessAdminPages = isAdminOrAccountOwner(staffRoleCodes);
-
-// Update filtering logic for requireAdmin items:
-if ('requireAdmin' in item && item.requireAdmin && !canAccessAdminPages) {
-  return null;
-}
-
-// Add new check for Forms:
-if (item.name === 'Forms' && !canAccessAdminPages) {
-  return null;
-}
+const [professionalInfo, setProfessionalInfo] = useState({
+  // ... existing fields
+  prov_time_zone: '',
+  prov_dob: '', // New field
+});
 ```
 
-Also update navigation config to mark Forms as requiring admin access:
-
+#### 3c. Extend `credentials` State
+Add `prov_degree` to the state initialization:
 ```typescript
-// In navigation.ts, change Forms entry:
-{ name: "Forms", href: STAFF_ROUTES.FORMS, icon: FileText, requireAdmin: true },
+const [credentials, setCredentials] = useState({
+  prov_npi: '',
+  prov_taxonomy: '',
+  prov_degree: '', // New field
+});
 ```
 
-### Step 6: Update Route Protection in StaffPortalApp.tsx
-
-Create a new guard component or modify existing guards to check staff roles:
-
+#### 3d. Update useEffect for Professional Info Sync
 ```typescript
-// For Forms route, replace PermissionGuard with role-based check:
-<Route path="/forms" element={
-  <StaffRoleGuard 
-    requiredRoles={['ADMIN', 'ACCOUNT_OWNER']}
-    fallbackMessage="You need Admin or Account Owner privileges to access Forms."
-  >
-    <Forms />
-  </StaffRoleGuard>
-} />
-```
-
-Or simpler: Reuse the existing pattern by modifying how `allowedStates` works, or check staff roles in a wrapper.
-
-**Cleaner approach**: Since `isAdminOrAccountOwner` will be available in context, we can create a simple wrapper:
-
-```typescript
-const AdminOnlyRoute = ({ children, fallbackMessage }: { children: ReactNode, fallbackMessage: string }) => {
-  const { user, isLoading } = useAuth();
-  const staffRoleCodes = user?.staffAttributes?.staffRoleCodes;
-  const canAccess = isAdminOrAccountOwner(staffRoleCodes);
-  
-  if (isLoading) {
-    return <PageLoadingFallback />;
+useEffect(() => {
+  if (staff && profile) {
+    setProfessionalInfo({
+      // ... existing fields
+      prov_time_zone: staff.prov_time_zone || '',
+      prov_dob: staff.prov_dob || '', // Sync DOB
+    });
   }
-  
-  if (!canAccess) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="max-w-md text-center space-y-4">
-          <p className="text-muted-foreground">{fallbackMessage}</p>
-        </div>
-      </div>
-    );
-  }
-  
-  return <>{children}</>;
-};
+}, [staff, profile]);
 ```
+
+#### 3e. Update useEffect for Credentials Sync
+```typescript
+useEffect(() => {
+  if (staff) {
+    setCredentials({
+      prov_npi: staff.prov_npi || '',
+      prov_taxonomy: staff.prov_taxonomy || '',
+      prov_degree: staff.prov_degree || '', // Sync degree
+    });
+  }
+}, [staff]);
+```
+
+#### 3f. Update Professional Info Submit Handler
+Add `prov_dob` to the staff update call:
+```typescript
+const staffResult = await updateStaffInfo({
+  // ... existing fields
+  prov_time_zone: professionalInfo.prov_time_zone || undefined,
+  prov_dob: professionalInfo.prov_dob || null, // Submit DOB
+});
+```
+
+#### 3g. Update Credentials Submit Handler
+Add `prov_degree` to the credentials update call:
+```typescript
+const result = await updateStaffInfo({
+  prov_npi: credentials.prov_npi,
+  prov_taxonomy: credentials.prov_taxonomy,
+  prov_degree: credentials.prov_degree || null, // Submit degree
+});
+```
+
+#### 3h. Add Date of Birth Field to Professional Information Section
+
+Replace the current Time Zone field (lines 628-645) with a 2-column grid containing Time Zone and Date of Birth:
+
+```tsx
+<div className="grid gap-4 md:grid-cols-2">
+  {/* Time Zone - existing field */}
+  <div className="space-y-2">
+    <Label htmlFor="prov_time_zone">Time Zone</Label>
+    <Select
+      value={professionalInfo.prov_time_zone}
+      onValueChange={(value) => setProfessionalInfo(prev => ({ ...prev, prov_time_zone: value }))}
+    >
+      <SelectTrigger id="prov_time_zone">
+        <SelectValue placeholder="Select your time zone" />
+      </SelectTrigger>
+      <SelectContent>
+        {DB_ENUMS.time_zones.map(tz => (
+          <SelectItem key={tz} value={tz}>
+            {TIMEZONE_LABELS[tz] || tz}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+
+  {/* Date of Birth - new field */}
+  <div className="space-y-2">
+    <Label>Date of Birth</Label>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            !professionalInfo.prov_dob && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {professionalInfo.prov_dob ? (
+            format(parseISO(professionalInfo.prov_dob), 'PPP')
+          ) : (
+            <span>Select date of birth</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={professionalInfo.prov_dob ? parseISO(professionalInfo.prov_dob) : undefined}
+          onSelect={(date) => setProfessionalInfo(prev => ({ 
+            ...prev, 
+            prov_dob: date ? format(date, 'yyyy-MM-dd') : '' 
+          }))}
+          disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
+          captionLayout="dropdown-buttons"
+          fromYear={1930}
+          toYear={new Date().getFullYear()}
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
+  </div>
+</div>
+```
+
+**Key Calendar Props for DOB Selection**:
+- `captionLayout="dropdown-buttons"`: Enables month/year dropdowns for quick navigation
+- `fromYear={1930}`: Allows selecting dates going back to 1930
+- `toYear={new Date().getFullYear()}`: Prevents future dates
+- `disabled`: Validates date range (no future dates, reasonable minimum)
+- `className="p-3 pointer-events-auto"`: Ensures interactivity in popover
+
+#### 3i. Add Highest Degree Field to Licensing & Credentials Section
+
+Add the degree field right after the CardDescription, before the LicenseManagement component (line 674):
+
+```tsx
+<CardContent className="space-y-6">
+  {/* Highest Degree - new field */}
+  <div className="space-y-2">
+    <Label htmlFor="prov_degree">Highest Degree</Label>
+    <Input
+      id="prov_degree"
+      value={credentials.prov_degree}
+      onChange={(e) => setCredentials(prev => ({ ...prev, prov_degree: e.target.value }))}
+      placeholder="e.g., Ph.D., Psy.D., M.S., M.A."
+    />
+    <p className="text-sm text-muted-foreground">
+      Your highest earned academic degree (e.g., Ph.D., Psy.D., M.S.W., M.A.)
+    </p>
+  </div>
+
+  {/* License Management - existing */}
+  <LicenseManagement 
+    staffId={staff.id} 
+    specialty={staff.prov_field}
+  />
+  
+  {/* Rest of credentials form... */}
+</CardContent>
+```
+
+---
+
+## Layout Summary
+
+### Before (Professional Information Section)
+```text
+[Time Zone dropdown - full width]
+```
+
+### After (Professional Information Section)
+```text
+[Time Zone dropdown] [Date of Birth picker]
+     (50% width)         (50% width)
+```
+
+### Before (Licensing & Credentials Section)
+```text
+Card Description: "Manage your professional licenses and credentials"
+LicenseManagement component
+NPI Number | Taxonomy Code
+```
+
+### After (Licensing & Credentials Section)
+```text
+Card Description: "Manage your professional licenses and credentials"
+[Highest Degree input - full width]
+LicenseManagement component
+NPI Number | Taxonomy Code
+```
+
+---
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/services/auth/UnifiedRoleDetectionService.ts` | Fetch and include `staffRoleCodes` in role context |
-| `src/contexts/AuthenticationContext.tsx` | Add `staffRoleCodes` to `StaffAttributes` interface |
-| `src/utils/permissionUtils.ts` | Add `hasStaffRole` and `isAdminOrAccountOwner` helpers |
-| `src/hooks/permissions/usePermissionChecks.tsx` | Add `isAdminOrAccountOwner` and `hasStaffRole` to returned checks |
-| `src/config/navigation.ts` | Change Forms to use `requireAdmin: true` |
-| `src/components/Layout/Navigation.tsx` | Update filtering to use staff role check instead of `isAdmin` |
-| `src/portals/StaffPortalApp.tsx` | Update Forms route to use staff role check; Settings and All Clients already use admin check but need to use staff role check |
+| `src/schema/tables/staff-provider.ts` | Add `prov_dob` and `prov_degree` column definitions |
+| `src/hooks/useStaffData.tsx` | Add fields to `StaffMember` and `StaffUpdateData` interfaces |
+| `src/pages/Profile.tsx` | Add imports, state fields, sync effects, submit handlers, and UI components |
 
-## Sequence of Changes
+---
 
-1. **First**: Modify `UnifiedRoleDetectionService.ts` to fetch staff role codes alongside the existing `is_clinical` check (no new query - reuse existing data)
+## Type Regeneration Note
 
-2. **Second**: Update `AuthenticationContext.tsx` interface to include `staffRoleCodes`
+After deployment, the Supabase types file (`src/integrations/supabase/types.ts`) will automatically regenerate to include:
+```typescript
+prov_dob: string | null
+prov_degree: string | null
+```
 
-3. **Third**: Update `AuthenticationProvider.tsx` to pass `staffRoleCodes` to `staffAttributes`
+The TypeScript interfaces in `useStaffData.tsx` will align with these generated types.
 
-4. **Fourth**: Add helper functions to `permissionUtils.ts`
+---
 
-5. **Fifth**: Update `usePermissionChecks.tsx` to expose new checks
+## Data Flow Summary
 
-6. **Sixth**: Update `navigation.ts` to mark Forms with `requireAdmin: true`
-
-7. **Seventh**: Update `Navigation.tsx` to use new staff role check
-
-8. **Eighth**: Update `StaffPortalApp.tsx` to use staff role checks for all three routes
-
-## Technical Notes
-
-- The `staff_role_assignments` query is already performed in `UnifiedRoleDetectionService` to determine `is_clinical` - we'll extract role codes from the same query
-- No new database queries required
-- Staff role codes will be cached along with other user data (1 hour TTL)
-- The existing `isAdmin` flag (from `user_roles`) will still work for backward compatibility, but the new check will also include `ACCOUNT_OWNER` from staff roles
+```text
+Database (prov_dob, prov_degree)
+    ↓
+useStaffData hook fetches staff record
+    ↓
+useEffect syncs to local state
+    ↓
+UI displays current values (Date picker / Input)
+    ↓
+User edits
+    ↓
+Form submit calls updateStaffInfo()
+    ↓
+Database updated
+    ↓
+refetchStaff() refreshes UI
+```
