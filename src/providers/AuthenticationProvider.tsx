@@ -47,7 +47,8 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
           is_clinician: roleContext.isClinician,
           is_admin: roleContext.isAdmin,
           prov_status: roleContext.staffData?.prov_status,
-          staffData: roleContext.staffData
+          staffData: roleContext.staffData,
+          staffRoleCodes: roleContext.staffRoleCodes
         };
       }
 

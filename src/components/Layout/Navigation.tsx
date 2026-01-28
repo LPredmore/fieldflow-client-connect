@@ -13,17 +13,21 @@ import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { usePermissionChecks } from "@/hooks/permissions/usePermissionChecks";
 import { getRoleDisplayName, UserRole } from "@/utils/roleUtils";
 import { STAFF_NAVIGATION, BILLING_NAVIGATION } from "@/config/navigation";
+import { isAdminOrAccountOwner } from "@/utils/permissionUtils";
 
 function NavigationContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const { signOut, user, userRole, isAdmin } = useAuth();
+  const { signOut, user, userRole } = useAuth();
   const { displayName, logoUrl, loading: brandingLoading } = useTenantBranding();
   const { 
     canAccessInvoicing, 
-    canAccessForms,
     loading: permissionsLoading 
   } = usePermissionChecks();
+  
+  // Check staff roles for admin-only pages (Settings, All Clients, Forms)
+  const staffRoleCodes = user?.staffAttributes?.staffRoleCodes;
+  const canAccessAdminPages = isAdminOrAccountOwner(staffRoleCodes);
 
   // Detect portal type based on current route
   const portalType = location.pathname.startsWith('/billing') ? 'billing' : 'staff';
@@ -80,8 +84,8 @@ function NavigationContent() {
               const Icon = item.icon;
               const isActive = location.pathname === item.href;
               
-              // Hide items based on admin requirement
-              if ('requireAdmin' in item && item.requireAdmin && !isAdmin) {
+              // Hide items based on admin requirement (uses staff_role_assignments ADMIN/ACCOUNT_OWNER)
+              if ('requireAdmin' in item && item.requireAdmin && !canAccessAdminPages) {
                 return null;
               }
               
@@ -89,10 +93,6 @@ function NavigationContent() {
               if (!permissionsLoading) {
                 // Hide items based on permission requirements only after loading
                 if ('permission' in item && item.permission === 'access_invoicing' && !canAccessInvoicing) {
-                  return null;
-                }
-                
-                if ('permission' in item && item.permission === 'access_forms' && !canAccessForms) {
                   return null;
                 }
               }

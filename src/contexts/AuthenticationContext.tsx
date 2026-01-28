@@ -38,6 +38,7 @@ export interface StaffAttributes {
   is_admin: boolean;
   prov_status?: string | null;
   staffData?: StaffData;
+  staffRoleCodes?: string[];
 }
 
 /**

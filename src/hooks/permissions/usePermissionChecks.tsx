@@ -1,10 +1,13 @@
 import { useMemo } from 'react';
 import { usePermissionContext } from '@/contexts/PermissionContext';
+import { useAuth } from '@/contexts/AuthenticationContext';
 import { 
   canAccessAppointments, 
   canAccessInvoicing, 
   canAccessForms, 
-  canSupervise 
+  canSupervise,
+  hasStaffRole,
+  isAdminOrAccountOwner 
 } from '@/utils/permissionUtils';
 
 /**
@@ -23,6 +26,8 @@ import {
  */
 export function usePermissionChecks() {
   const { permissions, loading } = usePermissionContext();
+  const { user } = useAuth();
+  const staffRoleCodes = user?.staffAttributes?.staffRoleCodes;
 
   const checks = useMemo(() => ({
     canAccessAppointments: canAccessAppointments(permissions),
@@ -42,11 +47,16 @@ export function usePermissionChecks() {
       canAccessForms(permissions),
       
     isFullAdmin: canSupervise(permissions),
-  }), [permissions]);
+    
+    // Staff role based checks
+    isAdminOrAccountOwner: isAdminOrAccountOwner(staffRoleCodes),
+    hasStaffRole: (roles: string[]) => hasStaffRole(staffRoleCodes, roles),
+  }), [permissions, staffRoleCodes]);
 
   return {
     ...checks,
     loading,
     permissions,
+    staffRoleCodes,
   };
 }
