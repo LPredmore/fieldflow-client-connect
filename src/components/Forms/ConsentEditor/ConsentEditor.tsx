@@ -45,6 +45,7 @@ export function ConsentEditor({ template, isSystemDefault, onSave, onClose }: Co
     template?.content?.sections || []
   );
   const [isActive, setIsActive] = useState(template?.is_active || false);
+  const [isRequired, setIsRequired] = useState(template?.is_required || false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('edit');
 
@@ -98,6 +99,7 @@ export function ConsentEditor({ template, isSystemDefault, onSave, onClose }: Co
         consent_type: consentType,
         content,
         is_active: publish ? true : isActive,
+        is_required: isRequired,
         version: (template?.version || 0) + 1,
       });
       onClose();
@@ -275,30 +277,47 @@ export function ConsentEditor({ template, isSystemDefault, onSave, onClose }: Co
           </div>
 
           {!isSystemDefault && (
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => handleSave(false)}
-                disabled={saving || !title}
-                variant="outline"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save Draft
-              </Button>
-              <Button
-                onClick={() => handleSave(true)}
-                disabled={saving || !title || sections.length === 0}
-              >
-                <Rocket className="h-4 w-4 mr-2" />
-                Publish
-              </Button>
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              {template?.is_active && (
-                <span className="text-sm text-muted-foreground ml-2">
-                  ✓ Currently Active
-                </span>
-              )}
+            <div className="space-y-4">
+              {/* Required Toggle */}
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is-required" className="text-sm font-medium">Mark as Required</Label>
+                  <p className="text-xs text-muted-foreground">
+                    When enabled, this consent will be automatically required for all new clients
+                  </p>
+                </div>
+                <Switch
+                  id="is-required"
+                  checked={isRequired}
+                  onCheckedChange={setIsRequired}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => handleSave(false)}
+                  disabled={saving || !title}
+                  variant="outline"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Draft
+                </Button>
+                <Button
+                  onClick={() => handleSave(true)}
+                  disabled={saving || !title || sections.length === 0}
+                >
+                  <Rocket className="h-4 w-4 mr-2" />
+                  Publish
+                </Button>
+                <Button variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                {template?.is_active && (
+                  <span className="text-sm text-muted-foreground ml-2">
+                    ✓ Currently Active
+                  </span>
+                )}
+              </div>
             </div>
           )}
 

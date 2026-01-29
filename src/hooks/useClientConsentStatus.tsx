@@ -66,12 +66,19 @@ export function useClientConsentStatus({
 
     try {
       // Fetch required consent templates from database (single source of truth)
-      // Get system defaults (tenant_id IS NULL) with is_required = true
-      // Tenant-specific templates override system defaults when they exist
+      // ONLY query tenant-specific templates - system defaults are blueprints only
+      // This ensures only templates the tenant has explicitly marked as "Required" are used
+      if (!tenantId) {
+        setRequiredConsents([]);
+        setSignatures([]);
+        setLoading(false);
+        return;
+      }
+      
       const { data: templates, error: templatesError } = await supabase
         .from('consent_templates')
         .select('consent_type, title, is_required, required_for')
-        .or(`tenant_id.is.null${tenantId ? `,tenant_id.eq.${tenantId}` : ''}`)
+        .eq('tenant_id', tenantId)
         .eq('is_active', true)
         .eq('is_required', true);
 
@@ -79,20 +86,14 @@ export function useClientConsentStatus({
         throw templatesError;
       }
 
-      // De-duplicate: prefer tenant-specific templates over system defaults
-      const consentMap = new Map<string, RequiredConsent>();
-      (templates || []).forEach(t => {
-        // Only add if not already present (first match wins since we're iterating)
-        // Since we want tenant-specific to override, we always overwrite
-        consentMap.set(t.consent_type, {
-          key: t.consent_type,
-          label: t.title,
-          required: t.is_required ?? true,
-          requiredFor: t.required_for,
-        });
-      });
-
-      const consentsFromDb = Array.from(consentMap.values());
+      // Map templates to required consents - no deduplication needed since we only query tenant templates
+      const consentsFromDb: RequiredConsent[] = (templates || []).map(t => ({
+        key: t.consent_type,
+        label: t.title,
+        required: t.is_required ?? true,
+        requiredFor: t.required_for,
+      }));
+      
       setRequiredConsents(consentsFromDb);
 
       // Fetch client's consent signatures
