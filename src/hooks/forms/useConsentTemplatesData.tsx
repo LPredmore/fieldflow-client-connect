@@ -89,6 +89,7 @@ export function useConsentTemplatesData(): UseConsentTemplatesDataReturn {
           content: data.content || { sections: [] },
           version: 1,
           is_active: data.is_active ?? false,
+          is_required: data.is_required ?? false,
           created_by_profile_id: user.id,
         })
         .select()
@@ -125,6 +126,7 @@ export function useConsentTemplatesData(): UseConsentTemplatesDataReturn {
           title: data.title,
           content: data.content,
           is_active: data.is_active,
+          is_required: data.is_required,
           version: data.version,
         })
         .eq('id', id)
