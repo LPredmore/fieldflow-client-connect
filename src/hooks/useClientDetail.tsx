@@ -114,7 +114,8 @@ export interface PHQ9Assessment {
   tenant_id: string;
   staff_id: string | null;
   appointment_id: string | null;
-  assessment_date: string;
+  assessment_date: string | null;
+  administered_at: string;
   total_score: number;
   severity: string;
   clinician_name_snapshot: string | null;

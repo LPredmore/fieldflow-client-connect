@@ -57,10 +57,10 @@ export function ClientAssessmentsTab({
   const displayedGad7 = showAllGad7 ? gad7Assessments : gad7Assessments.slice(0, 5);
   const displayedPcl5 = showAllPcl5 ? pcl5Assessments : pcl5Assessments.slice(0, 5);
 
-  // Chart data transformations
+  // Chart data transformations - use assessment_date with administered_at fallback
   const phq9ChartData = useMemo(() =>
     phq9Assessments.map(a => ({
-      date: a.assessment_date,
+      date: a.assessment_date || a.administered_at,
       score: a.total_score,
     })),
     [phq9Assessments]
@@ -204,7 +204,7 @@ export function ClientAssessmentsTab({
                   {displayedPhq9.map((assessment) => (
                     <TableRow key={assessment.id}>
                       <TableCell>
-                        {format(new Date(assessment.assessment_date), 'MMM d, yyyy')}
+                        {format(new Date(assessment.assessment_date || assessment.administered_at), 'MMM d, yyyy')}
                       </TableCell>
                       <TableCell className="font-mono font-medium">
                         {assessment.total_score}/27
