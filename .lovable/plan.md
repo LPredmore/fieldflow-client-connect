@@ -1,150 +1,211 @@
 
 
-# Fix PHQ-9 and PCL-5 Assessment Date Auto-Population
+# Make System Defaults Template-Only, Enable "Required" Toggle for Your Templates
 
 ## Problem Summary
 
-The `assessment_date` field in PHQ-9 (and PCL-5) tables is NULL when assessments are created, causing dates to display as "1970" in the UI (because `new Date(null)` returns the Unix epoch).
+Currently, the consent template system has a design flaw:
 
-## Root Cause Analysis
+1. **System Defaults** have `is_required = true` in the database
+2. When you click "Customize" on a System Default, it creates a tenant copy with `is_required = false`
+3. The compliance check in `useClientConsentStatus.tsx` queries for templates where `is_required = true`
+4. Since both System Defaults AND tenant templates are queried, and tenant templates have `is_required = false`, the **System Defaults still get assigned to clients** instead of the customized versions
 
-| Table | `assessment_date` column | `administered_at` column | Current behavior |
-|-------|-------------------------|--------------------------|------------------|
-| `client_phq9_assessments` | YES, nullable, **NO default** | YES, `DEFAULT now()` | `assessment_date` stays NULL |
-| `client_gad7_assessments` | **NO** | YES, `DEFAULT now()` | Works correctly |
-| `client_pcl5_assessments` | YES, nullable, **NO default** | YES, `DEFAULT now()` | Same problem potential |
+**Current Database State:**
+| Template | Tenant | is_required | Result |
+|----------|--------|-------------|--------|
+| Financial Agreement (System) | NULL | true | Gets assigned to clients |
+| Financial Agreement (Custom) | ValorWell | false | Ignored |
 
-The `administered_at` field auto-populates via `DEFAULT now()`, but `assessment_date` has no default and no trigger to derive its value.
+## Desired Behavior
 
-## Technical Decision: Database Trigger
+1. **System Defaults** are read-only blueprints - they should NEVER be assigned to clients
+2. **Your Templates** (tenant-specific) are the only templates that can be marked as "Required"
+3. When a user customizes a System Default, the UI should show a "Required" toggle
+4. Only "Required" + "Active" tenant templates get assigned to new clients
 
-**Decision**: Create a database trigger that auto-populates `assessment_date` from the date portion of `administered_at` on INSERT.
+## Technical Decision: Exclude System Defaults from Compliance Queries
 
-**Why this is the right approach**:
+**The Right Approach:**
 
-1. **Single Source of Truth**: The database enforces the rule regardless of how data is inserted (app, bulk import, direct SQL, future APIs)
-2. **No Code Changes Required in Multiple Insert Points**: Any code path that inserts PHQ-9/PCL-5 records automatically benefits
-3. **Existing Pattern**: The codebase already uses `set_updated_at` trigger for similar auto-population
-4. **Data Integrity**: Impossible to have NULL `assessment_date` after this fix
-5. **Backward Compatibility**: Existing NULL records can be fixed with a one-time UPDATE
+1. **Modify the compliance query** to ONLY look at tenant-specific templates (`tenant_id IS NOT NULL`)
+2. **Add a "Required" toggle** in the ConsentEditor for tenant templates
+3. **Update the updateTemplate function** to persist `is_required` changes
 
-**Why NOT application-level fixes**:
+**Why this is the correct design:**
 
-- Would require finding and modifying every insertion point (forms, imports, future integrations)
-- Code duplication and risk of future omissions
-- Doesn't protect against direct database inserts
+- **Clear separation of concerns**: System defaults are blueprints; tenant templates are live documents
+- **Tenant autonomy**: Each practice decides which consents are required for THEIR clients
+- **No data migration needed**: System defaults stay as-is; they simply stop affecting assignments
+- **Existing data model works**: `is_required` column already exists on the table
+
+**Why NOT modify system defaults:**
+
+- System defaults are shared across all tenants - changing them affects everyone
+- Removing `is_required` from system defaults would break the UI badge display in the template library
+- The current schema is correct; only the query logic needs adjustment
 
 ## Implementation Plan
 
-### Step 1: Create Database Trigger Function
+### Step 1: Update Compliance Query Logic
 
-Create a trigger function that extracts the date from `administered_at` and sets `assessment_date`:
+**File:** `src/hooks/useClientConsentStatus.tsx`
 
-```sql
-CREATE OR REPLACE FUNCTION set_assessment_date_from_administered_at()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  -- Only set assessment_date if it's NULL
-  IF NEW.assessment_date IS NULL THEN
-    NEW.assessment_date := (NEW.administered_at AT TIME ZONE 'UTC')::date;
-  END IF;
-  RETURN NEW;
-END;
-$$;
+Change the query from:
+```typescript
+// Current (queries both system defaults AND tenant templates)
+.or(`tenant_id.is.null${tenantId ? `,tenant_id.eq.${tenantId}` : ''}`)
 ```
 
-Key design choices:
-- Uses `AT TIME ZONE 'UTC'` to extract the date in UTC (consistent with how `administered_at` is stored)
-- Only sets if NULL, allowing explicit override when needed (e.g., backdated assessments)
-- Returns NEW for BEFORE trigger pattern
-
-### Step 2: Attach Trigger to PHQ-9 Table
-
-```sql
-CREATE TRIGGER set_phq9_assessment_date
-BEFORE INSERT ON client_phq9_assessments
-FOR EACH ROW
-EXECUTE FUNCTION set_assessment_date_from_administered_at();
+To:
+```typescript
+// New (queries ONLY tenant templates)
+.eq('tenant_id', tenantId)
 ```
 
-### Step 3: Attach Trigger to PCL-5 Table
+This single change means:
+- System Defaults with `is_required = true` are **ignored** for compliance
+- Only the tenant's own templates with `is_required = true` are used
+- If a tenant hasn't created any "Required" templates, no consents will be required
 
-```sql
-CREATE TRIGGER set_pcl5_assessment_date
-BEFORE INSERT ON client_pcl5_assessments
-FOR EACH ROW
-EXECUTE FUNCTION set_assessment_date_from_administered_at();
-```
+### Step 2: Add "Required" Toggle to ConsentEditor
 
-### Step 4: Fix Existing NULL Records
+**File:** `src/components/Forms/ConsentEditor/ConsentEditor.tsx`
 
-One-time data correction for records already in the database:
-
-```sql
--- Fix PHQ-9 records with NULL assessment_date
-UPDATE client_phq9_assessments
-SET assessment_date = (administered_at AT TIME ZONE 'UTC')::date
-WHERE assessment_date IS NULL;
-
--- Fix PCL-5 records with NULL assessment_date
-UPDATE client_pcl5_assessments
-SET assessment_date = (administered_at AT TIME ZONE 'UTC')::date
-WHERE assessment_date IS NULL;
-```
-
-### Step 5: Update TypeScript Interface (Defensive)
-
-Update `useClientDetail.tsx` to mark `assessment_date` as nullable (matching database reality):
+Add a new state variable and UI control:
 
 ```typescript
-export interface PHQ9Assessment {
-  // ...
-  assessment_date: string | null;  // Was incorrectly typed as required string
-  // ...
-}
+// New state (after isActive state)
+const [isRequired, setIsRequired] = useState(template?.is_required || false);
 ```
 
-### Step 6: Add Display Fallback in UI (Belt-and-Suspenders)
+Add a Switch component in the form settings area (for tenant templates only):
 
-Even though the trigger will prevent future NULLs, add a defensive fallback in `ClientAssessmentsTab.tsx` for robustness:
+```text
+[Toggle] Mark as Required
+  └─ When enabled, this consent will be automatically required for all new clients
+```
+
+Update `handleSave` to include `is_required` in the save payload:
 
 ```typescript
-// Line 63: Chart data transformation
-const phq9ChartData = useMemo(() =>
-  phq9Assessments.map(a => ({
-    date: a.assessment_date || a.administered_at,  // Fallback
-    score: a.total_score,
-  })),
-  [phq9Assessments]
-);
+await onSave({
+  title,
+  consent_type: consentType,
+  content,
+  is_active: publish ? true : isActive,
+  is_required: isRequired,  // NEW
+  version: (template?.version || 0) + 1,
+});
+```
 
-// Line 207: Table display
-{format(new Date(assessment.assessment_date || assessment.administered_at), 'MMM d, yyyy')}
+### Step 3: Update the updateTemplate Function
+
+**File:** `src/hooks/forms/useConsentTemplatesData.tsx`
+
+The current `updateTemplate` function does NOT include `is_required` in the update payload. Add it:
+
+```typescript
+const { data: updated, error: updateError } = await supabase
+  .from('consent_templates')
+  .update({
+    title: data.title,
+    content: data.content,
+    is_active: data.is_active,
+    is_required: data.is_required,  // NEW
+    version: data.version,
+  })
+  .eq('id', id)
+  .select()
+  .single();
+```
+
+### Step 4: Update createTemplate to Support is_required
+
+**File:** `src/hooks/forms/useConsentTemplatesData.tsx`
+
+Ensure new tenant templates can be created with `is_required`:
+
+```typescript
+.insert({
+  tenant_id: tenantId,
+  consent_type: data.consent_type || 'custom',
+  title: data.title || 'Untitled Consent Form',
+  content: data.content || { sections: [] },
+  version: 1,
+  is_active: data.is_active ?? false,
+  is_required: data.is_required ?? false,  // NEW
+  created_by_profile_id: user.id,
+})
+```
+
+### Step 5: Update UI Labels in FormLibrary
+
+**File:** `src/components/Forms/FormLibrary/FormLibrary.tsx`
+
+Update the System Defaults section description to clarify they are templates only:
+
+```text
+System Defaults - "Templates you can customize for your practice"
+```
+
+Keep the "Required" badge on System Defaults for informational purposes (shows what's typically required industry-wide), but add a tooltip or note explaining it doesn't affect assignments.
+
+## Data Flow After Implementation
+
+```text
+                                    ┌─────────────────────────┐
+                                    │   consent_templates     │
+                                    └─────────────────────────┘
+                                              │
+                    ┌─────────────────────────┴─────────────────────────┐
+                    │                                                   │
+          ┌─────────▼─────────┐                            ┌────────────▼────────────┐
+          │  System Defaults   │                            │    Your Templates       │
+          │  (tenant_id=NULL)  │                            │  (tenant_id=TENANT_ID)  │
+          └───────────────────┘                            └─────────────────────────┘
+                    │                                                   │
+                    │                                       ┌───────────┴───────────┐
+                    ▼                                       │                       │
+         ┌──────────────────┐                    is_required=true        is_required=false
+         │   IGNORED FOR    │                         │                       │
+         │   ASSIGNMENTS    │                         ▼                       ▼
+         └──────────────────┘               ┌──────────────────┐    ┌──────────────────┐
+                                            │  Assigned to     │    │    Not assigned  │
+                                            │  new clients     │    │    to clients    │
+                                            └──────────────────┘    └──────────────────┘
 ```
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| Database (via migration) | Create trigger function, attach to PHQ-9 and PCL-5 tables |
-| Database (one-time) | UPDATE existing NULL records |
-| `src/hooks/useClientDetail.tsx` | Fix `assessment_date` type to `string \| null` |
-| `src/components/Clients/ClientDetail/ClientAssessmentsTab.tsx` | Add fallback logic for chart data and table display |
+| `src/hooks/useClientConsentStatus.tsx` | Remove system defaults from compliance query (line 74) |
+| `src/components/Forms/ConsentEditor/ConsentEditor.tsx` | Add `is_required` state, add toggle UI, include in save payload |
+| `src/hooks/forms/useConsentTemplatesData.tsx` | Add `is_required` to both `createTemplate` and `updateTemplate` |
+| `src/components/Forms/FormLibrary/FormLibrary.tsx` | Update System Defaults description text |
 
-## Verification After Implementation
+## Verification Steps
 
-1. Create a new PHQ-9 assessment in the app
-2. Query the database to confirm `assessment_date` is auto-populated
-3. Verify the Assessments tab displays the correct date (not 1970)
-4. Confirm Carson Pritchett's 3 previously-broken records now show correct dates
+After implementation:
 
-## Data Impact
+1. Go to Forms > Consent Templates
+2. Click "Customize" on a System Default (e.g., Financial Agreement)
+3. In the editor, verify you see a "Mark as Required" toggle
+4. Enable the toggle and save/publish
+5. Go to a client's Overview tab and check Consent Status
+6. Verify the client sees YOUR template, not the System Default
 
-Current affected records (will be fixed):
-- **3 PHQ-9 records** with NULL `assessment_date`
-- Potentially PCL-5 records (same issue could occur)
+## Edge Cases Handled
 
-After fix: All existing and future records will have valid `assessment_date` values.
+| Scenario | Behavior |
+|----------|----------|
+| Tenant has no custom templates | No consents required (empty compliance list) |
+| Tenant customizes but doesn't mark required | Template exists but not assigned |
+| Multiple templates of same consent_type | Both can be required (query returns all matching) |
+| Tenant deletes their custom template | No consents of that type required |
+
+## No Database Migration Needed
+
+The `is_required` column already exists on `consent_templates` with `DEFAULT false`. No schema changes required.
 
