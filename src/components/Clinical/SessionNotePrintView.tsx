@@ -10,7 +10,7 @@ export function SessionNotePrintView({ data }: SessionNotePrintViewProps) {
   
   const sessionDate = note.appointment?.start_at || note.created_at;
   const formattedDate = format(new Date(sessionDate), 'MMMM d, yyyy');
-  const signedDate = format(new Date(note.created_at), 'MMMM d, yyyy');
+  const signedDate = format(new Date(sessionDate), 'MMMM d, yyyy');
   const generatedDate = format(new Date(), 'MMMM d, yyyy \'at\' h:mm a');
 
   // Helper to format risk labels
