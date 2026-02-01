@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTenantBranding } from '@/hooks/useTenantBranding';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Building, UserCheck, Mail, ArrowLeft, User, Stethoscope, AlertCircle } from 'lucide-react';
+import valorwellLogo from '@/assets/valorwell-logo.png';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -91,23 +92,19 @@ export default function Auth() {
     <div className="min-h-screen bg-gradient-to-br from-primary-light/10 to-accent/30 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center space-x-2">
-            {logoUrl ? (
-              <img 
-                src={logoUrl} 
-                alt="Business Logo" 
-                className="h-8 w-8 object-contain"
-              />
-            ) : (
-              <Building className="h-8 w-8 text-primary" />
-            )}
+        <div className="text-center space-y-4">
+          <div className="flex flex-col items-center justify-center space-y-3">
+            <img 
+              src={valorwellLogo} 
+              alt="ValorWell Logo" 
+              className="h-20 w-20 object-contain"
+            />
             <h1 className="text-3xl font-bold text-foreground">
-              {displayName || 'ValorWell'}
+              Welcome to ValorWell
             </h1>
           </div>
           <p className="text-muted-foreground">
-            Professional field service management platform
+            Your mental health practice management platform
           </p>
         </div>
 
