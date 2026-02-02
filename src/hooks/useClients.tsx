@@ -77,32 +77,26 @@ export function useClients(options?: UseClientsOptions) {
     },
   });
 
-  // Fetch treatment plans to determine which clients have plans (for "New" stat)
-  const { data: treatmentPlans, loading: treatmentPlansLoading } = useSupabaseQuery<{ client_id: string }>({
-    table: 'client_treatment_plans',
-    select: 'client_id',
-    filters: {
-      tenant_id: 'auto',
-    },
-    enabled: options?.allTenantClients ? !!tenantId : !!staffId,
-  });
-
-  // Statistics calculations
+  // Statistics calculations based on pat_status
   const stats = useMemo(() => {
     const clientList = clients || [];
     
-    // Create a Set of client IDs that have treatment plans
-    const clientsWithPlans = new Set(
-      (treatmentPlans || []).map(tp => tp.client_id)
-    );
+    // Active = clients in active treatment stages
+    const ACTIVE_STATUSES = ['Scheduled', 'Early Sessions', 'Established'];
+    
+    // New = clients awaiting first appointment
+    const NEW_STATUS = 'Unscheduled';
     
     return {
       total: clientList.length,
-      active: clientList.filter(c => c.pat_status === 'Active').length,
-      // "New" = clients without any treatment plan entry
-      new: clientList.filter(c => !clientsWithPlans.has(c.id)).length,
+      active: clientList.filter(c => 
+        ACTIVE_STATUSES.includes(c.pat_status || '')
+      ).length,
+      new: clientList.filter(c => 
+        c.pat_status === NEW_STATUS
+      ).length,
     };
-  }, [clients, treatmentPlans]);
+  }, [clients]);
 
   // Create client via edge function (creates auth account + all related records)
   const createClientWithAccount = async (clientData: ClientFormData) => {
@@ -187,7 +181,7 @@ export function useClients(options?: UseClientsOptions) {
 
   return {
     clients,
-    loading: loading || treatmentPlansLoading || createLoading || updateLoading || deleteLoading,
+    loading: loading || createLoading || updateLoading || deleteLoading,
     error,
     stats,
     createClient: createClientWithAccount,
