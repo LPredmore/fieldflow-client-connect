@@ -56,8 +56,8 @@ const AppointmentCard = ({
   const formattedTime = displayTime || fallback?.time || '';
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50 hover:bg-accent/70 transition-colors">
-      <div className="flex items-center gap-3 flex-1 min-w-0">
+    <div className="flex flex-col gap-2 p-3 rounded-lg bg-accent/50 hover:bg-accent/70 transition-colors">
+      <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{clientName}</p>
           <p className="text-xs text-muted-foreground">
@@ -65,7 +65,7 @@ const AppointmentCard = ({
           </p>
         </div>
         {isTelehealth && (
-          <div className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-1 rounded-full">
+          <div className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0">
             <Video className="h-3 w-3" />
             <span>Telehealth</span>
           </div>
@@ -75,10 +75,10 @@ const AppointmentCard = ({
         <Button
           size="sm"
           variant="outline"
-          className="ml-3 shrink-0"
+          className="w-full"
           onClick={() => onDocumentClick(id)}
         >
-          <FileText className="h-3 w-3 mr-1" />
+          <FileText className="h-4 w-4 mr-2" />
           Document Session
         </Button>
       )}
