@@ -20,6 +20,7 @@ import { useClientDiagnoses } from '@/hooks/useClientDiagnoses';
 import { useSessionNote, SessionNoteFormData } from '@/hooks/useSessionNote';
 import { useAppointmentPrivateNote } from '@/hooks/useAppointmentPrivateNote';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
+import { useEnabledCptCodes, EnabledCptCode } from '@/hooks/useEnabledCptCodes';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, FileText } from 'lucide-react';
 
@@ -32,6 +33,7 @@ import {
   PHQ9Section,
   PlanSection,
 } from './SessionNote';
+import { BillingSection } from './SessionNote/BillingSection';
 
 const sessionNoteSchema = z.object({
   // Mental Status Exam
@@ -60,6 +62,9 @@ const sessionNoteSchema = z.object({
   client_progress: z.string().optional().default(''),
   // Private note is saved separately
   private_note: z.string().optional().default(''),
+  // Billing fields
+  cpt_code_id: z.string().min(1, 'CPT Code is required'),
+  units: z.number().min(1, 'At least 1 unit required').default(1),
 });
 
 type SessionNoteFormValues = z.infer<typeof sessionNoteSchema>;
@@ -85,6 +90,7 @@ export function SessionNoteDialog({
   const [selectedInterventions, setSelectedInterventions] = useState<string[]>([]);
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
   const [isAiAssistMode, setIsAiAssistMode] = useState(false);
+  const [selectedCptCode, setSelectedCptCode] = useState<EnabledCptCode | null>(null);
   const { toast } = useToast();
 
   // Toggle AI Assist mode
@@ -99,6 +105,7 @@ export function SessionNoteDialog({
   const { diagnosisCodes, formattedDiagnoses, loading: diagnosesLoading } = useClientDiagnoses(appointment?.client_id);
   const { createSessionNote } = useSessionNote(appointment?.id);
   const { savePrivateNote } = useAppointmentPrivateNote(appointment?.id);
+  const { enabledCptCodes, loading: cptCodesLoading } = useEnabledCptCodes();
 
   // Fetch most recent PHQ-9 for this client
   const { data: phq9Records, loading: phq9Loading } = useSupabaseQuery<{
@@ -145,6 +152,8 @@ export function SessionNoteDialog({
       client_prognosis: '',
       client_progress: '',
       private_note: '',
+      cpt_code_id: '',
+      units: 1,
     },
   });
 
@@ -154,6 +163,7 @@ export function SessionNoteDialog({
       form.reset();
       setSelectedInterventions([]);
       setIsAiAssistMode(false);
+      setSelectedCptCode(null);
     }
   }, [open, form]);
 
@@ -226,18 +236,29 @@ export function SessionNoteDialog({
 
     setIsSubmitting(true);
     try {
-      // Extract private note from form data (it goes to separate table)
-      const { private_note, client_currentsymptoms, ...clinicalData } = data;
+      // Extract fields that go to separate tables or aren't part of clinical note
+      const { private_note, client_currentsymptoms, cpt_code_id, units, ...clinicalData } = data;
       
-      // Map client_currentsymptoms to session narrative if needed (or handle separately)
-      // For now we'll include it in the clinical data but it won't be saved since column doesn't exist
+      // Calculate charge based on selected CPT code and units
+      const chargeAmount = selectedCptCode?.custom_rate != null 
+        ? units * selectedCptCode.custom_rate 
+        : 0;
+      
+      // Build billing data
+      const billingData = selectedCptCode ? {
+        procCode: selectedCptCode.code,
+        units: units,
+        chargeAmount: chargeAmount,
+      } : undefined;
+      
       const result = await createSessionNote(
         appointment.id,
         appointment.client_id,
         staffId,
         diagnosisCodes,
         activePlan,
-        clinicalData as SessionNoteFormData
+        clinicalData as SessionNoteFormData,
+        billingData
       );
 
       if (!result.error) {
@@ -322,6 +343,17 @@ export function SessionNoteDialog({
               <PlanSection 
                 form={form} 
                 activePlan={activePlan} 
+              />
+
+              <Separator />
+
+              {/* 7. Billing Information */}
+              <BillingSection
+                form={form}
+                enabledCptCodes={enabledCptCodes}
+                loading={cptCodesLoading}
+                selectedCptCode={selectedCptCode}
+                onCptCodeChange={setSelectedCptCode}
               />
 
               {/* Submit Button */}

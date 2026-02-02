@@ -101,13 +101,26 @@ export function useSessionNote(appointmentId: string | undefined) {
 
   const existingNote = notes?.[0] || null;
 
+  /**
+   * Extract date portion from ISO timestamp string.
+   * Used for from_date_1 and thru_date_1 billing fields.
+   */
+  const extractDateOnly = (isoString: string): string => {
+    return isoString.split('T')[0];
+  };
+
   const createSessionNote = useCallback(async (
     appointmentId: string,
     clientId: string,
     staffId: string,
     diagnosisCodes: string[],
     activePlan: TreatmentPlan,
-    formData: SessionNoteFormData
+    formData: SessionNoteFormData,
+    billingData?: {
+      procCode: string;      // The CPT code string (e.g., "90834")
+      units: number;         // Number of units
+      chargeAmount: number;  // Pre-calculated total charge
+    }
   ) => {
     if (!tenantId) {
       toast({
@@ -156,10 +169,37 @@ export function useSessionNote(appointmentId: string | undefined) {
 
       if (insertError) throw insertError;
 
-      // Update appointment status to documented
+      // Fetch appointment to extract dates for billing fields
+      const { data: appointmentData, error: fetchError } = await supabase
+        .from('appointments')
+        .select('start_at, end_at')
+        .eq('id', appointmentId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching appointment for billing dates:', fetchError);
+        throw fetchError;
+      }
+
+      // Build update data with all billing fields
+      const appointmentUpdateData: Record<string, any> = {
+        status: 'documented',
+        from_date_1: extractDateOnly(appointmentData.start_at),
+        thru_date_1: extractDateOnly(appointmentData.end_at),
+        narrative_1: formData.client_sessionnarrative, // Copy narrative to billing field
+      };
+
+      // Add billing data if provided
+      if (billingData) {
+        appointmentUpdateData.proc_code_1 = billingData.procCode;
+        appointmentUpdateData.units_1 = billingData.units;
+        appointmentUpdateData.charge_1 = billingData.chargeAmount;
+      }
+
+      // Update appointment with status and billing fields
       const { error: updateError } = await supabase
         .from('appointments')
-        .update({ status: 'documented' })
+        .update(appointmentUpdateData)
         .eq('id', appointmentId);
 
       if (updateError) throw updateError;

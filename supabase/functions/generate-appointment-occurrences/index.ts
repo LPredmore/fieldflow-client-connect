@@ -61,6 +61,18 @@ serve(async (req) => {
       );
     }
 
+    // Fetch default location for the tenant
+    const { data: defaultLocationData } = await supabase
+      .from('practice_locations')
+      .select('id, name')
+      .eq('tenant_id', series.tenant_id)
+      .eq('is_default', true)
+      .limit(1)
+      .single();
+
+    const defaultLocation = defaultLocationData || null;
+    console.log('Default location:', defaultLocation);
+
     // Get the rrule from the series
     const recurrenceRule = series.rrule;
     if (!recurrenceRule) {
@@ -146,6 +158,11 @@ serve(async (req) => {
       const startUTC = DateTime.fromJSDate(occurrence, { zone: 'utc' });
       const endUTC = startUTC.plus({ minutes: series.duration_minutes });
 
+      // Determine location_name based on telehealth status
+      const effectiveLocationName = is_telehealth
+        ? 'Telehealth'
+        : (defaultLocation?.name || null);
+
       // Build appointment data matching the appointments table schema
       const appointmentData = {
         tenant_id: series.tenant_id,
@@ -158,6 +175,8 @@ serve(async (req) => {
         time_zone: series.time_zone,
         status: 'scheduled',
         is_telehealth: is_telehealth,
+        location_id: defaultLocation?.id || null,
+        location_name: effectiveLocationName,
         created_by_profile_id: series.created_by_profile_id,
       };
 
