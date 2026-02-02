@@ -81,6 +81,8 @@ export interface UseStaffAppointmentsOptions {
   range?: DateRange;
   lookbackDays?: number;
   forwardDays?: number;
+  /** For admin multi-clinician view: array of staff IDs to fetch appointments for */
+  staffIds?: string[];
 }
 
 /**
@@ -99,7 +101,7 @@ export interface UseStaffAppointmentsOptions {
 export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
-  const { enabled = true, lookbackDays = 7, forwardDays = 90 } = options || {};
+  const { enabled = true, lookbackDays = 7, forwardDays = 90, staffIds } = options || {};
   
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRangeRef = useRef<string>('');
@@ -111,15 +113,19 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
   const [staffTimezone, setStaffTimezone] = useState<string>('');
 
   const fetchAppointments = useCallback(async () => {
-    const staffId = user?.roleContext?.staffData?.id;
+    const loggedInStaffId = user?.roleContext?.staffData?.id;
     
-    if (!user || !tenantId || !staffId || !enabled) {
+    // Determine which staff IDs to fetch
+    // If staffIds provided and non-empty, use those; otherwise use logged-in user's staff ID
+    const idsToFetch = staffIds && staffIds.length > 0 ? staffIds : (loggedInStaffId ? [loggedInStaffId] : []);
+    
+    if (!user || !tenantId || idsToFetch.length === 0 || !enabled) {
       setAppointments([]);
       setLoading(false);
       return;
     }
 
-    const rangeKey = `${range.fromISO}-${range.toISO}`;
+    const rangeKey = `${range.fromISO}-${range.toISO}-${idsToFetch.sort().join(',')}`;
     
     // Prevent duplicate fetches
     if (rangeKey === lastFetchRangeRef.current || isFetchingRef.current) {
@@ -132,23 +138,35 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
     try {
       setLoading(true);
 
-      // Call the enhanced RPC function
-      const { data, error } = await supabase.rpc('get_staff_calendar_appointments', {
-        p_staff_id: staffId,
-        p_from_date: range.fromISO,
-        p_to_date: range.toISO
-      });
+      // Fetch appointments for all staff IDs in parallel
+      const results = await Promise.all(
+        idsToFetch.map(id => 
+          supabase.rpc('get_staff_calendar_appointments', {
+            p_staff_id: id,
+            p_from_date: range.fromISO,
+            p_to_date: range.toISO
+          })
+        )
+      );
 
-      if (error) {
-        console.error('[useStaffAppointments] Error fetching appointments:', error);
+      // Check for errors in any of the results
+      const firstError = results.find(r => r.error);
+      if (firstError?.error) {
+        console.error('[useStaffAppointments] Error fetching appointments:', firstError.error);
         toast({
           variant: 'destructive',
           title: 'Error loading appointments',
-          description: error.message,
+          description: firstError.error.message,
         });
         setAppointments([]);
         return;
       }
+
+      // Merge all results and dedupe by appointment ID
+      const allData = results.flatMap(r => r.data || []);
+      const uniqueById = new Map<string, any>();
+      allData.forEach(row => uniqueById.set(row.id, row));
+      const data = Array.from(uniqueById.values());
 
       // Transform to StaffAppointment with fake local Dates
       const transformed: StaffAppointment[] = (data || []).map((row: any) => {
@@ -227,7 +245,7 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [user, tenantId, range.fromISO, range.toISO, enabled, toast]);
+  }, [user, tenantId, range.fromISO, range.toISO, enabled, toast, staffIds]);
 
   // Manual refetch function
   const refetch = useCallback(() => {

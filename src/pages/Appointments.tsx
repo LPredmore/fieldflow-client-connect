@@ -34,6 +34,7 @@ import { useAppointmentSeries, AppointmentSeries } from "@/hooks/useAppointmentS
 import { useAuth } from "@/hooks/useAuth";
 import { useClients } from "@/hooks/useClients";
 import { useServices } from "@/hooks/useServices";
+import { useTenantStaff } from "@/hooks/useTenantStaff";
 import AppointmentView from "@/components/Appointments/AppointmentView";
 import AppointmentSeriesView from "@/components/Appointments/AppointmentSeriesView";
 import { CreateAppointmentDialog } from "@/components/Appointments/CreateAppointmentDialog";
@@ -88,6 +89,7 @@ const DEFAULT_FILTERS: AppointmentFilterValues = {
   serviceId: null,
   dateFrom: null,
   dateTo: null,
+  staffIds: [],
 };
 
 export default function Appointments() {
@@ -101,6 +103,12 @@ export default function Appointments() {
   const [filters, setFilters] = useState<AppointmentFilterValues>(DEFAULT_FILTERS);
   
   // Use unified staff appointments for timezone-aware display with pre-formatted strings
+  // For admins, pass selected staff IDs; otherwise use default (logged-in user)
+  const { userRole, isAdmin } = useAuth();
+  
+  // Fetch tenant staff for admin multi-clinician filter
+  const { tenantStaff } = useTenantStaff();
+  
   const { 
     appointments, 
     getAppointmentById, 
@@ -109,7 +117,10 @@ export default function Appointments() {
     deleteAppointment,
     refetch: refetchAppointments,
     loading: appointmentsLoading,
-  } = useStaffAppointments();
+  } = useStaffAppointments({
+    // Only pass staffIds for admins when they have selected specific clinicians
+    staffIds: isAdmin && filters.staffIds.length > 0 ? filters.staffIds : undefined,
+  });
   
   // Use appointment series for series CRUD operations
   const {
@@ -127,7 +138,6 @@ export default function Appointments() {
   // Get the selected appointment with pre-formatted display strings
   const viewAppointment = viewAppointmentId ? getAppointmentById(viewAppointmentId) : null;
   
-  const { userRole, isAdmin } = useAuth();
   const { toast } = useToast();
   
   const loading = appointmentsLoading || seriesLoading;
@@ -146,6 +156,7 @@ export default function Appointments() {
     if (filters.serviceId) count++;
     if (filters.dateFrom) count++;
     if (filters.dateTo) count++;
+    if (filters.staffIds.length > 0) count++;
     return count;
   }, [filters]);
   
@@ -368,6 +379,8 @@ export default function Appointments() {
                       clients={clients || []}
                       services={services || []}
                       onClose={() => setFiltersOpen(false)}
+                      isAdmin={isAdmin}
+                      tenantStaff={tenantStaff}
                     />
                   </PopoverContent>
                 </Popover>
