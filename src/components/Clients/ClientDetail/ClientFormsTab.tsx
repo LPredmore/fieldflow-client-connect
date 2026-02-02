@@ -5,17 +5,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Eye, Plus, X, Clock, CheckCircle2 } from 'lucide-react';
-import { FormResponseWithTemplate } from '@/hooks/useClientDetail';
 import { ClientFormAssignment } from '@/hooks/useClientFormAssignments';
 import { ConsentStatus } from '@/hooks/useClientConsentStatus';
+import { CompletedDocument } from '@/hooks/useClientDetail';
 import { ConsentStatusCard } from './ConsentStatusCard';
 
 interface ClientFormsTabProps {
   loading: boolean;
-  formResponses: FormResponseWithTemplate[];
+  completedDocuments: CompletedDocument[];
   formAssignments: ClientFormAssignment[];
   assignmentsLoading: boolean;
-  onViewResponse: (response: FormResponseWithTemplate) => void;
+  onViewDocument: (doc: CompletedDocument) => void;
   onAssignForm: () => void;
   onCancelAssignment: (assignmentId: string) => void;
   // Consent status props
@@ -26,12 +26,37 @@ interface ClientFormsTabProps {
   isFullyCompliant: boolean;
 }
 
+function getSourceBadge(source: CompletedDocument['source']) {
+  switch (source) {
+    case 'consent':
+      return (
+        <Badge variant="secondary" className="text-xs">
+          Consent
+        </Badge>
+      );
+    case 'history_form':
+      return (
+        <Badge variant="outline" className="text-xs">
+          Intake
+        </Badge>
+      );
+    case 'form_response':
+      return (
+        <Badge variant="default" className="text-xs">
+          Form
+        </Badge>
+      );
+    default:
+      return null;
+  }
+}
+
 export function ClientFormsTab({
   loading,
-  formResponses,
+  completedDocuments,
   formAssignments,
   assignmentsLoading,
-  onViewResponse,
+  onViewDocument,
   onAssignForm,
   onCancelAssignment,
   consentStatuses,
@@ -52,8 +77,6 @@ export function ClientFormsTab({
       </div>
     );
   }
-
-  const hasNoFormData = formResponses.length === 0 && pendingAssignments.length === 0;
 
   return (
     <div className="space-y-6">
@@ -139,47 +162,52 @@ export function ClientFormsTab({
         </CardContent>
       </Card>
 
-      {/* Completed Forms Section */}
+      {/* Completed Documents Section */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4" />
-            Completed Forms
-            {formResponses.length > 0 && (
+            Completed Documents
+            {completedDocuments.length > 0 && (
               <Badge variant="secondary" className="ml-2">
-                {formResponses.length}
+                {completedDocuments.length}
               </Badge>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {formResponses.length === 0 ? (
+          {completedDocuments.length === 0 ? (
             <div className="text-center py-6 text-muted-foreground">
-              <p className="text-sm">No completed form submissions yet.</p>
+              <p className="text-sm">No completed documents yet.</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Form Name</TableHead>
+                  <TableHead>Document Name</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead className="w-[80px]">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {formResponses.map((response) => (
-                  <TableRow key={response.id}>
+                {completedDocuments.map((doc) => (
+                  <TableRow key={`${doc.source}-${doc.id}`}>
                     <TableCell className="font-medium">
-                      {response.form_template?.name || 'Unknown Form'}
+                      {doc.name}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(response.submitted_at), 'MMM d, yyyy h:mm a')}
+                      {getSourceBadge(doc.source)}
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(doc.submittedAt), 'MMM d, yyyy h:mm a')}
                     </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => onViewResponse(response)}
+                        onClick={() => onViewDocument(doc)}
+                        title="View document"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>

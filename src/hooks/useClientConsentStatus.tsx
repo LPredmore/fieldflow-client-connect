@@ -65,34 +65,52 @@ export function useClientConsentStatus({
     setError(null);
 
     try {
-      // Fetch required consent templates from database (single source of truth)
-      // ONLY query tenant-specific templates - system defaults are blueprints only
-      // This ensures only templates the tenant has explicitly marked as "Required" are used
-      if (!tenantId) {
-        setRequiredConsents([]);
-        setSignatures([]);
-        setLoading(false);
-        return;
-      }
-      
-      const { data: templates, error: templatesError } = await supabase
-        .from('consent_templates')
-        .select('consent_type, title, is_required, required_for')
-        .eq('tenant_id', tenantId)
-        .eq('is_active', true)
-        .eq('is_required', true);
+      let consentsFromDb: RequiredConsent[] = [];
 
-      if (templatesError) {
-        throw templatesError;
+      // First, try to get tenant-specific required templates
+      if (tenantId) {
+        const { data: tenantTemplates, error: tenantError } = await supabase
+          .from('consent_templates')
+          .select('consent_type, title, is_required, required_for')
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true)
+          .eq('is_required', true);
+
+        if (tenantError) {
+          throw tenantError;
+        }
+
+        if (tenantTemplates && tenantTemplates.length > 0) {
+          // Tenant has explicit required templates - use those
+          consentsFromDb = tenantTemplates.map(t => ({
+            key: t.consent_type,
+            label: t.title,
+            required: t.is_required ?? true,
+            requiredFor: t.required_for,
+          }));
+        }
       }
 
-      // Map templates to required consents - no deduplication needed since we only query tenant templates
-      const consentsFromDb: RequiredConsent[] = (templates || []).map(t => ({
-        key: t.consent_type,
-        label: t.title,
-        required: t.is_required ?? true,
-        requiredFor: t.required_for,
-      }));
+      // If no tenant-specific required templates found, fall back to system defaults
+      if (consentsFromDb.length === 0) {
+        const { data: systemDefaults, error: systemError } = await supabase
+          .from('consent_templates')
+          .select('consent_type, title, is_required, required_for')
+          .is('tenant_id', null)
+          .eq('is_active', true)
+          .eq('is_required', true);
+
+        if (systemError) {
+          throw systemError;
+        }
+
+        consentsFromDb = (systemDefaults || []).map(t => ({
+          key: t.consent_type,
+          label: t.title,
+          required: t.is_required ?? true,
+          requiredFor: t.required_for,
+        }));
+      }
       
       setRequiredConsents(consentsFromDb);
 
