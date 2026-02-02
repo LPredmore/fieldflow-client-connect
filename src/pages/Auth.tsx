@@ -5,29 +5,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenantBranding } from '@/hooks/useTenantBranding';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Building, UserCheck, Mail, ArrowLeft, User, Stethoscope, AlertCircle } from 'lucide-react';
+import { Loader2, UserCheck, Mail, ArrowLeft, AlertCircle, KeyRound, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import valorwellLogo from '@/assets/valorwell-logo.png';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showUpdatePassword, setShowUpdatePassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   const { signIn, signUp, resetPassword, user, loading: authLoading } = useAuth();
-  const { displayName, logoUrl } = useTenantBranding();
+  const { displayName } = useTenantBranding();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Check for password recovery token in URL hash
+  useEffect(() => {
+    const hashParams = new URLSearchParams(location.hash.slice(1));
+    const type = hashParams.get('type');
+    
+    if (type === 'recovery') {
+      // User arrived from a password reset link
+      setShowUpdatePassword(true);
+      setShowForgotPassword(false);
+      setIsLogin(true);
+    }
+  }, [location.hash]);
 
   // Redirect to main page if already authenticated
   useEffect(() => {
@@ -37,10 +54,46 @@ export default function Auth() {
     }
   }, [user, authLoading, navigate, location]);
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setAuthError(null);
+    setSuccessMessage(null);
+
+    if (newPassword !== confirmPassword) {
+      setAuthError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setAuthError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setAuthError(error.message);
+      } else {
+        setSuccessMessage('Password updated successfully! You can now sign in.');
+        setShowUpdatePassword(false);
+        setNewPassword('');
+        setConfirmPassword('');
+        // Clear the hash from URL
+        window.history.replaceState(null, '', location.pathname);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setAuthError(null); // Clear previous errors
+    setAuthError(null);
+    setSuccessMessage(null);
 
     try {
       if (showForgotPassword) {
@@ -48,6 +101,7 @@ export default function Auth() {
         if (error) {
           setAuthError(error.message);
         } else {
+          setSuccessMessage('Password reset email sent! Check your inbox.');
           setShowForgotPassword(false);
           setEmail('');
         }
@@ -111,19 +165,81 @@ export default function Auth() {
         <Card className="shadow-material-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-semibold text-center">
-              {showForgotPassword ? 'Reset your password' : (isLogin ? 'Welcome back' : 'Create your account')}
+              {showUpdatePassword 
+                ? 'Set new password' 
+                : showForgotPassword 
+                  ? 'Reset your password' 
+                  : (isLogin ? 'Welcome back' : 'Create your account')
+              }
             </CardTitle>
             <CardDescription className="text-center">
-              {showForgotPassword 
-                ? 'Enter your email address to receive a password reset link'
-                : (isLogin 
-                  ? `Sign in to your ${displayName || 'ValorWell'} account` 
-                  : `Get started with ${displayName || 'ValorWell'} today`
-                )
+              {showUpdatePassword
+                ? 'Enter your new password below'
+                : showForgotPassword 
+                  ? 'Enter your email address to receive a password reset link'
+                  : (isLogin 
+                    ? `Sign in to your ${displayName || 'ValorWell'} account` 
+                    : `Get started with ${displayName || 'ValorWell'} today`
+                  )
               }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Success Message */}
+            {successMessage && (
+              <Alert className="border-primary/30 bg-primary/5">
+                <CheckCircle className="h-4 w-4 text-primary" />
+                <AlertDescription className="text-foreground">{successMessage}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Update Password Form */}
+            {showUpdatePassword && (
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    placeholder="Enter new password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="transition-all duration-normal"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    placeholder="Confirm new password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="transition-all duration-normal"
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating password...
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Update Password
+                    </>
+                  )}
+                </Button>
+              </form>
+            )}
+            {/* Login / Signup / Forgot Password Forms */}
+            {!showUpdatePassword && (
+              <>
             {showForgotPassword && (
               <Button
                 variant="ghost"
@@ -283,6 +399,8 @@ export default function Auth() {
                     {isLogin ? 'Create new account' : 'Sign in instead'}
                   </Button>
                 </div>
+              </>
+            )}
               </>
             )}
           </CardContent>
