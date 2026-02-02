@@ -24,6 +24,7 @@ export interface AppointmentFilterValues {
   serviceId: string | null;
   dateFrom: Date | null;
   dateTo: Date | null;
+  staffIds: string[];
 }
 
 interface Client {
@@ -38,12 +39,19 @@ interface Service {
   name: string;
 }
 
+interface StaffMember {
+  id: string;
+  name: string;
+}
+
 interface AppointmentFiltersProps {
   filters: AppointmentFilterValues;
   onFiltersChange: (filters: AppointmentFilterValues) => void;
   clients: Client[];
   services: Service[];
   onClose: () => void;
+  isAdmin?: boolean;
+  tenantStaff?: StaffMember[];
 }
 
 const STATUS_OPTIONS = DB_ENUMS.appointment_status_enum;
@@ -61,6 +69,8 @@ export function AppointmentFilters({
   clients,
   services,
   onClose,
+  isAdmin = false,
+  tenantStaff = [],
 }: AppointmentFiltersProps) {
   const [localFilters, setLocalFilters] = useState<AppointmentFilterValues>(filters);
 
@@ -76,10 +86,22 @@ export function AppointmentFilters({
       serviceId: null,
       dateFrom: null,
       dateTo: null,
+      staffIds: [],
     };
     setLocalFilters(clearedFilters);
     onFiltersChange(clearedFilters);
     onClose();
+  };
+
+  const toggleStaffSelection = (staffId: string) => {
+    setLocalFilters((prev) => {
+      const currentIds = prev.staffIds || [];
+      const isSelected = currentIds.includes(staffId);
+      const newIds = isSelected
+        ? currentIds.filter((id) => id !== staffId)
+        : [...currentIds, staffId];
+      return { ...prev, staffIds: newIds };
+    });
   };
 
   const getClientDisplayName = (client: Client) => {
@@ -100,7 +122,8 @@ export function AppointmentFilters({
     localFilters.clientId || 
     localFilters.serviceId || 
     localFilters.dateFrom || 
-    localFilters.dateTo;
+    localFilters.dateTo ||
+    (localFilters.staffIds && localFilters.staffIds.length > 0);
 
   return (
     <div className="space-y-4 p-4">
@@ -181,6 +204,45 @@ export function AppointmentFilters({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Clinician Filter - Admin Only */}
+      {isAdmin && tenantStaff.length > 0 && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Clinician</label>
+          <div className="border rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
+            {tenantStaff.map((staff) => {
+              const isSelected = (localFilters.staffIds || []).includes(staff.id);
+              return (
+                <div
+                  key={staff.id}
+                  className={cn(
+                    "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted",
+                    isSelected && "bg-primary/10"
+                  )}
+                  onClick={() => toggleStaffSelection(staff.id)}
+                >
+                  <div
+                    className={cn(
+                      "h-4 w-4 border rounded flex items-center justify-center",
+                      isSelected ? "bg-primary border-primary" : "border-input"
+                    )}
+                  >
+                    {isSelected && (
+                      <X className="h-3 w-3 text-primary-foreground" />
+                    )}
+                  </div>
+                  <span className="text-sm">{staff.name}</span>
+                </div>
+              );
+            })}
+          </div>
+          {(localFilters.staffIds || []).length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {localFilters.staffIds.length} clinician(s) selected
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Date Range */}
       <div className="space-y-2">
