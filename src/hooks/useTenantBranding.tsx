@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useSupabaseQuery } from '@/hooks/data/useSupabaseQuery';
 import { useAuth } from '@/hooks/useAuth';
 import type { Database } from '@/integrations/supabase/types';
@@ -14,9 +15,38 @@ export function useTenantBranding() {
     enabled: !!tenantId,
   });
 
+  const logoUrl = data?.[0]?.logo_url || null;
+
+  // Dynamically update favicon when tenant logo changes
+  useEffect(() => {
+    if (!logoUrl) return;
+
+    // Find existing favicon link or create one
+    let faviconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+
+    if (!faviconLink) {
+      faviconLink = document.createElement('link');
+      faviconLink.rel = 'icon';
+      document.head.appendChild(faviconLink);
+    }
+
+    // Store original favicon for cleanup
+    const originalHref = faviconLink.href;
+
+    // Update favicon to tenant logo
+    faviconLink.href = logoUrl;
+
+    // Cleanup: restore original favicon when component unmounts
+    return () => {
+      if (faviconLink) {
+        faviconLink.href = originalHref || '/favicon.ico';
+      }
+    };
+  }, [logoUrl]);
+
   return {
     displayName: data?.[0]?.display_name || null,
-    logoUrl: data?.[0]?.logo_url || null,
+    logoUrl,
     brandColors: {
       primary: data?.[0]?.brand_primary_color || null,
       secondary: data?.[0]?.brand_secondary_color || null,
