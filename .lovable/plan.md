@@ -1,248 +1,308 @@
 
-# Client Filtering Implementation Plan
+# Implementation Plan: Appointment Billing Fields for Insurance Claims
 
-## Executive Summary
+## Problem Statement
 
-Add filtering capabilities to the `/staff/allclients` page to allow administrators to narrow down client lists by assigned staff member and client status. This will use the existing component patterns in the codebase and perform client-side filtering on already-fetched data.
+When therapists document sessions through the `SessionNoteDialog`, the following billing fields in the `appointments` table are NOT being populated:
+- `location_name` / `location_id` - required for CMS-1500 Box 32
+- `from_date_1` / `thru_date_1` - required for CMS-1500 Box 24A (service dates)
+- `proc_code_1` - required for CMS-1500 Box 24D (CPT code)
+- `narrative_1` - required for claim attachments
+- `units_1` / `charge_1` - required for CMS-1500 Box 24G/24F
+
+Currently, `useSessionNote.tsx` only sets `status: 'documented'`. The 157 documented appointments with billing data were populated by an external system.
 
 ---
 
-## Technical Decision: Client-Side Filtering
+## Current State Analysis
 
-**Decision:** Implement client-side filtering on the already-fetched client data, rather than modifying the `useClients` hook or adding server-side filtering.
+### Data Verification
+```
+Status      | Count | Has Location | Has Proc Code | Has Charge
+------------|-------|--------------|---------------|------------
+scheduled   |     6 |           1  |            0  |          0
+documented  |   158 |         157  |          157  |        157
+cancelled   |     1 |           0  |            0  |          1
+```
+
+**Key Finding:** Only 1 of 6 scheduled appointments has location data. New appointments are NOT getting location set at creation time.
+
+### Existing Infrastructure
+1. **Default Location Exists:** `practice_locations` has `is_default=true` entry for tenant
+2. **CPT Codes Enabled:** 7 codes available in `tenant_cpt_codes` with custom rates
+3. **Cancellation Logic:** `Index.tsx` already sets `charge_1` and `narrative_1` for late cancellations
+
+---
+
+## Technical Decision
+
+**Approach: Two-Phase Population**
+
+1. **Phase 1 (Appointment Creation):** Set `location_id` and `location_name` when the appointment is first created
+2. **Phase 2 (Session Documentation):** Set billing fields (`from_date_1`, `thru_date_1`, `proc_code_1`, `narrative_1`, `units_1`, `charge_1`) when the session note is saved
 
 **Rationale:**
+- Location is known at creation time (default practice location)
+- Billing fields require clinical input (CPT code, narrative) only available at documentation time
+- Separating concerns prevents incomplete billing data if documentation is abandoned
+- Matches the natural workflow: schedule → conduct session → document → bill
 
-1. **Data is already loaded**: The `useClients` hook with `allTenantClients: true` already fetches all clients for the tenant. Adding filters would not reduce the initial data load.
-
-2. **Simplicity**: Client-side filtering with `useMemo` is the pattern already established in both `Clients.tsx` and `AllClients.tsx` for search filtering. Extending this pattern keeps the code consistent.
-
-3. **Performance is adequate**: For the expected client counts (hundreds, not thousands), client-side filtering is instant. If dataset size grows significantly, server-side filtering can be added later as an optimization.
-
-4. **Staff list is small**: The staff dropdown options will be derived from a separate query (matching the pattern in `ContractorSelector.tsx`), which is a small dataset.
-
-5. **Avoids hook complexity**: The `useClients` hook is already complex with multiple queries (clients + treatment plans). Adding filter parameters would increase complexity and create more re-render scenarios.
-
----
-
-## Database Schema Reference
-
-The `pat_status` field uses the `pat_status_enum` with these values:
-
-| Status Category | Values |
-|-----------------|--------|
-| **Intake Pipeline** | Interested, New, Registered, Waitlist, Matching |
-| **Active Treatment** | Unscheduled, Scheduled, Early Sessions, Established, Active |
-| **Inactive/Churned** | Inactive, Not the Right Time, Found Somewhere Else, Went Dark (Previously Seen) |
-| **Blocked/Problem** | Unresponsive - Warm, Unresponsive - Cold, Manual Check, No Insurance, DNC, Blacklisted |
-
-These will be grouped in the dropdown for usability.
+**Location Strategy:** Since the database schema is immutable and `staff` table cannot be modified to add a location assignment, ALL appointments will use the tenant's default location from `practice_locations.is_default = true`.
 
 ---
 
 ## Implementation Details
 
-### 1. New State Variables
+### Phase 1: Location at Appointment Creation
 
-Add two filter state variables to `AllClients.tsx`:
-
-```typescript
-const [statusFilter, setStatusFilter] = useState<string>("all");
-const [staffFilter, setStaffFilter] = useState<string>("all");
+**File: `src/hooks/useDefaultLocation.tsx`** (New)
+```text
+Purpose: Hook to fetch tenant's default practice location
+Query:
+  SELECT id, name 
+  FROM practice_locations 
+  WHERE tenant_id = :tenantId AND is_default = true 
+  LIMIT 1
+Returns: { id: string, name: string } | null
 ```
 
-### 2. Fetch Staff for Dropdown
-
-Add a query to fetch staff members for the filter dropdown. This follows the same pattern as `ContractorSelector.tsx`:
-
-```typescript
-const { data: staffList } = useSupabaseQuery<{
-  id: string;
-  prov_name_f: string | null;
-  prov_name_l: string | null;
-}>({
-  table: 'staff',
-  select: 'id, prov_name_f, prov_name_l',
-  filters: { tenant_id: 'auto' },
-  enabled: !!tenantId,
-  orderBy: { column: 'prov_name_l', ascending: true }
-});
+**File: `src/hooks/useAppointmentCreation.tsx`** (Modify)
+```text
+Changes:
+1. Import and call useDefaultLocation hook
+2. Set location fields in appointmentData:
+   - location_id: defaultLocation?.id || null
+   - location_name: For telehealth → 'Telehealth', else → defaultLocation?.name
 ```
 
-### 3. Status Options Constant
-
-Define status options with logical grouping using `SelectGroup` and `SelectLabel`:
-
-```typescript
-const STATUS_GROUPS = [
-  {
-    label: "Intake Pipeline",
-    options: [
-      { value: "Interested", label: "Interested" },
-      { value: "New", label: "New" },
-      { value: "Registered", label: "Registered" },
-      { value: "Waitlist", label: "Waitlist" },
-      { value: "Matching", label: "Matching" },
-    ]
-  },
-  {
-    label: "Active Treatment",
-    options: [
-      { value: "Active", label: "Active" },
-      { value: "Unscheduled", label: "Unscheduled" },
-      { value: "Scheduled", label: "Scheduled" },
-      { value: "Early Sessions", label: "Early Sessions" },
-      { value: "Established", label: "Established" },
-    ]
-  },
-  {
-    label: "Inactive",
-    options: [
-      { value: "Inactive", label: "Inactive" },
-      { value: "Not the Right Time", label: "Not the Right Time" },
-      { value: "Found Somewhere Else", label: "Found Somewhere Else" },
-      { value: "Went Dark (Previously Seen)", label: "Went Dark" },
-    ]
-  },
-  {
-    label: "Needs Attention",
-    options: [
-      { value: "Unresponsive - Warm", label: "Unresponsive (Warm)" },
-      { value: "Unresponsive - Cold", label: "Unresponsive (Cold)" },
-      { value: "Manual Check", label: "Manual Check" },
-      { value: "No Insurance", label: "No Insurance" },
-      { value: "DNC", label: "Do Not Contact" },
-      { value: "Blacklisted", label: "Blacklisted" },
-    ]
-  }
-];
+**File: `supabase/functions/generate-appointment-occurrences/index.ts`** (Modify)
+```text
+Changes:
+1. Query default location for the series' tenant_id
+2. Include location_id and location_name in appointmentData object
+3. Handle telehealth flag for location_name
 ```
 
-### 4. Extended Filtering Logic
+### Phase 2: Billing Fields at Documentation
 
-Update the `filteredClients` useMemo to include filter conditions:
+**File: `src/hooks/useEnabledCptCodes.tsx`** (New)
+```text
+Purpose: Fetch enabled CPT codes for tenant with joined code/description
+Query:
+  SELECT tc.id, tc.cpt_code_id, tc.custom_rate, c.code, c.description
+  FROM tenant_cpt_codes tc
+  JOIN cpt_codes c ON tc.cpt_code_id = c.id
+  WHERE tc.tenant_id = :tenantId AND tc.is_enabled = true
+  ORDER BY c.code
 
-```typescript
-const filteredClients = useMemo(() => {
-  let filtered = clients;
-
-  // Status filter
-  if (statusFilter !== "all") {
-    filtered = filtered?.filter(client => client.pat_status === statusFilter);
-  }
-
-  // Staff filter
-  if (staffFilter === "unassigned") {
-    filtered = filtered?.filter(client => !client.primary_staff_id);
-  } else if (staffFilter !== "all") {
-    filtered = filtered?.filter(client => client.primary_staff_id === staffFilter);
-  }
-
-  // Existing search filter
-  if (searchTerm) {
-    const searchLower = searchTerm.toLowerCase();
-    filtered = filtered?.filter(client =>
-      getClientDisplayName(client).toLowerCase().includes(searchLower) ||
-      client.email?.toLowerCase().includes(searchLower) ||
-      client.phone?.toLowerCase().includes(searchLower) ||
-      client.assigned_staff_name?.toLowerCase().includes(searchLower)
-    );
-  }
-
-  return filtered;
-}, [clients, searchTerm, statusFilter, staffFilter]);
+Returns: Array of {
+  id: string           // tenant_cpt_codes.id  
+  cpt_code_id: string  // FK to cpt_codes
+  code: string         // "90834"
+  description: string  // "Psychotherapy, 45 minutes..."
+  custom_rate: number  // Whole dollars (e.g., 150)
+}
 ```
 
-### 5. Filter UI Components
+**File: `src/components/Clinical/SessionNote/BillingSection.tsx`** (New)
+```text
+Purpose: CPT Code selector and Units input
+Props:
+  - form: react-hook-form instance
+  - enabledCptCodes: from useEnabledCptCodes
+  - loading: boolean
+  
+Layout:
+┌────────────────────────────────────────────────────────────┐
+│ Billing                                                    │
+├────────────────────────────────────────────────────────────┤
+│ ┌──────────────────────────────────────────┐ ┌──────────┐ │
+│ │ CPT Code (searchable dropdown)           │ │ Units    │ │
+│ │ e.g., "90834 - Psychotherapy, 45 min"    │ │    1     │ │
+│ └──────────────────────────────────────────┘ └──────────┘ │
+│                                                            │
+│ Charge: $150.00                                           │
+└────────────────────────────────────────────────────────────┘
 
-Add filter dropdowns below the search bar:
+Behavior:
+- CPT dropdown uses cmdk Combobox for searchability
+- Units defaults to 1, minimum 1
+- Charge auto-calculates: units × selectedCode.custom_rate
+- Displays "(Rate not set)" if custom_rate is null
+```
+
+**File: `src/components/Clinical/SessionNoteDialog.tsx`** (Modify)
+```text
+Schema Changes (add to sessionNoteSchema):
+  cpt_code_id: z.string().min(1, 'CPT Code is required'),
+  units: z.number().min(1, 'At least 1 unit required').default(1),
+
+New State:
+  const [selectedCptCode, setSelectedCptCode] = useState<EnabledCptCode | null>(null);
+
+UI Changes:
+  1. Import useEnabledCptCodes hook
+  2. Add BillingSection component after PlanSection, before submit button
+  3. Pass form, cptCodes, loading to BillingSection
+
+Submit Changes:
+  1. Extract cpt_code_id, units from form data
+  2. Calculate chargeAmount = units × selectedCptCode.custom_rate
+  3. Pass billingData to createSessionNote
+```
+
+**File: `src/hooks/useSessionNote.tsx`** (Modify)
+```text
+Interface Changes:
+  Add to createSessionNote parameters:
+  billingData: {
+    procCode: string;      // The CPT code string (e.g., "90834")
+    units: number;         // Number of units
+    chargeAmount: number;  // Pre-calculated total charge
+  }
+
+Function Changes:
+  1. Fetch appointment start_at/end_at to extract dates
+  2. Update appointments table with ALL billing fields:
+     {
+       status: 'documented',
+       from_date_1: extractDateOnly(appointment.start_at),
+       thru_date_1: extractDateOnly(appointment.end_at),
+       proc_code_1: billingData.procCode,
+       narrative_1: formData.client_sessionnarrative,
+       units_1: billingData.units,
+       charge_1: billingData.chargeAmount
+     }
+
+Date Extraction Helper:
+  function extractDateOnly(isoString: string): string {
+    return isoString.split('T')[0]; // Returns "2026-02-02"
+  }
+```
+
+---
+
+## Data Flow Summary
 
 ```text
-Layout:
-┌─────────────────────────────────────────────────────────────┐
-│ [🔍 Search clients or assigned staff...                   ] │
-│ [Status: All ▼]  [Assigned Staff: All ▼]  [✕ Clear]        │
-└─────────────────────────────────────────────────────────────┘
+APPOINTMENT CREATION FLOW:
+User clicks "New Appointment"
+       │
+       ▼
+useAppointmentCreation
+       │
+       ├─► Query practice_locations (is_default=true)
+       │
+       ▼
+INSERT INTO appointments (
+  ...,
+  location_id: default_location.id,
+  location_name: is_telehealth ? 'Telehealth' : default_location.name
+)
+
+
+SESSION DOCUMENTATION FLOW:
+User opens "Document Session"
+       │
+       ▼
+SessionNoteDialog renders
+       │
+       ├─► useEnabledCptCodes() → fetches 7 CPT codes
+       │
+       ▼
+User fills form + selects CPT code + enters units
+       │
+       ├─► BillingSection calculates: 1 × $150 = $150.00
+       │
+       ▼
+User clicks "Save Session Note"
+       │
+       ▼
+useSessionNote.createSessionNote()
+       │
+       ├─► INSERT appointment_clinical_notes (clinical data)
+       │
+       ├─► UPDATE appointments SET
+       │     status = 'documented',
+       │     from_date_1 = '2026-02-02',
+       │     thru_date_1 = '2026-02-02',
+       │     proc_code_1 = '90834',
+       │     narrative_1 = '...session narrative text...',
+       │     units_1 = 1,
+       │     charge_1 = 150.00
+       │
+       ▼
+Appointment ready for claims submission
 ```
-
-The "Clear Filters" button only appears when filters are active.
-
-### 6. Updated Empty State
-
-The empty state message will account for active filters:
-
-```typescript
-<p className="mt-2 text-sm text-muted-foreground">
-  {(searchTerm || statusFilter !== "all" || staffFilter !== "all")
-    ? "Try adjusting your search or filters"
-    : "No clients exist in this organization yet"}
-</p>
-```
-
-### 7. Active Filter Count Badge (Optional Enhancement)
-
-Show a badge on the filter area indicating how many filters are active, making it clear when results are filtered.
 
 ---
 
-## New Imports Required
+## Files Summary
 
-```typescript
-import { 
-  Select, 
-  SelectContent, 
-  SelectGroup,
-  SelectItem, 
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { X, Filter } from "lucide-react";
-import { useSupabaseQuery } from "@/hooks/data/useSupabaseQuery";
-```
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/hooks/useDefaultLocation.tsx` | Create | Query tenant's default practice location |
+| `src/hooks/useEnabledCptCodes.tsx` | Create | Query enabled CPT codes with descriptions |
+| `src/hooks/useAppointmentCreation.tsx` | Modify | Add location_id/location_name at creation |
+| `src/hooks/useAppointmentSeries.tsx` | Modify | Pass location to edge function |
+| `supabase/functions/generate-appointment-occurrences/index.ts` | Modify | Add location to generated appointments |
+| `src/components/Clinical/SessionNote/BillingSection.tsx` | Create | CPT/Units UI component |
+| `src/components/Clinical/SessionNoteDialog.tsx` | Modify | Add billing schema + BillingSection |
+| `src/hooks/useSessionNote.tsx` | Modify | Update appointments with billing fields |
 
 ---
 
-## File Changes Summary
+## Edge Cases & Error Handling
 
-| File | Type | Description |
-|------|------|-------------|
-| `src/pages/AllClients.tsx` | Modify | Add filter state, staff query, filter logic, and filter UI |
-
-This is a single-file change that extends the existing filtering pattern already in use.
-
----
-
-## Why Not Other Approaches
-
-| Alternative | Why Not |
-|-------------|---------|
-| **Server-side filtering** | Overkill for current data volumes; adds complexity to hook and requires backend changes |
-| **URL query parameters** | Nice for shareability but adds routing complexity; can be added later if needed |
-| **Separate filter component** | Over-engineering for two dropdowns; would require prop drilling or context |
-| **Modify useClients hook** | Hook is shared with clinician view; adding admin-only filter params complicates it |
+| Scenario | Handling |
+|----------|----------|
+| No default location exists | Log warning, set location fields to null (doesn't block save) |
+| No enabled CPT codes | Show inline message "No CPT codes available. Please enable codes in Settings → Clinical." with button to navigate |
+| CPT code has null custom_rate | Calculate charge as 0, show "(Rate not set)" warning |
+| Units = 0 or negative | Zod validation prevents (minimum: 1) |
+| Telehealth appointment | Set location_name = "Telehealth" but still capture location_id for billing entity |
+| Appointment already documented | Existing view-only mode prevents re-submission |
 
 ---
 
 ## Testing Checklist
 
-After implementation:
+1. **Appointment Creation**
+   - [ ] Create single appointment → verify location_id and location_name populated
+   - [ ] Create telehealth appointment → verify location_name = "Telehealth"
+   - [ ] Create recurring series → verify all generated appointments have location fields
 
-1. Verify "All" shows complete client list
-2. Test each status filter shows only clients with that status
-3. Test "Unassigned" filter shows clients with null `primary_staff_id`
-4. Test specific staff filter shows only their assigned clients
-5. Verify search works in combination with filters (AND logic)
-6. Confirm "Clear Filters" resets both dropdowns
-7. Check empty state message updates appropriately
-8. Verify filters persist when switching pages and coming back (or reset as expected)
+2. **Session Documentation**
+   - [ ] Open SessionNoteDialog → verify CPT dropdown shows 7 enabled codes
+   - [ ] Select CPT code → verify charge calculates correctly
+   - [ ] Change units to 2 → verify charge doubles
+   - [ ] Save session note → verify appointment record has all 6 billing fields
+   - [ ] Verify narrative_1 matches client_sessionnarrative
+
+3. **Edge Cases**
+   - [ ] Tenant with no enabled CPT codes → verify error message displays
+   - [ ] CPT code with null custom_rate → verify "(Rate not set)" warning
+   - [ ] Query documented appointment → confirm all fields ready for CMS-1500
+
+4. **Regression Testing**
+   - [ ] Existing documented appointments still display correctly
+   - [ ] Cancellation flow (Index.tsx) still works for charge_1/narrative_1
+   - [ ] Appointment view shows location correctly
 
 ---
 
-## Future Enhancements (Not in This PR)
+## Dependencies
 
-- URL-based filter persistence for shareability
-- Additional filters: state/location, date range, insurance status
-- Saved filter presets
-- Export filtered results to CSV
+- No database schema changes required
+- No new external dependencies
+- Uses existing `cmdk` library for searchable dropdown
+- Uses existing `zod` for form validation
+
+---
+
+## Rollback Strategy
+
+If issues are discovered after deployment:
+1. BillingSection can be hidden via feature flag (add `showBilling` prop)
+2. Billing fields remain nullable, so partial data won't break claims
+3. useSessionNote can revert to original behavior (status-only update) without data loss
