@@ -1,153 +1,227 @@
 
 
-# Implementation Plan: Fix AppointmentCard Layout
+# Implementation Plan: Admin Multi-Staff Appointment Filter
 
 ## Problem Statement
 
-The `AppointmentCard` component displays appointment information with a layout that becomes visually problematic when the "Document Session" button is present. The date/time information and Telehealth indicator appear "smooshed" on the left side, while the button occupies the right side with excessive whitespace between them.
+Admins need the ability to view appointments for different clinicians within their organization on the Appointments page. Currently, the page only shows the logged-in user's own appointments.
 
 ---
 
-## Root Cause Summary
+## Current State Analysis
 
-| Issue | Cause |
-|-------|-------|
-| Horizontal cramping | `flex items-center justify-between` pushes content to extremes |
-| Long date strings | Pre-formatted dates like "Saturday, December 20, 2025" consume ~28 characters |
-| Space constraints | Dashboard 3-column grid provides ~280px per card |
-| Button priority | `shrink-0` on button forces content area to compress |
+### Admin Detection
+- `isAdmin` is already available from `useAuth()` in `Appointments.tsx` (line 130)
+- Derived from `user_roles` table where `role = 'admin'`
+- Also available via `user?.roleContext?.staffRoleCodes` containing `'ADMIN'` or `'ACCOUNT_OWNER'`
+
+### Appointment Data Flow
+- `useStaffAppointments` calls `get_staff_calendar_appointments` RPC with a single `p_staff_id`
+- Currently hardcoded to the logged-in user's `staffData.id`
+- The RPC cannot be modified (database is immutable)
+
+### Existing Staff Selector Pattern
+- `ContractorSelector` component demonstrates querying all tenant staff
+- Uses `useSupabaseQuery` with `tenant_id` filter on the `staff` table
+- Filters to 'Active' and 'New' status client-side
 
 ---
 
 ## Technical Decision
 
-**Solution: Convert to Vertical Stack Layout**
+**Approach: Multi-RPC Merge with Optional Staff Filter**
 
-Change the `AppointmentCard` internal structure from a horizontal flex row to a vertical stack (`flex-col`) when displaying cards with the Document Session button.
+Modify the system to:
+1. Add a "Clinician" multi-select filter to `AppointmentFilters` (only visible to admins)
+2. Modify `useStaffAppointments` to accept optional `staffIds` parameter
+3. When `staffIds` is provided, call the RPC for each staff ID and merge results
 
-**Rationale:**
-
-1. **Natural content flow**: Appointment information (name, date/time, telehealth) is logically grouped above the action button
-2. **Eliminates width competition**: Content and button no longer compete for horizontal space
-3. **Consistent card heights**: All cards in a section will have uniform height
-4. **Mobile-ready**: Vertical stacking works well across all viewport sizes
-5. **Minimal code change**: Only requires restructuring CSS classes in one component
-6. **Follows card UI patterns**: Action buttons at the bottom of cards is a standard Material/Radix design pattern
+**Why This Approach:**
+- No database changes required (immutable schema constraint)
+- Reuses existing, tested RPC function with timezone handling
+- Parallel fetching minimizes latency
+- Multi-select allows viewing any combination of clinicians
+- Filter UI pattern matches existing client/service/status filters
 
 **Alternative Considered (Rejected):**
-- Truncating the date string: Would hide important information (day of week, full date)
-- Smaller button: Would reduce accessibility and tap target size
-- Two-row horizontal: More complex and still has width constraints
+- Direct `appointments` table query: Would bypass server-side timezone formatting, requiring significant client-side reimplementation of date handling
 
 ---
 
 ## Implementation Details
 
-**File: `src/components/Dashboard/AppointmentCard.tsx`**
+### New Hook: `useTenantStaff`
 
-### Current Structure (Problematic)
+**File: `src/hooks/useTenantStaff.tsx`**
+
+Purpose: Fetch all staff members for the current tenant (admin-only use case)
+
 ```
-┌────────────────────────────────────────────────────────────┐
-│ [Client Name]                              [Document Btn]  │
-│ [Date • Time] [Telehealth]                                 │
-└────────────────────────────────────────────────────────────┘
+Query:
+  SELECT id, prov_name_f, prov_name_l, prov_name_for_clients, prov_status
+  FROM staff
+  WHERE tenant_id = :tenantId
+  
+Filter (client-side): 
+  prov_status IN ('Active', 'New')
+
+Returns: Array of { id, name (display formatted) }
 ```
-
-### New Structure (Fixed)
-```
-┌────────────────────────────────────────────────────────────┐
-│ [Client Name]                           [Telehealth Badge] │
-│ [Date • Time]                                              │
-│                                                            │
-│ [Document Session Button - Full Width]                     │
-└────────────────────────────────────────────────────────────┘
-```
-
-### Changes Required
-
-1. **Outer container**: Change from `flex items-center justify-between` to `flex flex-col gap-2`
-
-2. **Content row**: Create a new inner flex row for client info + telehealth badge
-   - `flex items-start justify-between`
-   - Client name and date/time on left
-   - Telehealth badge on right (if applicable)
-
-3. **Button placement**: Move button outside the content row
-   - Full width at bottom: `w-full`
-   - Conditional render only when `showDocumentButton` is true
-
-4. **Remove shrink classes**: No longer needed with vertical layout
 
 ---
 
-## Code Changes
+### Modify: `useStaffAppointments`
+
+**File: `src/hooks/useStaffAppointments.tsx`**
+
+Changes:
+1. Add optional `staffIds?: string[]` to `UseStaffAppointmentsOptions`
+2. If `staffIds` is provided and not empty:
+   - Call `get_staff_calendar_appointments` for each staff ID in parallel
+   - Merge results and deduplicate by appointment ID
+   - Set timezone from first result (all staff assumed in same org)
+3. If `staffIds` is empty or not provided, use logged-in user's staff ID (current behavior)
 
 ```text
-File: src/components/Dashboard/AppointmentCard.tsx
+interface UseStaffAppointmentsOptions {
+  enabled?: boolean;
+  range?: DateRange;
+  staffIds?: string[];  // NEW: For admin multi-clinician view
+}
 
-BEFORE (line 48-67):
-<div className="flex items-center justify-between p-3 ...">
-  <div className="flex items-center gap-3 flex-1 min-w-0">
-    <div className="flex-1 min-w-0">
-      <p>Client Name</p>
-      <p>Date • Time</p>
-    </div>
-    {isTelehealth && <TelehealthBadge />}
-  </div>
-  {showDocumentButton && <Button className="ml-3 shrink-0">...</Button>}
-</div>
-
-AFTER:
-<div className="flex flex-col gap-2 p-3 ...">
-  <div className="flex items-start justify-between gap-2">
-    <div className="flex-1 min-w-0">
-      <p>Client Name</p>
-      <p>Date • Time</p>
-    </div>
-    {isTelehealth && <TelehealthBadge />}
-  </div>
-  {showDocumentButton && onDocumentClick && (
-    <Button className="w-full" onClick={() => onDocumentClick(id)}>
-      <FileText className="h-4 w-4 mr-2" />
-      Document Session
-    </Button>
-  )}
-</div>
+fetchAppointments():
+  if (staffIds && staffIds.length > 0) {
+    // Parallel fetch for each staff
+    const results = await Promise.all(
+      staffIds.map(id => 
+        supabase.rpc('get_staff_calendar_appointments', {
+          p_staff_id: id,
+          p_from_date: range.fromISO,
+          p_to_date: range.toISO
+        })
+      )
+    );
+    // Merge and dedupe by appointment ID
+  } else {
+    // Current behavior: fetch for logged-in staff only
+  }
 ```
 
 ---
 
-## Visual Result
+### Modify: `AppointmentFilters`
 
-### Today's Appointments (with button)
-```
-┌─────────────────────────────────┐
-│ John Smith          [Telehealth]│
-│ Saturday, Dec 20, 2025 • 4:00 PM│
-│                                 │
-│ [    Document Session         ] │
-└─────────────────────────────────┘
+**File: `src/components/Appointments/AppointmentFilters.tsx`**
+
+Changes:
+1. Add new prop: `isAdmin: boolean`
+2. Add new prop: `tenantStaff: { id: string; name: string }[]`
+3. Add new prop: `onStaffFilterChange: (staffIds: string[]) => void`
+4. Add new state field: `staffIds: string[]` to `AppointmentFilterValues`
+5. Render multi-select clinician filter only when `isAdmin === true`
+
+```text
+interface AppointmentFilterValues {
+  status: string | null;
+  clientId: string | null;
+  serviceId: string | null;
+  dateFrom: Date | null;
+  dateTo: Date | null;
+  staffIds: string[];  // NEW: Multi-select staff filter
+}
 ```
 
-### Upcoming Appointments (without button)
+UI Addition (admin only):
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Clinician (Admin only)                                     │
+│ ┌──────────────────────────────────────────────────────┐  │
+│ │ [Select clinicians...      ] [v]                      │  │
+│ └──────────────────────────────────────────────────────┘  │
+│ [Maya Butler] [x]  [Katie Weidenkeller] [x]               │
+└────────────────────────────────────────────────────────────┘
 ```
-┌─────────────────────────────────┐
-│ Jane Doe            [Telehealth]│
-│ Monday, Dec 22, 2025 • 2:30 PM  │
-└─────────────────────────────────┘
-```
-
-Cards without the Document Session button will naturally be shorter, which is acceptable and expected behavior.
 
 ---
 
-## Files Affected
+### Modify: `Appointments.tsx`
 
-| File | Action | Changes |
+**File: `src/pages/Appointments.tsx`**
+
+Changes:
+1. Import and use `useTenantStaff` hook
+2. Update `DEFAULT_FILTERS` to include `staffIds: []`
+3. Update `activeFilterCount` to count non-empty `staffIds`
+4. Pass `staffIds` from filters to `useStaffAppointments` options
+5. Pass `isAdmin`, `tenantStaff`, and filter handlers to `AppointmentFilters`
+
+```text
+// Add to DEFAULT_FILTERS
+const DEFAULT_FILTERS = {
+  ...existing,
+  staffIds: [],  // Empty = show logged-in user's appointments
+};
+
+// Hook call with conditional staffIds
+const { appointments, ... } = useStaffAppointments({
+  staffIds: isAdmin ? filters.staffIds : undefined,
+});
+
+// Pass to AppointmentFilters
+<AppointmentFilters
+  ...existing
+  isAdmin={isAdmin}
+  tenantStaff={tenantStaff}
+/>
+```
+
+---
+
+## Files Summary
+
+| File | Action | Purpose |
 |------|--------|---------|
-| `src/components/Dashboard/AppointmentCard.tsx` | Modify | Restructure flex layout from horizontal to vertical |
+| `src/hooks/useTenantStaff.tsx` | Create | Fetch all staff for tenant |
+| `src/hooks/useStaffAppointments.tsx` | Modify | Accept staffIds array, parallel fetch & merge |
+| `src/components/Appointments/AppointmentFilters.tsx` | Modify | Add clinician multi-select (admin only) |
+| `src/pages/Appointments.tsx` | Modify | Wire up admin staff filter |
 
-No other files require changes. The component's props interface remains identical.
+---
+
+## Data Flow Diagram
+
+```text
+Admin User Opens /staff/appointments
+         │
+         ▼
+Appointments.tsx renders
+         │
+         ├─► useTenantStaff() → Fetches all org clinicians
+         │                     (for filter dropdown)
+         │
+         ├─► isAdmin = true (from useAuth)
+         │
+         ▼
+Admin selects clinicians in filter
+  e.g., [Maya Butler, Katie Weidenkeller]
+         │
+         ▼
+filters.staffIds = ['id-1', 'id-2']
+         │
+         ▼
+useStaffAppointments({ staffIds: ['id-1', 'id-2'] })
+         │
+         ├─► Promise.all([
+         │     rpc('get_staff_calendar_appointments', { p_staff_id: 'id-1' }),
+         │     rpc('get_staff_calendar_appointments', { p_staff_id: 'id-2' })
+         │   ])
+         │
+         ▼
+Merge & dedupe results
+         │
+         ▼
+Display combined appointment list
+```
 
 ---
 
@@ -155,38 +229,47 @@ No other files require changes. The component's props interface remains identica
 
 | Scenario | Handling |
 |----------|----------|
-| Very long client names | Existing `truncate` class handles this |
-| No telehealth badge | Layout remains balanced (badge area empty) |
-| Cards without document button | Shorter card height (vertical space saved) |
-| Mobile viewport | Vertical layout already responsive |
+| Admin selects no clinicians | Show logged-in admin's own appointments (default behavior) |
+| Admin selects themselves only | Single RPC call, no merging needed |
+| Non-admin user | `staffIds` prop undefined, ignores multi-select entirely |
+| Staff member has no appointments | RPC returns empty array, merged result just excludes them |
+| Tenant has many staff (10+) | Multi-select handles scrolling; parallel RPCs are efficient |
 
 ---
 
 ## Testing Checklist
 
-1. **Visual Verification**
-   - [ ] Today's Appointments cards show button below content
-   - [ ] Undocumented Appointments cards show button below content
-   - [ ] Upcoming Appointments cards (no button) display correctly
-   - [ ] Telehealth badge aligns to the right
-   - [ ] Long client names truncate properly
+1. **Admin-Only Visibility**
+   - [ ] Clinician multi-select appears only for admin users
+   - [ ] Non-admins see standard filter UI without clinician selector
 
-2. **Functional Verification**
-   - [ ] Document Session button click opens SessionDocumentationDialog
-   - [ ] Card hover state still applies
-   - [ ] Button click does not trigger card click (if applicable)
+2. **Multi-Staff Selection**
+   - [ ] Selecting 1 clinician shows only their appointments
+   - [ ] Selecting multiple clinicians shows combined appointments
+   - [ ] Clearing selection returns to logged-in user's appointments
 
-3. **Responsive Verification**
-   - [ ] Cards look correct on desktop (3-column grid)
-   - [ ] Cards look correct on tablet (2-column grid)
-   - [ ] Cards look correct on mobile (1-column grid)
+3. **Filter Interactions**
+   - [ ] Clinician filter works with status filter
+   - [ ] Clinician filter works with client filter
+   - [ ] Clinician filter works with date range filter
+   - [ ] Filter badge count includes clinician selections
+
+4. **Data Integrity**
+   - [ ] No duplicate appointments when same appointment appears in multiple queries
+   - [ ] Timezone formatting preserved for all staff members
+   - [ ] Appointment details (client name, service, etc.) display correctly
+
+5. **Performance**
+   - [ ] Parallel fetches complete in reasonable time
+   - [ ] UI remains responsive during multi-staff fetch
 
 ---
 
 ## Technical Notes
 
-- No database queries affected
-- No props interface changes
-- No breaking changes to parent components (`Index.tsx`)
-- Pure CSS/layout refactoring within single component
+- No database changes required
+- No new RPC functions needed
+- Reuses existing `get_staff_calendar_appointments` with proven timezone handling
+- Multi-select uses existing `cmdk` Command component pattern from the codebase
+- Admin detection uses established `isAdmin` from auth context
 
