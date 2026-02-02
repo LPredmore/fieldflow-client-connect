@@ -5,7 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreVertical, Pencil, Trash2, Mail, Phone, MapPin, User, FileText, Users, Eye } from "lucide-react";
+import { 
+  Select, 
+  SelectContent, 
+  SelectGroup,
+  SelectItem, 
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Plus, Search, MoreVertical, Pencil, Trash2, Mail, Phone, MapPin, User, FileText, Users, Eye, X } from "lucide-react";
 import { useClients, Client } from "@/hooks/useClients";
 import { ClientFormData } from "@/types/client";
 import { ClientForm } from "@/components/Clients/ClientForm";
@@ -13,25 +23,107 @@ import { ClientStatsCards } from "@/components/Clients/ClientStatsCards";
 import { TreatmentPlanDialog } from "@/components/Clinical/TreatmentPlanDialog";
 import { getClientDisplayName } from "@/utils/clientDisplayName";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseQuery } from "@/hooks/data/useSupabaseQuery";
+
+// Status options grouped by category
+const STATUS_GROUPS = [
+  {
+    label: "Intake Pipeline",
+    options: [
+      { value: "Interested", label: "Interested" },
+      { value: "New", label: "New" },
+      { value: "Registered", label: "Registered" },
+      { value: "Waitlist", label: "Waitlist" },
+      { value: "Matching", label: "Matching" },
+    ]
+  },
+  {
+    label: "Active Treatment",
+    options: [
+      { value: "Active", label: "Active" },
+      { value: "Unscheduled", label: "Unscheduled" },
+      { value: "Scheduled", label: "Scheduled" },
+      { value: "Early Sessions", label: "Early Sessions" },
+      { value: "Established", label: "Established" },
+    ]
+  },
+  {
+    label: "Inactive",
+    options: [
+      { value: "Inactive", label: "Inactive" },
+      { value: "Not the Right Time", label: "Not the Right Time" },
+      { value: "Found Somewhere Else", label: "Found Somewhere Else" },
+      { value: "Went Dark (Previously Seen)", label: "Went Dark" },
+    ]
+  },
+  {
+    label: "Needs Attention",
+    options: [
+      { value: "Unresponsive - Warm", label: "Unresponsive (Warm)" },
+      { value: "Unresponsive - Cold", label: "Unresponsive (Cold)" },
+      { value: "Manual Check", label: "Manual Check" },
+      { value: "No Insurance", label: "No Insurance" },
+      { value: "DNC", label: "Do Not Contact" },
+      { value: "Blacklisted", label: "Blacklisted" },
+    ]
+  }
+];
 
 export default function AllClients() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const tenantId = user?.roleContext?.tenantId;
   const { clients, loading, stats, createClient, updateClient, deleteClient } = useClients({ allTenantClients: true });
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [staffFilter, setStaffFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [treatmentPlanClient, setTreatmentPlanClient] = useState<Client | null>(null);
+
+  // Fetch staff list for filter dropdown
+  const { data: staffList } = useSupabaseQuery<{
+    id: string;
+    prov_name_f: string | null;
+    prov_name_l: string | null;
+  }>({
+    table: 'staff',
+    select: 'id, prov_name_f, prov_name_l',
+    filters: { tenant_id: 'auto' },
+    enabled: !!tenantId,
+    orderBy: { column: 'prov_name_l', ascending: true }
+  });
 
   // Get clinician name for treatment plan
   const clinicianName = user?.staffAttributes?.staffData 
     ? `${user.staffAttributes.staffData.prov_name_f || ''} ${user.staffAttributes.staffData.prov_name_l || ''}`.trim()
     : '';
 
+  // Check if any filters are active
+  const hasActiveFilters = statusFilter !== "all" || staffFilter !== "all";
+
+  // Clear all filters
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setStaffFilter("all");
+  };
+
   // Filter and search clients
   const filteredClients = useMemo(() => {
     let filtered = clients;
+
+    // Status filter
+    if (statusFilter !== "all") {
+      filtered = filtered?.filter(client => client.pat_status === statusFilter);
+    }
+
+    // Staff filter
+    if (staffFilter === "unassigned") {
+      filtered = filtered?.filter(client => !client.primary_staff_id);
+    } else if (staffFilter !== "all") {
+      filtered = filtered?.filter(client => client.primary_staff_id === staffFilter);
+    }
 
     // Search filter
     if (searchTerm) {
@@ -45,7 +137,7 @@ export default function AllClients() {
     }
 
     return filtered;
-  }, [clients, searchTerm]);
+  }, [clients, searchTerm, statusFilter, staffFilter]);
 
   const handleEditClient = async (data: ClientFormData) => {
     if (editingClient) {
@@ -88,8 +180,8 @@ export default function AllClients() {
       <ClientStatsCards stats={stats} />
 
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
+      <div className="space-y-3">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search clients or assigned staff..."
@@ -97,6 +189,64 @@ export default function AllClients() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
+        </div>
+        
+        {/* Filter Row */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Status Filter */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectSeparator />
+              {STATUS_GROUPS.map((group) => (
+                <SelectGroup key={group.label}>
+                  <SelectLabel>{group.label}</SelectLabel>
+                  {group.options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Staff Filter */}
+          <Select value={staffFilter} onValueChange={setStaffFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Assigned Staff" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Staff</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {staffList && staffList.length > 0 && (
+                <>
+                  <SelectSeparator />
+                  {staffList.map((staff) => (
+                    <SelectItem key={staff.id} value={staff.id}>
+                      {`${staff.prov_name_f || ''} ${staff.prov_name_l || ''}`.trim() || 'Unnamed Staff'}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+            </SelectContent>
+          </Select>
+
+          {/* Clear Filters Button */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Clear Filters
+            </Button>
+          )}
         </div>
       </div>
 
@@ -195,12 +345,20 @@ export default function AllClients() {
               <Users className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-medium text-foreground">No clients found</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {searchTerm ? "Try adjusting your search" : "No clients exist in this organization yet"}
+                {(searchTerm || hasActiveFilters) 
+                  ? "Try adjusting your search or filters" 
+                  : "No clients exist in this organization yet"}
               </p>
-              {!searchTerm && (
+              {!searchTerm && !hasActiveFilters && (
                 <Button onClick={() => setIsFormOpen(true)} className="mt-4">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Client
+                </Button>
+              )}
+              {hasActiveFilters && (
+                <Button variant="outline" onClick={clearFilters} className="mt-4">
+                  <X className="mr-2 h-4 w-4" />
+                  Clear Filters
                 </Button>
               )}
             </div>
