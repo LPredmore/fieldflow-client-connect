@@ -33,7 +33,28 @@ export const DB_ENUMS = {
   
   pat_rel_enum: ['18', '01', '19', '20', '21', '39', '40', '53', 'G8'] as const,
   
-  pat_status_enum: ['New', 'Active'] as const,
+  pat_status_enum: [
+    'Interested',
+    'New',
+    'Active',
+    'Inactive',
+    'Registered',
+    'Waitlist',
+    'Matching',
+    'Unscheduled',
+    'Scheduled',
+    'Early Sessions',
+    'Established',
+    'Not the Right Time',
+    'Found Somewhere Else',
+    'Went Dark (Previously Seen)',
+    'Blacklisted',
+    'Unresponsive - Warm',
+    'Unresponsive - Cold',
+    'Manual Check',
+    'No Insurance',
+    'DNC',
+  ] as const,
   
   phq9_severity_enum: ['none_minimal', 'mild', 'moderate', 'moderately_severe', 'severe'] as const,
   
