@@ -1,178 +1,180 @@
 
 
-# Implementation Plan: Admin Multi-Staff Appointment Filter
+# Implementation Plan: Fix Appointments Page Data Fetching
 
-## Problem Statement
+## Problem Summary
 
-Admins need the ability to view appointments for different clinicians within their organization on the Appointments page. Currently, the page only shows the logged-in user's own appointments.
+The `/staff/appointments` page is showing only 12 of 171 total appointments (7%) due to two compounding issues:
+
+| Issue | Root Cause | Impact |
+|-------|------------|--------|
+| **Date Range Restriction** | `useStaffAppointments` uses 7-day lookback / 90-day forward | 159 historical appointments excluded |
+| **Inactive Staff Exclusion** | `useTenantStaff` filters for `prov_status IN ('Active', 'New')` | Adam Smith's 102 appointments invisible to admin filter |
+| **Filter UI Overflow** | `PopoverContent` has no `max-height` or scroll area | Filter panel extends below viewport |
 
 ---
 
-## Current State Analysis
+## Database Reality
 
-### Admin Detection
-- `isAdmin` is already available from `useAuth()` in `Appointments.tsx` (line 130)
-- Derived from `user_roles` table where `role = 'admin'`
-- Also available via `user?.roleContext?.staffRoleCodes` containing `'ADMIN'` or `'ACCOUNT_OWNER'`
+```text
+Total appointments: 171
+├── Before default range (>7 days ago): 159 (93%)
+├── In default range: 12 (7%)
+└── After default range: 0
 
-### Appointment Data Flow
-- `useStaffAppointments` calls `get_staff_calendar_appointments` RPC with a single `p_staff_id`
-- Currently hardcoded to the logged-in user's `staffData.id`
-- The RPC cannot be modified (database is immutable)
-
-### Existing Staff Selector Pattern
-- `ContractorSelector` component demonstrates querying all tenant staff
-- Uses `useSupabaseQuery` with `tenant_id` filter on the `staff` table
-- Filters to 'Active' and 'New' status client-side
+Staff with appointments:
+├── Adam Smith (INACTIVE): 102 appointments ← Cannot be filtered by admin
+├── Melissa Colton (Active): 31 appointments
+├── Katie Weidenkeller (Active): 18 appointments
+├── Jennifer Russell Baker (Active): 12 appointments
+└── Lucas Predmore (Active): 8 appointments
+```
 
 ---
 
 ## Technical Decision
 
-**Approach: Multi-RPC Merge with Optional Staff Filter**
+**Create a new `useAllAppointments` hook for the Appointments page that directly queries the `public.appointments` table without calendar-specific restrictions.**
 
-Modify the system to:
-1. Add a "Clinician" multi-select filter to `AppointmentFilters` (only visible to admins)
-2. Modify `useStaffAppointments` to accept optional `staffIds` parameter
-3. When `staffIds` is provided, call the RPC for each staff ID and merge results
+### Why This Is the Right Approach
 
-**Why This Approach:**
-- No database changes required (immutable schema constraint)
-- Reuses existing, tested RPC function with timezone handling
-- Parallel fetching minimizes latency
-- Multi-select allows viewing any combination of clinicians
-- Filter UI pattern matches existing client/service/status filters
+1. **Separation of Concerns**: The calendar needs a tight date window for performance and UX. The Appointments list page needs to show all historical and future appointments for administrative/clinical purposes. These are fundamentally different use cases that should not share the same data-fetching logic.
 
-**Alternative Considered (Rejected):**
-- Direct `appointments` table query: Would bypass server-side timezone formatting, requiring significant client-side reimplementation of date handling
+2. **No Database Changes Required**: The immutable schema constraint is maintained. We're using the existing `appointments` table with standard Supabase queries.
+
+3. **Preserves Calendar Integrity**: `useStaffAppointments` continues to power the Dashboard and Calendar with its optimized date range and timezone handling. The new hook serves only the Appointments list page.
+
+4. **Pagination-Ready**: A direct table query naturally supports pagination (LIMIT/OFFSET or cursor-based), which will be essential as appointment data grows.
+
+5. **Simpler Code**: The Appointments page doesn't need fake-local Date objects for react-big-calendar positioning. It just needs raw data with proper joins.
+
+### Alternative Considered (Rejected)
+
+**Modifying `useStaffAppointments` to accept unbounded date ranges**: This would bloat a calendar-optimized hook with list-view concerns, couple unrelated features, and require managing two completely different data shapes in one hook.
 
 ---
 
 ## Implementation Details
 
-### New Hook: `useTenantStaff`
+### 1. Create New Hook: `useAllAppointments`
 
-**File: `src/hooks/useTenantStaff.tsx`**
+**File: `src/hooks/useAllAppointments.tsx`**
 
-Purpose: Fetch all staff members for the current tenant (admin-only use case)
-
-```
-Query:
-  SELECT id, prov_name_f, prov_name_l, prov_name_for_clients, prov_status
-  FROM staff
-  WHERE tenant_id = :tenantId
-  
-Filter (client-side): 
-  prov_status IN ('Active', 'New')
-
-Returns: Array of { id, name (display formatted) }
-```
-
----
-
-### Modify: `useStaffAppointments`
-
-**File: `src/hooks/useStaffAppointments.tsx`**
-
-Changes:
-1. Add optional `staffIds?: string[]` to `UseStaffAppointmentsOptions`
-2. If `staffIds` is provided and not empty:
-   - Call `get_staff_calendar_appointments` for each staff ID in parallel
-   - Merge results and deduplicate by appointment ID
-   - Set timezone from first result (all staff assumed in same org)
-3. If `staffIds` is empty or not provided, use logged-in user's staff ID (current behavior)
+Purpose: Fetch all appointments from `public.appointments` with client/service/staff joins for the Appointments list page.
 
 ```text
-interface UseStaffAppointmentsOptions {
-  enabled?: boolean;
-  range?: DateRange;
-  staffIds?: string[];  // NEW: For admin multi-clinician view
-}
+Key Features:
+- Direct query to appointments table (no RPC)
+- Joins: clients, services, staff
+- Filters by tenant_id (RLS)
+- Optional staff_id filter for admin multi-select
+- No hardcoded date range (uses filter date range if provided)
+- All appointment statuses included by default
+- Simple date string formatting (no fake-local Dates needed)
 
-fetchAppointments():
-  if (staffIds && staffIds.length > 0) {
-    // Parallel fetch for each staff
-    const results = await Promise.all(
-      staffIds.map(id => 
-        supabase.rpc('get_staff_calendar_appointments', {
-          p_staff_id: id,
-          p_from_date: range.fromISO,
-          p_to_date: range.toISO
-        })
-      )
-    );
-    // Merge and dedupe by appointment ID
-  } else {
-    // Current behavior: fetch for logged-in staff only
+Query Shape:
+  SELECT 
+    a.*,
+    c.pat_name_f, c.pat_name_l, c.pat_name_preferred,
+    s.name as service_name,
+    st.prov_name_f, st.prov_name_l, st.prov_name_for_clients
+  FROM appointments a
+  LEFT JOIN clients c ON a.client_id = c.id
+  LEFT JOIN services s ON a.service_id = s.id
+  LEFT JOIN staff st ON a.staff_id = st.id
+  WHERE a.tenant_id = :tenantId
+    AND (:staffIds IS NULL OR a.staff_id = ANY(:staffIds))
+  ORDER BY a.start_at DESC
+
+Interface:
+  interface AllAppointment {
+    id: string;
+    tenant_id: string;
+    client_id: string;
+    staff_id: string;
+    service_id: string;
+    series_id: string | null;
+    start_at: string;
+    end_at: string;
+    status: string;
+    is_telehealth: boolean;
+    location_name: string | null;
+    // Joined display fields
+    client_name: string;
+    client_legal_name: string;
+    service_name: string;
+    clinician_name: string;
+    // Formatted for display
+    display_date: string;
+    display_time: string;
   }
 ```
 
----
+### 2. Update `useTenantStaff`
 
-### Modify: `AppointmentFilters`
+**File: `src/hooks/useTenantStaff.tsx`**
 
-**File: `src/components/Appointments/AppointmentFilters.tsx`**
-
-Changes:
-1. Add new prop: `isAdmin: boolean`
-2. Add new prop: `tenantStaff: { id: string; name: string }[]`
-3. Add new prop: `onStaffFilterChange: (staffIds: string[]) => void`
-4. Add new state field: `staffIds: string[]` to `AppointmentFilterValues`
-5. Render multi-select clinician filter only when `isAdmin === true`
+Change: Remove the status filter OR add a new option to include inactive staff.
 
 ```text
-interface AppointmentFilterValues {
-  status: string | null;
-  clientId: string | null;
-  serviceId: string | null;
-  dateFrom: Date | null;
-  dateTo: Date | null;
-  staffIds: string[];  // NEW: Multi-select staff filter
-}
+Current (problematic):
+  .in('prov_status', ['Active', 'New'])
+
+Option A - Include all staff:
+  // Remove the filter entirely for admin use cases
+
+Option B - Add parameter (chosen):
+  export function useTenantStaff(options?: { includeInactive?: boolean }) {
+    const statusFilter = options?.includeInactive 
+      ? undefined 
+      : ['Active', 'New'];
+    
+    // Apply statusFilter conditionally
+  }
 ```
 
-UI Addition (admin only):
+The Appointments page will call `useTenantStaff({ includeInactive: true })` to show all clinicians who have ever had appointments, regardless of current status.
+
+### 3. Update `AppointmentFilters` PopoverContent
+
+**File: `src/pages/Appointments.tsx`**
+
+Change: Add `max-height` and `overflow-y-auto` to the PopoverContent.
+
 ```text
-┌────────────────────────────────────────────────────────────┐
-│ Clinician (Admin only)                                     │
-│ ┌──────────────────────────────────────────────────────┐  │
-│ │ [Select clinicians...      ] [v]                      │  │
-│ └──────────────────────────────────────────────────────┘  │
-│ [Maya Butler] [x]  [Katie Weidenkeller] [x]               │
-└────────────────────────────────────────────────────────────┘
+Current:
+  <PopoverContent className="w-80" align="end">
+
+Fixed:
+  <PopoverContent className="w-80 max-h-[80vh] overflow-y-auto" align="end">
 ```
 
----
-
-### Modify: `Appointments.tsx`
+### 4. Update `Appointments.tsx` to Use New Hook
 
 **File: `src/pages/Appointments.tsx`**
 
 Changes:
-1. Import and use `useTenantStaff` hook
-2. Update `DEFAULT_FILTERS` to include `staffIds: []`
-3. Update `activeFilterCount` to count non-empty `staffIds`
-4. Pass `staffIds` from filters to `useStaffAppointments` options
-5. Pass `isAdmin`, `tenantStaff`, and filter handlers to `AppointmentFilters`
+- Import and use `useAllAppointments` instead of `useStaffAppointments`
+- Pass `{ includeInactive: true }` to `useTenantStaff`
+- Remove series mixing (optional - keep if series display is desired)
+- Simplify date/time display (use appointment's start_at directly formatted)
 
 ```text
-// Add to DEFAULT_FILTERS
-const DEFAULT_FILTERS = {
-  ...existing,
-  staffIds: [],  // Empty = show logged-in user's appointments
-};
+// Before
+import { useStaffAppointments } from '@/hooks/useStaffAppointments';
 
-// Hook call with conditional staffIds
 const { appointments, ... } = useStaffAppointments({
-  staffIds: isAdmin ? filters.staffIds : undefined,
+  staffIds: isAdmin && filters.staffIds.length > 0 ? filters.staffIds : undefined,
 });
 
-// Pass to AppointmentFilters
-<AppointmentFilters
-  ...existing
-  isAdmin={isAdmin}
-  tenantStaff={tenantStaff}
-/>
+// After
+import { useAllAppointments } from '@/hooks/useAllAppointments';
+
+const { appointments, ... } = useAllAppointments({
+  staffIds: isAdmin ? (filters.staffIds.length > 0 ? filters.staffIds : undefined) : undefined,
+  dateFrom: filters.dateFrom?.toISOString(),
+  dateTo: filters.dateTo?.toISOString(),
+});
 ```
 
 ---
@@ -181,47 +183,65 @@ const { appointments, ... } = useStaffAppointments({
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `src/hooks/useTenantStaff.tsx` | Create | Fetch all staff for tenant |
-| `src/hooks/useStaffAppointments.tsx` | Modify | Accept staffIds array, parallel fetch & merge |
-| `src/components/Appointments/AppointmentFilters.tsx` | Modify | Add clinician multi-select (admin only) |
-| `src/pages/Appointments.tsx` | Modify | Wire up admin staff filter |
+| `src/hooks/useAllAppointments.tsx` | **Create** | New hook for list view, directly queries appointments table |
+| `src/hooks/useTenantStaff.tsx` | **Modify** | Add `includeInactive` option to show all clinicians |
+| `src/pages/Appointments.tsx` | **Modify** | Use new hook, fix PopoverContent overflow |
+| `src/components/Appointments/AppointmentFilters.tsx` | No change | Already correctly structured |
 
 ---
 
-## Data Flow Diagram
+## Data Flow After Fix
 
 ```text
-Admin User Opens /staff/appointments
+Admin visits /staff/appointments
          │
          ▼
-Appointments.tsx renders
-         │
-         ├─► useTenantStaff() → Fetches all org clinicians
-         │                     (for filter dropdown)
-         │
-         ├─► isAdmin = true (from useAuth)
+useTenantStaff({ includeInactive: true })
+  → Returns ALL 9 staff members (including Adam Smith)
          │
          ▼
-Admin selects clinicians in filter
-  e.g., [Maya Butler, Katie Weidenkeller]
+useAllAppointments({
+  staffIds: filters.staffIds (if any selected),
+  dateFrom: filters.dateFrom,
+  dateTo: filters.dateTo
+})
          │
          ▼
-filters.staffIds = ['id-1', 'id-2']
+Direct query to appointments table
+  → No RPC date restrictions
+  → Joins client/service/staff
+  → Returns 171 appointments (or filtered subset)
          │
          ▼
-useStaffAppointments({ staffIds: ['id-1', 'id-2'] })
-         │
-         ├─► Promise.all([
-         │     rpc('get_staff_calendar_appointments', { p_staff_id: 'id-1' }),
-         │     rpc('get_staff_calendar_appointments', { p_staff_id: 'id-2' })
-         │   ])
+Client-side filtering for status/client/service
          │
          ▼
-Merge & dedupe results
-         │
-         ▼
-Display combined appointment list
+Display in table with all data visible
 ```
+
+---
+
+## Date Display Formatting
+
+Since we're not using the RPC's timezone formatting, the new hook will format dates client-side. For the Appointments list (administrative view), browser-local formatting is acceptable:
+
+```typescript
+// Simple formatting in useAllAppointments
+const display_date = new Date(row.start_at).toLocaleDateString('en-US', {
+  weekday: 'short',
+  month: 'short', 
+  day: 'numeric',
+  year: 'numeric'
+});
+
+const display_time = new Date(row.start_at).toLocaleTimeString('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true
+});
+```
+
+For clinicians viewing their own appointments, this shows times in their browser's timezone. This is reasonable for a list view (unlike the calendar where precise staff-timezone positioning is critical).
 
 ---
 
@@ -229,47 +249,50 @@ Display combined appointment list
 
 | Scenario | Handling |
 |----------|----------|
-| Admin selects no clinicians | Show logged-in admin's own appointments (default behavior) |
-| Admin selects themselves only | Single RPC call, no merging needed |
-| Non-admin user | `staffIds` prop undefined, ignores multi-select entirely |
-| Staff member has no appointments | RPC returns empty array, merged result just excludes them |
-| Tenant has many staff (10+) | Multi-select handles scrolling; parallel RPCs are efficient |
+| Admin selects no clinicians | Show all appointments for tenant |
+| Non-admin user | Filter by their own staff_id automatically |
+| Inactive staff with appointments | Visible in filter and results |
+| Large dataset (1000+ appointments) | Future: add pagination (not in this scope) |
+| Date filter spans years | Supported - no artificial restrictions |
 
 ---
 
 ## Testing Checklist
 
-1. **Admin-Only Visibility**
-   - [ ] Clinician multi-select appears only for admin users
-   - [ ] Non-admins see standard filter UI without clinician selector
+1. **Data Visibility**
+   - [ ] All 171 appointments visible when no filters applied (admin)
+   - [ ] Adam Smith's 102 appointments accessible via clinician filter
+   - [ ] Historical appointments (before 7 days ago) visible
+   - [ ] All status types (scheduled, documented, cancelled, late_cancel/noshow) displayed
 
-2. **Multi-Staff Selection**
-   - [ ] Selecting 1 clinician shows only their appointments
-   - [ ] Selecting multiple clinicians shows combined appointments
-   - [ ] Clearing selection returns to logged-in user's appointments
+2. **Admin Multi-Clinician Filter**
+   - [ ] All 9 staff members appear in clinician dropdown (including Inactive)
+   - [ ] Selecting inactive clinician shows their historical appointments
+   - [ ] Multi-select works correctly
 
-3. **Filter Interactions**
-   - [ ] Clinician filter works with status filter
-   - [ ] Clinician filter works with client filter
-   - [ ] Clinician filter works with date range filter
-   - [ ] Filter badge count includes clinician selections
+3. **Filter UI**
+   - [ ] Filter popover scrolls when content exceeds viewport
+   - [ ] All filter options accessible on smaller screens
 
-4. **Data Integrity**
-   - [ ] No duplicate appointments when same appointment appears in multiple queries
-   - [ ] Timezone formatting preserved for all staff members
-   - [ ] Appointment details (client name, service, etc.) display correctly
+4. **Non-Admin Experience**
+   - [ ] Non-admin sees only their own appointments
+   - [ ] Clinician filter is hidden for non-admins
 
-5. **Performance**
-   - [ ] Parallel fetches complete in reasonable time
-   - [ ] UI remains responsive during multi-staff fetch
+---
+
+## What This Does NOT Change
+
+- **Dashboard (`Index.tsx`)**: Continues using `useStaffAppointments` with its calendar-optimized date range
+- **Calendar (`RBCCalendar`)**: Continues using `useStaffAppointments` with fake-local Date objects
+- **Database schema**: No changes (immutable constraint respected)
+- **RPC functions**: No changes needed
 
 ---
 
 ## Technical Notes
 
-- No database changes required
-- No new RPC functions needed
-- Reuses existing `get_staff_calendar_appointments` with proven timezone handling
-- Multi-select uses existing `cmdk` Command component pattern from the codebase
-- Admin detection uses established `isAdmin` from auth context
+- The new hook uses standard Supabase `.from().select()` pattern with explicit joins
+- RLS policies on `appointments` table will automatically filter by tenant
+- Date filtering happens both in the query (if provided) and client-side (for real-time filter changes)
+- Status is typed as `string` (not enum) for flexibility with filter comparisons
 
