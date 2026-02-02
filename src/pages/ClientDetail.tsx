@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { 
   ArrowLeft, 
   Pencil, 
@@ -13,9 +14,11 @@ import {
   FileText, 
   CreditCard, 
   Users,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
-import { useClientDetail, ClientDetailTab, FormResponseWithTemplate, SessionNote } from '@/hooks/useClientDetail';
+import { format } from 'date-fns';
+import { useClientDetail, ClientDetailTab, FormResponseWithTemplate, SessionNote, CompletedDocument, ClientHistoryForm, ClientTelehealthConsent } from '@/hooks/useClientDetail';
 import { useClientFormAssignments } from '@/hooks/useClientFormAssignments';
 import { useClientConsentStatus } from '@/hooks/useClientConsentStatus';
 import { getClientDisplayName } from '@/utils/clientDisplayName';
@@ -36,6 +39,19 @@ import { BatchSessionNotePrintDialog } from '@/components/Clinical/BatchSessionN
 import { ResponseDetailDialog } from '@/components/Forms/Responses/ResponseDetailDialog';
 import { ClientFormData } from '@/types/client';
 import { useClients } from '@/hooks/useClients';
+
+// Helper to format consent template keys into readable names
+function formatConsentName(key: string): string {
+  const nameMap: Record<string, string> = {
+    'treatment_consent': 'Consent for Treatment',
+    'hipaa_notice': 'HIPAA Notice',
+    'financial_agreement': 'Financial Agreement',
+    'telehealth_informed_consent': 'Telehealth Informed Consent',
+  };
+  return nameMap[key] || key.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+}
 
 export default function ClientDetail() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -69,6 +85,10 @@ export default function ClientDetail() {
       full_name?: string;
     };
   } | null>(null);
+  
+  // New dialog states for history forms and consents
+  const [viewingHistoryForm, setViewingHistoryForm] = useState<ClientHistoryForm | null>(null);
+  const [viewingConsent, setViewingConsent] = useState<ClientTelehealthConsent | null>(null);
 
   // Fetch client data with lazy loading per tab
   const {
@@ -81,6 +101,7 @@ export default function ClientDetail() {
     phq9Assessments,
     gad7Assessments,
     pcl5Assessments,
+    completedDocuments,
     formResponses,
     insurance,
     emergencyContacts,
@@ -167,6 +188,21 @@ export default function ClientDetail() {
         full_name: client.full_name,
       },
     });
+  };
+
+  // Unified document viewing handler
+  const handleViewDocument = (doc: CompletedDocument) => {
+    switch (doc.sourceData.type) {
+      case 'form_response':
+        handleViewFormResponse(doc.sourceData.data);
+        break;
+      case 'history_form':
+        setViewingHistoryForm(doc.sourceData.data);
+        break;
+      case 'consent':
+        setViewingConsent(doc.sourceData.data);
+        break;
+    }
   };
 
   const handleEditClient = async (data: ClientFormData) => {
@@ -332,10 +368,10 @@ export default function ClientDetail() {
         <TabsContent value="forms">
           <ClientFormsTab
             loading={tabLoading.forms}
-            formResponses={formResponses}
+            completedDocuments={completedDocuments}
             formAssignments={formAssignments}
             assignmentsLoading={assignmentsLoading}
-            onViewResponse={handleViewFormResponse}
+            onViewDocument={handleViewDocument}
             onAssignForm={() => setIsAssignFormOpen(true)}
             onCancelAssignment={cancelAssignment}
             consentStatuses={consentStatuses}
@@ -410,6 +446,87 @@ export default function ClientDetail() {
           }}
         />
       )}
+
+      {/* History Form View Dialog */}
+      <Dialog open={!!viewingHistoryForm} onOpenChange={(open) => !open && setViewingHistoryForm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Client History Intake Form
+            </DialogTitle>
+            <DialogDescription>
+              Submitted intake questionnaire for this client.
+            </DialogDescription>
+          </DialogHeader>
+          {viewingHistoryForm && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span>
+                  Submitted on {format(new Date(viewingHistoryForm.submission_date || viewingHistoryForm.created_at), 'MMMM d, yyyy')}
+                </span>
+              </div>
+              {viewingHistoryForm.signature && (
+                <div className="border rounded-md p-3 bg-muted/50">
+                  <p className="text-xs text-muted-foreground mb-1">Signature</p>
+                  <p className="text-sm font-medium">{viewingHistoryForm.signature}</p>
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground">
+                The full intake form data is available in the client's clinical records.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Consent View Dialog */}
+      <Dialog open={!!viewingConsent} onOpenChange={(open) => !open && setViewingConsent(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              {viewingConsent ? formatConsentName(viewingConsent.consent_template_key) : 'Consent Document'}
+            </DialogTitle>
+            <DialogDescription>
+              Signed consent document details.
+            </DialogDescription>
+          </DialogHeader>
+          {viewingConsent && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span>
+                  Signed on {format(new Date(viewingConsent.signed_at), 'MMMM d, yyyy \'at\' h:mm a')}
+                </span>
+              </div>
+              <div className="border rounded-md p-3 bg-muted/50 space-y-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Consent Type</p>
+                  <p className="text-sm font-medium">{formatConsentName(viewingConsent.consent_template_key)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Version</p>
+                  <p className="text-sm font-medium">{viewingConsent.consent_template_version}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Signature Date</p>
+                  <p className="text-sm font-medium">{format(new Date(viewingConsent.signature_date), 'MMMM d, yyyy')}</p>
+                </div>
+              </div>
+              {viewingConsent.is_revoked && (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>
+                    This consent was revoked on {viewingConsent.revoked_at ? format(new Date(viewingConsent.revoked_at), 'MMMM d, yyyy') : 'an unknown date'}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Form Dialog */}
       <AssignFormDialog

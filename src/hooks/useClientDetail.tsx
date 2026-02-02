@@ -188,6 +188,45 @@ export interface FormResponseWithTemplate {
   };
 }
 
+export interface ClientHistoryForm {
+  id: string;
+  tenant_id: string;
+  client_id: string;
+  submission_date: string | null;
+  signature: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientTelehealthConsent {
+  id: string;
+  client_id: string;
+  consent_template_key: string;
+  consent_template_version: string;
+  signature_date: string;
+  signed_at: string;
+  is_revoked: boolean;
+  revoked_at: string | null;
+}
+
+// Unified document type for the completed forms display
+export interface CompletedDocument {
+  id: string;
+  source: 'form_response' | 'history_form' | 'consent';
+  name: string;
+  submittedAt: string;
+  sourceData: {
+    type: 'form_response';
+    data: FormResponseWithTemplate;
+  } | {
+    type: 'history_form';
+    data: ClientHistoryForm;
+  } | {
+    type: 'consent';
+    data: ClientTelehealthConsent;
+  };
+}
+
 export interface ClientInsurance {
   id: string;
   client_id: string;
@@ -235,6 +274,19 @@ export type ClientDetailTab = 'overview' | 'clinical' | 'assessments' | 'forms' 
 interface UseClientDetailOptions {
   clientId: string | null;
   activeTab?: ClientDetailTab;
+}
+
+// Helper to format consent template keys into readable names
+function formatConsentName(key: string): string {
+  const nameMap: Record<string, string> = {
+    'treatment_consent': 'Consent for Treatment',
+    'hipaa_notice': 'HIPAA Notice',
+    'financial_agreement': 'Financial Agreement',
+    'telehealth_informed_consent': 'Telehealth Informed Consent',
+  };
+  return nameMap[key] || key.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
 }
 
 export function useClientDetail({ clientId, activeTab = 'overview' }: UseClientDetailOptions) {
@@ -336,6 +388,30 @@ export function useClientDetail({ clientId, activeTab = 'overview' }: UseClientD
     orderBy: { column: 'submitted_at', ascending: false },
   });
 
+  // Client history forms (intake questionnaire)
+  const {
+    data: historyForms,
+    loading: historyFormsLoading,
+  } = useSupabaseQuery<ClientHistoryForm>({
+    table: 'client_history_forms',
+    select: 'id, tenant_id, client_id, submission_date, signature, created_at, updated_at',
+    filters: { client_id: clientId, tenant_id: 'auto' },
+    enabled: !!clientId && fetchForms,
+    orderBy: { column: 'created_at', ascending: false },
+  });
+
+  // Client telehealth consents (signed consent documents)
+  const {
+    data: telehealthConsents,
+    loading: consentsLoading,
+  } = useSupabaseQuery<ClientTelehealthConsent>({
+    table: 'client_telehealth_consents',
+    select: 'id, client_id, consent_template_key, consent_template_version, signature_date, signed_at, is_revoked, revoked_at',
+    filters: { client_id: clientId, is_revoked: false },
+    enabled: !!clientId && fetchForms,
+    orderBy: { column: 'signed_at', ascending: false },
+  });
+
   // Insurance tab data - only fetch when insurance tab is active
   const fetchInsurance = activeTab === 'insurance';
 
@@ -401,17 +477,60 @@ export function useClientDetail({ clientId, activeTab = 'overview' }: UseClientD
     return diagnoses.filter(d => d.is_active);
   }, [diagnoses]);
 
+  // Create unified completed documents list
+  const completedDocuments = useMemo(() => {
+    const docs: CompletedDocument[] = [];
+    
+    // Add form_responses (dynamic forms)
+    (formResponses || []).forEach(response => {
+      docs.push({
+        id: response.id,
+        source: 'form_response',
+        name: response.form_template?.name || 'Form Submission',
+        submittedAt: response.submitted_at,
+        sourceData: { type: 'form_response', data: response }
+      });
+    });
+    
+    // Add client_history_forms (intake history)
+    (historyForms || []).forEach(form => {
+      docs.push({
+        id: form.id,
+        source: 'history_form',
+        name: 'Client History Intake Form',
+        submittedAt: form.submission_date || form.created_at,
+        sourceData: { type: 'history_form', data: form }
+      });
+    });
+    
+    // Add client_telehealth_consents (signed consents, excluding revoked)
+    (telehealthConsents || []).filter(c => !c.is_revoked).forEach(consent => {
+      docs.push({
+        id: consent.id,
+        source: 'consent',
+        name: formatConsentName(consent.consent_template_key),
+        submittedAt: consent.signed_at,
+        sourceData: { type: 'consent', data: consent }
+      });
+    });
+    
+    // Sort by date descending (newest first)
+    return docs.sort((a, b) => 
+      new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+    );
+  }, [formResponses, historyForms, telehealthConsents]);
+
   // Calculate loading states for each tab
   const tabLoading = useMemo(() => ({
     overview: clientLoading,
     clinical: treatmentPlansLoading || diagnosesLoading || sessionNotesLoading,
     assessments: phq9Loading || gad7Loading || pcl5Loading,
-    forms: formResponsesLoading,
+    forms: formResponsesLoading || historyFormsLoading || consentsLoading,
     insurance: insuranceLoading,
     contacts: contactsLoading,
   }), [
     clientLoading, treatmentPlansLoading, diagnosesLoading, sessionNotesLoading,
-    phq9Loading, gad7Loading, pcl5Loading, formResponsesLoading, 
+    phq9Loading, gad7Loading, pcl5Loading, formResponsesLoading, historyFormsLoading, consentsLoading,
     insuranceLoading, contactsLoading
   ]);
 
@@ -433,8 +552,11 @@ export function useClientDetail({ clientId, activeTab = 'overview' }: UseClientD
     gad7Assessments: gad7Assessments || [],
     pcl5Assessments: pcl5Assessments || [],
     
-    // Forms
+    // Forms - unified documents list
+    completedDocuments,
     formResponses: formResponses || [],
+    historyForms: historyForms || [],
+    telehealthConsents: telehealthConsents || [],
     
     // Insurance
     insurance: insurance || [],
