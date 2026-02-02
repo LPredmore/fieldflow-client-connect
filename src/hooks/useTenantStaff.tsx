@@ -9,23 +9,37 @@ export interface TenantStaffMember {
   status: string;
 }
 
+interface UseTenantStaffOptions {
+  /** Include inactive staff members (default: false) */
+  includeInactive?: boolean;
+}
+
 /**
  * Fetches all staff members for the current tenant.
  * Used by admins to filter appointments by clinician.
+ * 
+ * @param options.includeInactive - If true, includes staff with any status (for historical data)
  */
-export function useTenantStaff() {
+export function useTenantStaff(options: UseTenantStaffOptions = {}) {
   const { tenantId, isAdmin } = useAuth();
+  const { includeInactive = false } = options;
 
   const { data: staffMembers, isLoading, error } = useQuery({
-    queryKey: ['tenant-staff', tenantId],
+    queryKey: ['tenant-staff', tenantId, includeInactive],
     queryFn: async () => {
       if (!tenantId) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('staff')
         .select('id, prov_name_f, prov_name_l, prov_name_for_clients, prov_status')
-        .eq('tenant_id', tenantId)
-        .in('prov_status', ['Active', 'New']);
+        .eq('tenant_id', tenantId);
+
+      // Only filter by status if not including inactive
+      if (!includeInactive) {
+        query = query.in('prov_status', ['Active', 'New']);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('[useTenantStaff] Error fetching staff:', error);
