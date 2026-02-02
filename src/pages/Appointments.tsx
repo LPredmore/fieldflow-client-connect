@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Search, Filter, Clock, Video } from "lucide-react";
+import { Plus, Search, Filter, Video } from "lucide-react";
 import RoleIndicator from "@/components/Layout/RoleIndicator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,28 +29,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useStaffAppointments, StaffAppointment } from "@/hooks/useStaffAppointments";
-import { useAppointmentSeries, AppointmentSeries } from "@/hooks/useAppointmentSeries";
+import { useAllAppointments, AllAppointment } from "@/hooks/useAllAppointments";
 import { useAuth } from "@/hooks/useAuth";
 import { useClients } from "@/hooks/useClients";
 import { useServices } from "@/hooks/useServices";
 import { useTenantStaff } from "@/hooks/useTenantStaff";
 import AppointmentView from "@/components/Appointments/AppointmentView";
-import AppointmentSeriesView from "@/components/Appointments/AppointmentSeriesView";
 import { CreateAppointmentDialog } from "@/components/Appointments/CreateAppointmentDialog";
 import { AppointmentFilters, AppointmentFilterValues } from "@/components/Appointments/AppointmentFilters";
 import { useToast } from "@/hooks/use-toast";
-
-const TimezoneIndicator = ({ timezone }: { timezone: string }) => {
-  if (!timezone) return null;
-  
-  return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <Clock className="h-4 w-4" />
-      <span>Times shown in {timezone}</span>
-    </div>
-  );
-};
+import { supabase } from "@/integrations/supabase/client";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -75,14 +63,6 @@ const STATUS_LABELS: Record<string, string> = {
   "late_cancel/noshow": "Late Cancel / No Show",
 };
 
-// Type to represent either an appointment or a series in the combined list
-type ListItem = (StaffAppointment & { itemType: 'appointment' }) | (AppointmentSeries & { itemType: 'series' });
-
-// Type guard to check if item is AppointmentSeries
-function isAppointmentSeries(item: ListItem): item is (AppointmentSeries & { itemType: 'series' }) {
-  return item.itemType === 'series';
-}
-
 const DEFAULT_FILTERS: AppointmentFilterValues = {
   status: null,
   clientId: null,
@@ -94,59 +74,34 @@ const DEFAULT_FILTERS: AppointmentFilterValues = {
 
 export default function Appointments() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewAppointmentId, setViewAppointmentId] = useState<string | null>(null);
-  const [viewSeries, setViewSeries] = useState<AppointmentSeries | null>(null);
+  const [viewAppointment, setViewAppointment] = useState<AllAppointment | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleteType, setDeleteType] = useState<'appointment' | 'series'>('appointment');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<AppointmentFilterValues>(DEFAULT_FILTERS);
   
-  // Use unified staff appointments for timezone-aware display with pre-formatted strings
-  // For admins, pass selected staff IDs; otherwise use default (logged-in user)
-  const { userRole, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   
-  // Fetch tenant staff for admin multi-clinician filter
-  const { tenantStaff } = useTenantStaff();
+  // Fetch tenant staff for admin multi-clinician filter (include inactive for historical data)
+  const { tenantStaff } = useTenantStaff({ includeInactive: true });
   
+  // Use the new useAllAppointments hook - directly queries appointments table
   const { 
     appointments, 
-    getAppointmentById, 
-    staffTimezone,
-    updateAppointment,
-    deleteAppointment,
+    loading,
     refetch: refetchAppointments,
-    loading: appointmentsLoading,
-  } = useStaffAppointments({
+  } = useAllAppointments({
     // Only pass staffIds for admins when they have selected specific clinicians
     staffIds: isAdmin && filters.staffIds.length > 0 ? filters.staffIds : undefined,
+    dateFrom: filters.dateFrom?.toISOString(),
+    dateTo: filters.dateTo?.toISOString(),
   });
-  
-  // Use appointment series for series CRUD operations
-  const {
-    series,
-    updateSeries,
-    deleteSeries,
-    refetch: refetchSeries,
-    loading: seriesLoading,
-  } = useAppointmentSeries();
   
   // Fetch clients and services for filter dropdowns
   const { clients } = useClients();
   const { services } = useServices();
   
-  // Get the selected appointment with pre-formatted display strings
-  const viewAppointment = viewAppointmentId ? getAppointmentById(viewAppointmentId) : null;
-  
   const { toast } = useToast();
-  
-  const loading = appointmentsLoading || seriesLoading;
-
-  // Combine appointments and series into a single list with type discriminator
-  const allItems: ListItem[] = [
-    ...appointments.map(a => ({ ...a, itemType: 'appointment' as const })),
-    ...series.map(s => ({ ...s, itemType: 'series' as const })),
-  ];
   
   // Count active filters for badge
   const activeFilterCount = useMemo(() => {
@@ -160,9 +115,9 @@ export default function Appointments() {
     return count;
   }, [filters]);
   
-  // Filter based on search term and advanced filters
-  const filteredItems = useMemo(() => {
-    return allItems.filter(item => {
+  // Filter based on search term and client-side filters (status, client, service)
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter(item => {
       // Text search
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
@@ -172,15 +127,9 @@ export default function Appointments() {
       
       if (!matchesSearch) return false;
       
-      // Status filter (only for appointments, series have is_active)
-      if (filters.status) {
-        if (isAppointmentSeries(item)) {
-          // Map status filter to series is_active
-          if (filters.status === 'scheduled' && !item.is_active) return false;
-          if (filters.status === 'cancelled' && item.is_active) return false;
-        } else {
-          if (item.status !== filters.status) return false;
-        }
+      // Status filter
+      if (filters.status && item.status !== filters.status) {
+        return false;
       }
       
       // Client filter
@@ -193,55 +142,36 @@ export default function Appointments() {
         return false;
       }
       
-      // Date range filter
-      if (filters.dateFrom || filters.dateTo) {
-        let itemDate: Date;
-        if (isAppointmentSeries(item)) {
-          itemDate = item.next_occurrence_date 
-            ? new Date(item.next_occurrence_date) 
-            : new Date(item.start_at);
-        } else {
-          itemDate = new Date(item.start_at);
-        }
-        
-        if (filters.dateFrom && itemDate < filters.dateFrom) return false;
-        if (filters.dateTo) {
-          // Include the entire end date
-          const endOfDay = new Date(filters.dateTo);
-          endOfDay.setHours(23, 59, 59, 999);
-          if (itemDate > endOfDay) return false;
-        }
-      }
-      
       return true;
     });
-  }, [allItems, searchTerm, filters]);
+  }, [appointments, searchTerm, filters.status, filters.clientId, filters.serviceId]);
 
-  const handleViewItem = (item: ListItem) => {
-    if (isAppointmentSeries(item)) {
-      // Extract series without itemType for the modal
-      const { itemType, ...seriesData } = item;
-      setViewSeries(seriesData);
-    } else {
-      setViewAppointmentId(item.id);
-    }
+  const handleViewAppointment = (appointment: AllAppointment) => {
+    setViewAppointment(appointment);
   };
 
-  const handleDelete = (id: string, type: 'appointment' | 'series') => {
+  const handleDelete = (id: string) => {
     setDeleteId(id);
-    setDeleteType(type);
   };
 
   const confirmDelete = async () => {
     if (!deleteId) return;
     
     try {
-      if (deleteType === 'series') {
-        await deleteSeries(deleteId);
-      } else {
-        await deleteAppointment(deleteId);
-      }
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', deleteId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Appointment deleted",
+        description: "The appointment has been deleted successfully.",
+      });
+      
       setDeleteId(null);
+      refetchAppointments();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -252,73 +182,23 @@ export default function Appointments() {
   };
 
   const handleRefresh = async () => {
-    await Promise.all([refetchAppointments(), refetchSeries()]);
+    await refetchAppointments();
   };
 
-  const getItemDate = (item: ListItem) => {
-    if (isAppointmentSeries(item)) {
-      // For series, show next occurrence or "No upcoming"
-      if (item.next_occurrence_date) {
-        return new Date(item.next_occurrence_date).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
-      }
-      return 'No upcoming';
-    }
-    // For appointments, use pre-formatted display_date if available
-    return item.display_date || new Date(item.start_at).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const getItemStatus = (item: ListItem) => {
-    if (isAppointmentSeries(item)) {
-      return item.is_active ? 'Active' : 'Inactive';
-    }
-    return item.status;
-  };
-
-  const getItemStatusLabel = (item: ListItem) => {
-    if (isAppointmentSeries(item)) {
-      return item.is_active ? 'Active Series' : 'Inactive Series';
-    }
-    return STATUS_LABELS[item.status] || item.status;
-  };
-
-  const getItemStatusColor = (item: ListItem) => {
-    if (isAppointmentSeries(item)) {
-      return item.is_active 
-        ? 'bg-success text-success-foreground' 
-        : 'bg-muted text-muted-foreground';
-    }
-    return getStatusColor(item.status);
-  };
-
-  // Get client display name: preferred name + last name
-  const getClientDisplayName = (item: ListItem) => {
-    // For appointments, we have client_legal_name which is "First Last"
-    // But we want "Preferred Last" - the hook gives us client_name (preferred) and client_legal_name
-    if (!isAppointmentSeries(item)) {
-      // client_legal_name is "First Last", we need to extract last name
-      const legalName = item.client_legal_name || '';
-      const lastNameMatch = legalName.split(' ').pop() || '';
-      const preferredOrFirst = item.client_name || legalName.split(' ')[0] || '';
-      
-      if (preferredOrFirst && lastNameMatch && preferredOrFirst !== lastNameMatch) {
-        return `${preferredOrFirst} ${lastNameMatch}`;
-      }
-      return item.client_name || legalName || 'Unknown Client';
-    }
-    // For series, use client_name which includes preferred name
-    return item.client_name || 'Unknown Client';
+  // For AppointmentView compatibility, create a minimal update handler
+  const handleUpdateAppointment = async (id: string, updates: any) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update(updates)
+      .eq('id', id);
+    
+    if (error) throw error;
+    
+    await refetchAppointments();
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-y-auto">
       <div className="w-full">
         <div className="p-6 lg:p-8">
           {/* Header */}
@@ -327,7 +207,6 @@ export default function Appointments() {
               <div>
                 <h1 className="text-3xl font-bold text-foreground mb-2">Appointments</h1>
                 <p className="text-muted-foreground">Manage and track your appointments</p>
-                <TimezoneIndicator timezone={staffTimezone} />
               </div>
               <RoleIndicator />
             </div>
@@ -372,7 +251,7 @@ export default function Appointments() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80" align="end">
+                  <PopoverContent className="w-80 max-h-[80vh] overflow-y-auto" align="end">
                     <AppointmentFilters
                       filters={filters}
                       onFiltersChange={setFilters}
@@ -391,7 +270,7 @@ export default function Appointments() {
           {/* Appointments Table */}
           <Card className="shadow-material-md">
             <CardHeader>
-              <CardTitle>All Appointments</CardTitle>
+              <CardTitle>All Appointments ({filteredAppointments.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -415,7 +294,7 @@ export default function Appointments() {
                         ))}
                       </TableRow>
                     ))
-                  ) : filteredItems.length === 0 ? (
+                  ) : filteredAppointments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         {searchTerm || activeFilterCount > 0
@@ -424,30 +303,30 @@ export default function Appointments() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredItems.map((item) => (
+                    filteredAppointments.map((appointment) => (
                       <TableRow 
-                        key={item.id} 
+                        key={appointment.id} 
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => handleViewItem(item)}
+                        onClick={() => handleViewAppointment(appointment)}
                       >
                         <TableCell className="font-medium">
-                          {getClientDisplayName(item)}
+                          {appointment.client_name}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {item.service_name}
-                            {!isAppointmentSeries(item) && item.is_telehealth && (
+                            {appointment.service_name}
+                            {appointment.is_telehealth && (
                               <Video className="h-4 w-4 text-muted-foreground" />
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{item.clinician_name}</TableCell>
+                        <TableCell>{appointment.clinician_name}</TableCell>
                         <TableCell>
-                          <Badge className={getItemStatusColor(item)}>
-                            {getItemStatusLabel(item)}
+                          <Badge className={getStatusColor(appointment.status)}>
+                            {STATUS_LABELS[appointment.status] || appointment.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{getItemDate(item)}</TableCell>
+                        <TableCell>{appointment.display_date}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -458,7 +337,7 @@ export default function Appointments() {
         </div>
 
         {/* Appointment View Modal */}
-        <Dialog open={!!viewAppointment} onOpenChange={() => setViewAppointmentId(null)}>
+        <Dialog open={!!viewAppointment} onOpenChange={() => setViewAppointment(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Appointment Details</DialogTitle>
@@ -466,23 +345,8 @@ export default function Appointments() {
             {viewAppointment && (
               <AppointmentView 
                 job={viewAppointment}
-                onUpdate={updateAppointment}
+                onUpdate={handleUpdateAppointment}
                 onRefresh={handleRefresh}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Series View Modal */}
-        <Dialog open={!!viewSeries} onOpenChange={() => setViewSeries(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Appointment Series Details</DialogTitle>
-            </DialogHeader>
-            {viewSeries && (
-              <AppointmentSeriesView 
-                jobSeries={viewSeries}
-                onUpdate={updateSeries}
               />
             )}
           </DialogContent>
@@ -494,10 +358,7 @@ export default function Appointments() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                {deleteType === 'series' 
-                  ? 'This will delete the series and all its scheduled appointments. This action cannot be undone.'
-                  : 'This will permanently delete this appointment. This action cannot be undone.'
-                }
+                This will permanently delete this appointment. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
