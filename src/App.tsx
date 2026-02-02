@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import ResetPasswordRedirect from "./pages/ResetPasswordRedirect";
 // OLD AuthProvider DISABLED - Using new unified system
 // import { AuthProvider } from "@/hooks/useAuth";
 import { AuthenticationProvider } from "@/providers/AuthenticationProvider";
@@ -45,6 +46,7 @@ const App = () => {
                         <Routes>
                           {/* Public routes */}
                           <Route path="/auth" element={<Auth />} />
+                          <Route path="/reset-password" element={<ResetPasswordRedirect />} />
                           <Route path="/complete-signup" element={<CompleteSignup />} />
                           
                           {/* Staff Portal - All staff routes under /staff/* */}
