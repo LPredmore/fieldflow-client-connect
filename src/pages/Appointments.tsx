@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Search, Filter, Clock, Video } from "lucide-react";
 import RoleIndicator from "@/components/Layout/RoleIndicator";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,9 +32,12 @@ import {
 import { useStaffAppointments, StaffAppointment } from "@/hooks/useStaffAppointments";
 import { useAppointmentSeries, AppointmentSeries } from "@/hooks/useAppointmentSeries";
 import { useAuth } from "@/hooks/useAuth";
+import { useClients } from "@/hooks/useClients";
+import { useServices } from "@/hooks/useServices";
 import AppointmentView from "@/components/Appointments/AppointmentView";
 import AppointmentSeriesView from "@/components/Appointments/AppointmentSeriesView";
 import { CreateAppointmentDialog } from "@/components/Appointments/CreateAppointmentDialog";
+import { AppointmentFilters, AppointmentFilterValues } from "@/components/Appointments/AppointmentFilters";
 import { useToast } from "@/hooks/use-toast";
 
 const TimezoneIndicator = ({ timezone }: { timezone: string }) => {
@@ -52,9 +60,18 @@ const getStatusColor = (status: string) => {
       return 'bg-primary text-primary-foreground';
     case 'cancelled':
       return 'bg-destructive text-destructive-foreground';
+    case 'late_cancel/noshow':
+      return 'bg-warning text-warning-foreground';
     default:
       return 'bg-muted text-muted-foreground';
   }
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  scheduled: "Scheduled",
+  documented: "Documented",
+  cancelled: "Cancelled",
+  "late_cancel/noshow": "Late Cancel / No Show",
 };
 
 // Type to represent either an appointment or a series in the combined list
@@ -65,6 +82,14 @@ function isAppointmentSeries(item: ListItem): item is (AppointmentSeries & { ite
   return item.itemType === 'series';
 }
 
+const DEFAULT_FILTERS: AppointmentFilterValues = {
+  status: null,
+  clientId: null,
+  serviceId: null,
+  dateFrom: null,
+  dateTo: null,
+};
+
 export default function Appointments() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewAppointmentId, setViewAppointmentId] = useState<string | null>(null);
@@ -72,6 +97,8 @@ export default function Appointments() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteType, setDeleteType] = useState<'appointment' | 'series'>('appointment');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<AppointmentFilterValues>(DEFAULT_FILTERS);
   
   // Use unified staff appointments for timezone-aware display with pre-formatted strings
   const { 
@@ -93,6 +120,10 @@ export default function Appointments() {
     loading: seriesLoading,
   } = useAppointmentSeries();
   
+  // Fetch clients and services for filter dropdowns
+  const { clients } = useClients();
+  const { services } = useServices();
+  
   // Get the selected appointment with pre-formatted display strings
   const viewAppointment = viewAppointmentId ? getAppointmentById(viewAppointmentId) : null;
   
@@ -107,15 +138,73 @@ export default function Appointments() {
     ...series.map(s => ({ ...s, itemType: 'series' as const })),
   ];
   
-  // Filter based on search term
-  const filteredItems = allItems.filter(item => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      item.client_name.toLowerCase().includes(searchLower) ||
-      item.service_name.toLowerCase().includes(searchLower) ||
-      item.clinician_name.toLowerCase().includes(searchLower)
-    );
-  });
+  // Count active filters for badge
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.status) count++;
+    if (filters.clientId) count++;
+    if (filters.serviceId) count++;
+    if (filters.dateFrom) count++;
+    if (filters.dateTo) count++;
+    return count;
+  }, [filters]);
+  
+  // Filter based on search term and advanced filters
+  const filteredItems = useMemo(() => {
+    return allItems.filter(item => {
+      // Text search
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        item.client_name.toLowerCase().includes(searchLower) ||
+        item.service_name.toLowerCase().includes(searchLower) ||
+        item.clinician_name.toLowerCase().includes(searchLower);
+      
+      if (!matchesSearch) return false;
+      
+      // Status filter (only for appointments, series have is_active)
+      if (filters.status) {
+        if (isAppointmentSeries(item)) {
+          // Map status filter to series is_active
+          if (filters.status === 'scheduled' && !item.is_active) return false;
+          if (filters.status === 'cancelled' && item.is_active) return false;
+        } else {
+          if (item.status !== filters.status) return false;
+        }
+      }
+      
+      // Client filter
+      if (filters.clientId && item.client_id !== filters.clientId) {
+        return false;
+      }
+      
+      // Service filter
+      if (filters.serviceId && item.service_id !== filters.serviceId) {
+        return false;
+      }
+      
+      // Date range filter
+      if (filters.dateFrom || filters.dateTo) {
+        let itemDate: Date;
+        if (isAppointmentSeries(item)) {
+          itemDate = item.next_occurrence_date 
+            ? new Date(item.next_occurrence_date) 
+            : new Date(item.start_at);
+        } else {
+          itemDate = new Date(item.start_at);
+        }
+        
+        if (filters.dateFrom && itemDate < filters.dateFrom) return false;
+        if (filters.dateTo) {
+          // Include the entire end date
+          const endOfDay = new Date(filters.dateTo);
+          endOfDay.setHours(23, 59, 59, 999);
+          if (itemDate > endOfDay) return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [allItems, searchTerm, filters]);
 
   const handleViewItem = (item: ListItem) => {
     if (isAppointmentSeries(item)) {
@@ -182,6 +271,13 @@ export default function Appointments() {
     return item.status;
   };
 
+  const getItemStatusLabel = (item: ListItem) => {
+    if (isAppointmentSeries(item)) {
+      return item.is_active ? 'Active Series' : 'Inactive Series';
+    }
+    return STATUS_LABELS[item.status] || item.status;
+  };
+
   const getItemStatusColor = (item: ListItem) => {
     if (isAppointmentSeries(item)) {
       return item.is_active 
@@ -189,6 +285,25 @@ export default function Appointments() {
         : 'bg-muted text-muted-foreground';
     }
     return getStatusColor(item.status);
+  };
+
+  // Get client display name: preferred name + last name
+  const getClientDisplayName = (item: ListItem) => {
+    // For appointments, we have client_legal_name which is "First Last"
+    // But we want "Preferred Last" - the hook gives us client_name (preferred) and client_legal_name
+    if (!isAppointmentSeries(item)) {
+      // client_legal_name is "First Last", we need to extract last name
+      const legalName = item.client_legal_name || '';
+      const lastNameMatch = legalName.split(' ').pop() || '';
+      const preferredOrFirst = item.client_name || legalName.split(' ')[0] || '';
+      
+      if (preferredOrFirst && lastNameMatch && preferredOrFirst !== lastNameMatch) {
+        return `${preferredOrFirst} ${lastNameMatch}`;
+      }
+      return item.client_name || legalName || 'Unknown Client';
+    }
+    // For series, use client_name which includes preferred name
+    return item.client_name || 'Unknown Client';
   };
 
   return (
@@ -231,10 +346,31 @@ export default function Appointments() {
                     className="pl-10"
                   />
                 </div>
-                <Button variant="outline" className="sm:w-auto">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                </Button>
+                <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="sm:w-auto relative">
+                      <Filter className="h-4 w-4 mr-2" />
+                      Filters
+                      {activeFilterCount > 0 && (
+                        <Badge 
+                          variant="secondary" 
+                          className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                        >
+                          {activeFilterCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" align="end">
+                    <AppointmentFilters
+                      filters={filters}
+                      onFiltersChange={setFilters}
+                      clients={clients || []}
+                      services={services || []}
+                      onClose={() => setFiltersOpen(false)}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </CardContent>
           </Card>
@@ -251,7 +387,6 @@ export default function Appointments() {
                     <TableHead>Client</TableHead>
                     <TableHead>Service</TableHead>
                     <TableHead>Clinician</TableHead>
-                    <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
                   </TableRow>
@@ -260,7 +395,7 @@ export default function Appointments() {
                   {loading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
-                        {Array.from({ length: 6 }).map((_, j) => (
+                        {Array.from({ length: 5 }).map((_, j) => (
                           <TableCell key={j}>
                             <div className="h-4 bg-muted rounded animate-pulse"></div>
                           </TableCell>
@@ -269,8 +404,10 @@ export default function Appointments() {
                     ))
                   ) : filteredItems.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        {searchTerm ? `No appointments found matching "${searchTerm}"` : "No appointments found"}
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        {searchTerm || activeFilterCount > 0
+                          ? "No appointments found matching your criteria"
+                          : "No appointments found"}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -280,7 +417,9 @@ export default function Appointments() {
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => handleViewItem(item)}
                       >
-                        <TableCell className="font-medium">{item.client_name}</TableCell>
+                        <TableCell className="font-medium">
+                          {getClientDisplayName(item)}
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {item.service_name}
@@ -291,13 +430,8 @@ export default function Appointments() {
                         </TableCell>
                         <TableCell>{item.clinician_name}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {isAppointmentSeries(item) ? 'Series' : 'Single'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
                           <Badge className={getItemStatusColor(item)}>
-                            {getItemStatus(item)}
+                            {getItemStatusLabel(item)}
                           </Badge>
                         </TableCell>
                         <TableCell>{getItemDate(item)}</TableCell>
