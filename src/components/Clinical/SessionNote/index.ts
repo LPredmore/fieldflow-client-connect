@@ -4,3 +4,4 @@ export { TreatmentObjectivesSection } from './TreatmentObjectivesSection';
 export { SessionAssessmentSection } from './SessionAssessmentSection';
 export { PHQ9Section } from './PHQ9Section';
 export { PlanSection } from './PlanSection';
+export { BillingSection } from './BillingSection';

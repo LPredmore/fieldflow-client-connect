@@ -3,7 +3,7 @@ import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { localToUTC, calculateEndUTC, getDBTimezoneEnum } from '@/lib/appointmentTimezone';
 import { useStaffTimezone } from './useStaffTimezone';
-
+import { useDefaultLocation } from './useDefaultLocation';
 export interface CreateAppointmentInput {
   client_id: string;
   service_id: string;
@@ -32,6 +32,7 @@ export function useAppointmentCreation() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
   const staffTimezone = useStaffTimezone();
+  const { defaultLocation } = useDefaultLocation();
 
   // Get the current staff_id from auth context
   const staffId = user?.staffAttributes?.staffData?.id;
@@ -94,6 +95,12 @@ export function useAppointmentCreation() {
       dbTimezone
     });
 
+    // Determine location_name based on telehealth status
+    const isTelehealth = data.is_telehealth ?? false;
+    const effectiveLocationName = isTelehealth
+      ? 'Telehealth'
+      : (data.location_name || defaultLocation?.name || null);
+
     const appointmentData = {
       tenant_id: tenantId,
       client_id: data.client_id,
@@ -102,8 +109,9 @@ export function useAppointmentCreation() {
       start_at: startUTC,  // UTC timestamp
       end_at: endUTC,      // UTC timestamp
       status: data.status || 'scheduled',
-      is_telehealth: data.is_telehealth ?? false,
-      location_name: data.location_name || null,
+      is_telehealth: isTelehealth,
+      location_id: defaultLocation?.id || null, // Default practice location
+      location_name: effectiveLocationName,
       time_zone: dbTimezone, // Creator's timezone (metadata only)
       created_by_profile_id: user.id,
       series_id: null, // Single appointment, not part of a series
