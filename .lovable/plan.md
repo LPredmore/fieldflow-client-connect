@@ -1,128 +1,102 @@
 
-# Implementation Plan: Fix Client Statistics Cards
+
+# Implementation Plan: Dynamic Tenant Logo as Favicon
 
 ## Problem Summary
 
-The client stats cards on `/staff/clients` and `/staff/allclients` display incorrect counts because the current logic in `useClients.tsx` uses:
+The favicon is currently a static `favicon.ico` file in the `public/` directory with no `<link rel="icon">` tag in `index.html`. The tenant logo is already being fetched via `useTenantBranding()` and displayed in the navigation sidebar. The goal is to dynamically set the browser favicon to match the tenant's logo.
 
-| Stat | Current Logic | Correct Logic |
-|------|---------------|---------------|
-| **Active** | `pat_status === 'Active'` | `pat_status IN ('Scheduled', 'Early Sessions', 'Established')` |
-| **New** | Clients without treatment plans | `pat_status === 'Unscheduled'` |
-| **Total** | `clientList.length` | Correct (no change needed) |
+---
 
-### Database Reality
+## Database Reality
 
 ```text
-Total clients: 585
-
-Current "Active" count: 0 (no clients have pat_status = 'Active')
-Correct "Active" count: 9 (Scheduled + Early Sessions + Established)
-
-Current "New" count: Based on treatment plan absence (arbitrary)
-Correct "New" count: 12 (Unscheduled)
+Tenant: ValorWell
+Logo URL: https://ahqauomkgflopxgnlndd.supabase.co/storage/v1/object/public/org-logos/00000000-0000-0000-0000-000000000001/logo.png
 ```
+
+The logo is stored in Supabase Storage with a public URL, making it directly accessible for favicon use.
 
 ---
 
 ## Technical Decision
 
-**Modify `useClients.tsx` stats calculation to use the correct `pat_status` values directly, and remove the unnecessary `client_treatment_plans` query.**
+**Extend the `useTenantBranding` hook to include a `useEffect` that dynamically updates the document's favicon whenever the tenant logo URL changes.**
 
 ### Why This Is the Right Approach
 
-1. **Single Source of Truth**: The `pat_status` field already represents the client's workflow stage. The current treatment-plan-based logic was an incorrect workaround that doesn't align with actual business semantics.
+1. **Single Source of Truth**: The `useTenantBranding` hook already owns the tenant logo data. Adding favicon logic here keeps branding concerns consolidated in one place.
 
-2. **Eliminates Unnecessary Query**: The hook currently makes a second query to `client_treatment_plans` just to calculate "New" clients. This query is not needed when we use `pat_status` correctly, reducing database load and complexity.
+2. **Already Used in Protected Routes**: The Navigation component (which is only rendered after authentication) already calls `useTenantBranding`. The favicon update will naturally occur at the right time - after the user is authenticated and their tenant is known.
 
-3. **Consistent with Filter UI**: The `AllClients.tsx` page already defines status groups in `STATUS_GROUPS` (lines 29-70) that match the database enum. The stats should align with these filter categories.
+3. **No Additional Network Requests**: The logo URL is already being fetched for the navigation. We're simply reusing that same URL for the favicon.
 
-4. **No Database Changes**: Uses existing `pat_status` column values. The database already has all 21 enum values (confirmed in `types.ts` lines 6162-6182).
+4. **Graceful Fallback**: If no logo URL exists, we leave the favicon unchanged (falls back to the static `favicon.ico`).
 
-5. **Schema File Cleanup**: The `src/schema/enums.ts` file has an outdated `pat_status_enum` that needs updating for consistency (documentation purposes only - doesn't affect runtime).
+5. **Standard Web API**: Uses the standard `document.querySelector('link[rel="icon"]')` approach which is well-supported across all browsers.
+
+### Alternative Considered (Rejected)
+
+**Creating a separate component/hook for favicon management**: This would fragment branding logic across multiple files. Since `useTenantBranding` already exists specifically for tenant branding concerns, extending it is more cohesive.
 
 ---
 
 ## Implementation Details
 
-### 1. Modify `useClients.tsx`
+### 1. Modify `useTenantBranding.tsx`
 
-**File: `src/hooks/useClients.tsx`**
+**File: `src/hooks/useTenantBranding.tsx`**
 
-**Changes:**
-1. Remove the `client_treatment_plans` query (lines 80-88)
-2. Remove `treatmentPlansLoading` from loading state (line 190)
-3. Update stats calculation to use correct `pat_status` values
+Add a `useEffect` that updates the favicon when `logoUrl` changes.
 
 ```text
-BEFORE (lines 91-105):
-  const stats = useMemo(() => {
-    const clientList = clients || [];
-    const clientsWithPlans = new Set(
-      (treatmentPlans || []).map(tp => tp.client_id)
-    );
-    return {
-      total: clientList.length,
-      active: clientList.filter(c => c.pat_status === 'Active').length,
-      new: clientList.filter(c => !clientsWithPlans.has(c.id)).length,
-    };
-  }, [clients, treatmentPlans]);
-
-AFTER:
-  const stats = useMemo(() => {
-    const clientList = clients || [];
-    
-    // Active = clients in active treatment stages
-    const ACTIVE_STATUSES = ['Scheduled', 'Early Sessions', 'Established'];
-    
-    // New = clients awaiting first appointment
-    const NEW_STATUS = 'Unscheduled';
-    
-    return {
-      total: clientList.length,
-      active: clientList.filter(c => 
-        ACTIVE_STATUSES.includes(c.pat_status || '')
-      ).length,
-      new: clientList.filter(c => 
-        c.pat_status === NEW_STATUS
-      ).length,
-    };
-  }, [clients]);
+Changes:
+1. Import useEffect from React
+2. Add useEffect that:
+   - Finds or creates the <link rel="icon"> element
+   - Sets href to logoUrl when available
+   - Falls back to default '/favicon.ico' when no logo exists
+   - Cleans up on unmount (restores default favicon)
 ```
 
-### 2. Update `src/schema/enums.ts`
+```typescript
+// New code to add
+useEffect(() => {
+  if (!logoUrl) return;
+  
+  // Find existing favicon link or create one
+  let faviconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  
+  if (!faviconLink) {
+    faviconLink = document.createElement('link');
+    faviconLink.rel = 'icon';
+    document.head.appendChild(faviconLink);
+  }
+  
+  // Store original favicon for cleanup
+  const originalHref = faviconLink.href;
+  
+  // Update favicon to tenant logo
+  faviconLink.href = logoUrl;
+  
+  // Cleanup: restore original favicon when component unmounts
+  return () => {
+    if (faviconLink) {
+      faviconLink.href = originalHref || '/favicon.ico';
+    }
+  };
+}, [logoUrl]);
+```
 
-**File: `src/schema/enums.ts`**
+### 2. Add Default Favicon Link to `index.html`
 
-Update `pat_status_enum` to match the actual database enum values (for documentation accuracy).
+**File: `index.html`**
 
-```text
-BEFORE (line 36):
-  pat_status_enum: ['New', 'Active'] as const,
+Add a `<link rel="icon">` tag so there's a guaranteed element to update. Currently there's no favicon link in the HTML.
 
-AFTER:
-  pat_status_enum: [
-    'Interested',
-    'New',
-    'Active',
-    'Inactive',
-    'Registered',
-    'Waitlist',
-    'Matching',
-    'Unscheduled',
-    'Scheduled',
-    'Early Sessions',
-    'Established',
-    'Not the Right Time',
-    'Found Somewhere Else',
-    'Went Dark (Previously Seen)',
-    'Blacklisted',
-    'Unresponsive - Warm',
-    'Unresponsive - Cold',
-    'Manual Check',
-    'No Insurance',
-    'DNC',
-  ] as const,
+```html
+<!-- Add in <head> section -->
+<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 ```
 
 ---
@@ -131,69 +105,76 @@ AFTER:
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `src/hooks/useClients.tsx` | **Modify** | Fix stats calculation, remove unused treatment plans query |
-| `src/schema/enums.ts` | **Modify** | Update `pat_status_enum` to match actual database values |
+| `src/hooks/useTenantBranding.tsx` | **Modify** | Add useEffect to dynamically set favicon from logoUrl |
+| `index.html` | **Modify** | Add default favicon link tag |
 
 ---
 
-## Data Flow After Fix
+## Data Flow After Implementation
 
 ```text
-useClients() called
+User logs in → Auth succeeds
          │
          ▼
-Query: clients table with staff filter
-  (No longer queries client_treatment_plans)
+UnifiedRoutingGuard routes to /staff/*
          │
          ▼
-Stats calculation:
-  total: clientList.length
-  active: filter where pat_status IN 
-          ('Scheduled', 'Early Sessions', 'Established')
-  new: filter where pat_status = 'Unscheduled'
+Navigation component renders
          │
          ▼
-ClientStatsCards displays correct counts:
-  Total: 585 (or filtered count for clinician view)
-  Active: 9
-  New: 12
+useTenantBranding() called
+  → Fetches tenant: { logo_url: "https://...logo.png" }
+         │
+         ▼
+useEffect in useTenantBranding fires
+  → document.querySelector('link[rel="icon"]')
+  → Sets href = logoUrl
+         │
+         ▼
+Browser updates tab favicon to tenant logo
 ```
+
+---
+
+## Edge Cases
+
+| Scenario | Handling |
+|----------|----------|
+| No logo_url set for tenant | Favicon remains as default `/favicon.ico` |
+| Logo URL fails to load | Browser shows broken icon (acceptable - matches navigation behavior) |
+| User logs out | Cleanup function restores default favicon |
+| Multiple tenants (future) | Each tenant switch triggers new logoUrl, favicon updates accordingly |
+| Logo is not square | Browser handles scaling (may appear distorted - same as any favicon) |
+
+---
+
+## Browser Compatibility
+
+The `document.querySelector` and dynamic link manipulation is supported in all modern browsers:
+- Chrome, Firefox, Safari, Edge: Full support
+- IE11: Supported (not relevant for this app)
 
 ---
 
 ## What This Does NOT Change
 
-- **`ClientStatsCards.tsx`**: No changes needed - it already correctly receives and displays the stats object
-- **`AllClients.tsx` / `Clients.tsx`**: No changes needed - they already correctly pass stats to the component
+- **BrandColorProvider**: Continues to handle CSS variable injection separately
+- **Navigation component**: No changes - continues to display logo via `<img>` tag
+- **Static favicon.ico**: Kept as fallback for unauthenticated states / loading
 - **Database schema**: No changes (immutable constraint respected)
-- **Filter functionality**: The status filter dropdown already uses the correct status values
 
 ---
 
 ## Testing Checklist
 
-1. **Stats Accuracy**
-   - [ ] "Active Clients" shows 9 (matching Scheduled + Early Sessions + Established)
-   - [ ] "New Clients" shows 12 (matching Unscheduled status)
-   - [ ] "Total Clients" shows correct count (585 for all, filtered for clinician)
+1. **Favicon Updates**
+   - [ ] After login, browser tab shows tenant logo instead of default favicon
+   - [ ] Logo appears in browser tab, bookmarks, and browser history
 
-2. **Page Functionality**
-   - [ ] `/staff/clients` shows stats filtered to logged-in clinician's assigned clients
-   - [ ] `/staff/allclients` shows stats for all tenant clients
+2. **Fallback Behavior**
+   - [ ] If tenant has no logo_url, default favicon.ico is shown
+   - [ ] On logout, favicon reverts to default
 
-3. **Performance**
-   - [ ] No additional queries to `client_treatment_plans` table
-   - [ ] Page loads with single clients query
+3. **Cross-Browser**
+   - [ ] Works in Chrome, Firefox, Safari, Edge
 
----
-
-## Status Definitions Reference
-
-For clarity, here's the business meaning of the status categories:
-
-| Category | Statuses | Meaning |
-|----------|----------|---------|
-| **New (Needs Scheduling)** | `Unscheduled` | Client intake complete, awaiting first appointment |
-| **Active (In Treatment)** | `Scheduled`, `Early Sessions`, `Established` | Client actively receiving care |
-| **Intake Pipeline** | `Interested`, `New`, `Registered`, `Waitlist`, `Matching` | Pre-intake stages |
-| **Inactive** | `Inactive`, `Not the Right Time`, `Found Somewhere Else`, etc. | No longer in active care |
