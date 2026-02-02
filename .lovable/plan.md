@@ -1,180 +1,128 @@
 
-
-# Implementation Plan: Fix Appointments Page Data Fetching
+# Implementation Plan: Fix Client Statistics Cards
 
 ## Problem Summary
 
-The `/staff/appointments` page is showing only 12 of 171 total appointments (7%) due to two compounding issues:
+The client stats cards on `/staff/clients` and `/staff/allclients` display incorrect counts because the current logic in `useClients.tsx` uses:
 
-| Issue | Root Cause | Impact |
-|-------|------------|--------|
-| **Date Range Restriction** | `useStaffAppointments` uses 7-day lookback / 90-day forward | 159 historical appointments excluded |
-| **Inactive Staff Exclusion** | `useTenantStaff` filters for `prov_status IN ('Active', 'New')` | Adam Smith's 102 appointments invisible to admin filter |
-| **Filter UI Overflow** | `PopoverContent` has no `max-height` or scroll area | Filter panel extends below viewport |
+| Stat | Current Logic | Correct Logic |
+|------|---------------|---------------|
+| **Active** | `pat_status === 'Active'` | `pat_status IN ('Scheduled', 'Early Sessions', 'Established')` |
+| **New** | Clients without treatment plans | `pat_status === 'Unscheduled'` |
+| **Total** | `clientList.length` | Correct (no change needed) |
 
----
-
-## Database Reality
+### Database Reality
 
 ```text
-Total appointments: 171
-├── Before default range (>7 days ago): 159 (93%)
-├── In default range: 12 (7%)
-└── After default range: 0
+Total clients: 585
 
-Staff with appointments:
-├── Adam Smith (INACTIVE): 102 appointments ← Cannot be filtered by admin
-├── Melissa Colton (Active): 31 appointments
-├── Katie Weidenkeller (Active): 18 appointments
-├── Jennifer Russell Baker (Active): 12 appointments
-└── Lucas Predmore (Active): 8 appointments
+Current "Active" count: 0 (no clients have pat_status = 'Active')
+Correct "Active" count: 9 (Scheduled + Early Sessions + Established)
+
+Current "New" count: Based on treatment plan absence (arbitrary)
+Correct "New" count: 12 (Unscheduled)
 ```
 
 ---
 
 ## Technical Decision
 
-**Create a new `useAllAppointments` hook for the Appointments page that directly queries the `public.appointments` table without calendar-specific restrictions.**
+**Modify `useClients.tsx` stats calculation to use the correct `pat_status` values directly, and remove the unnecessary `client_treatment_plans` query.**
 
 ### Why This Is the Right Approach
 
-1. **Separation of Concerns**: The calendar needs a tight date window for performance and UX. The Appointments list page needs to show all historical and future appointments for administrative/clinical purposes. These are fundamentally different use cases that should not share the same data-fetching logic.
+1. **Single Source of Truth**: The `pat_status` field already represents the client's workflow stage. The current treatment-plan-based logic was an incorrect workaround that doesn't align with actual business semantics.
 
-2. **No Database Changes Required**: The immutable schema constraint is maintained. We're using the existing `appointments` table with standard Supabase queries.
+2. **Eliminates Unnecessary Query**: The hook currently makes a second query to `client_treatment_plans` just to calculate "New" clients. This query is not needed when we use `pat_status` correctly, reducing database load and complexity.
 
-3. **Preserves Calendar Integrity**: `useStaffAppointments` continues to power the Dashboard and Calendar with its optimized date range and timezone handling. The new hook serves only the Appointments list page.
+3. **Consistent with Filter UI**: The `AllClients.tsx` page already defines status groups in `STATUS_GROUPS` (lines 29-70) that match the database enum. The stats should align with these filter categories.
 
-4. **Pagination-Ready**: A direct table query naturally supports pagination (LIMIT/OFFSET or cursor-based), which will be essential as appointment data grows.
+4. **No Database Changes**: Uses existing `pat_status` column values. The database already has all 21 enum values (confirmed in `types.ts` lines 6162-6182).
 
-5. **Simpler Code**: The Appointments page doesn't need fake-local Date objects for react-big-calendar positioning. It just needs raw data with proper joins.
-
-### Alternative Considered (Rejected)
-
-**Modifying `useStaffAppointments` to accept unbounded date ranges**: This would bloat a calendar-optimized hook with list-view concerns, couple unrelated features, and require managing two completely different data shapes in one hook.
+5. **Schema File Cleanup**: The `src/schema/enums.ts` file has an outdated `pat_status_enum` that needs updating for consistency (documentation purposes only - doesn't affect runtime).
 
 ---
 
 ## Implementation Details
 
-### 1. Create New Hook: `useAllAppointments`
+### 1. Modify `useClients.tsx`
 
-**File: `src/hooks/useAllAppointments.tsx`**
+**File: `src/hooks/useClients.tsx`**
 
-Purpose: Fetch all appointments from `public.appointments` with client/service/staff joins for the Appointments list page.
-
-```text
-Key Features:
-- Direct query to appointments table (no RPC)
-- Joins: clients, services, staff
-- Filters by tenant_id (RLS)
-- Optional staff_id filter for admin multi-select
-- No hardcoded date range (uses filter date range if provided)
-- All appointment statuses included by default
-- Simple date string formatting (no fake-local Dates needed)
-
-Query Shape:
-  SELECT 
-    a.*,
-    c.pat_name_f, c.pat_name_l, c.pat_name_preferred,
-    s.name as service_name,
-    st.prov_name_f, st.prov_name_l, st.prov_name_for_clients
-  FROM appointments a
-  LEFT JOIN clients c ON a.client_id = c.id
-  LEFT JOIN services s ON a.service_id = s.id
-  LEFT JOIN staff st ON a.staff_id = st.id
-  WHERE a.tenant_id = :tenantId
-    AND (:staffIds IS NULL OR a.staff_id = ANY(:staffIds))
-  ORDER BY a.start_at DESC
-
-Interface:
-  interface AllAppointment {
-    id: string;
-    tenant_id: string;
-    client_id: string;
-    staff_id: string;
-    service_id: string;
-    series_id: string | null;
-    start_at: string;
-    end_at: string;
-    status: string;
-    is_telehealth: boolean;
-    location_name: string | null;
-    // Joined display fields
-    client_name: string;
-    client_legal_name: string;
-    service_name: string;
-    clinician_name: string;
-    // Formatted for display
-    display_date: string;
-    display_time: string;
-  }
-```
-
-### 2. Update `useTenantStaff`
-
-**File: `src/hooks/useTenantStaff.tsx`**
-
-Change: Remove the status filter OR add a new option to include inactive staff.
+**Changes:**
+1. Remove the `client_treatment_plans` query (lines 80-88)
+2. Remove `treatmentPlansLoading` from loading state (line 190)
+3. Update stats calculation to use correct `pat_status` values
 
 ```text
-Current (problematic):
-  .in('prov_status', ['Active', 'New'])
+BEFORE (lines 91-105):
+  const stats = useMemo(() => {
+    const clientList = clients || [];
+    const clientsWithPlans = new Set(
+      (treatmentPlans || []).map(tp => tp.client_id)
+    );
+    return {
+      total: clientList.length,
+      active: clientList.filter(c => c.pat_status === 'Active').length,
+      new: clientList.filter(c => !clientsWithPlans.has(c.id)).length,
+    };
+  }, [clients, treatmentPlans]);
 
-Option A - Include all staff:
-  // Remove the filter entirely for admin use cases
-
-Option B - Add parameter (chosen):
-  export function useTenantStaff(options?: { includeInactive?: boolean }) {
-    const statusFilter = options?.includeInactive 
-      ? undefined 
-      : ['Active', 'New'];
+AFTER:
+  const stats = useMemo(() => {
+    const clientList = clients || [];
     
-    // Apply statusFilter conditionally
-  }
+    // Active = clients in active treatment stages
+    const ACTIVE_STATUSES = ['Scheduled', 'Early Sessions', 'Established'];
+    
+    // New = clients awaiting first appointment
+    const NEW_STATUS = 'Unscheduled';
+    
+    return {
+      total: clientList.length,
+      active: clientList.filter(c => 
+        ACTIVE_STATUSES.includes(c.pat_status || '')
+      ).length,
+      new: clientList.filter(c => 
+        c.pat_status === NEW_STATUS
+      ).length,
+    };
+  }, [clients]);
 ```
 
-The Appointments page will call `useTenantStaff({ includeInactive: true })` to show all clinicians who have ever had appointments, regardless of current status.
+### 2. Update `src/schema/enums.ts`
 
-### 3. Update `AppointmentFilters` PopoverContent
+**File: `src/schema/enums.ts`**
 
-**File: `src/pages/Appointments.tsx`**
-
-Change: Add `max-height` and `overflow-y-auto` to the PopoverContent.
+Update `pat_status_enum` to match the actual database enum values (for documentation accuracy).
 
 ```text
-Current:
-  <PopoverContent className="w-80" align="end">
+BEFORE (line 36):
+  pat_status_enum: ['New', 'Active'] as const,
 
-Fixed:
-  <PopoverContent className="w-80 max-h-[80vh] overflow-y-auto" align="end">
-```
-
-### 4. Update `Appointments.tsx` to Use New Hook
-
-**File: `src/pages/Appointments.tsx`**
-
-Changes:
-- Import and use `useAllAppointments` instead of `useStaffAppointments`
-- Pass `{ includeInactive: true }` to `useTenantStaff`
-- Remove series mixing (optional - keep if series display is desired)
-- Simplify date/time display (use appointment's start_at directly formatted)
-
-```text
-// Before
-import { useStaffAppointments } from '@/hooks/useStaffAppointments';
-
-const { appointments, ... } = useStaffAppointments({
-  staffIds: isAdmin && filters.staffIds.length > 0 ? filters.staffIds : undefined,
-});
-
-// After
-import { useAllAppointments } from '@/hooks/useAllAppointments';
-
-const { appointments, ... } = useAllAppointments({
-  staffIds: isAdmin ? (filters.staffIds.length > 0 ? filters.staffIds : undefined) : undefined,
-  dateFrom: filters.dateFrom?.toISOString(),
-  dateTo: filters.dateTo?.toISOString(),
-});
+AFTER:
+  pat_status_enum: [
+    'Interested',
+    'New',
+    'Active',
+    'Inactive',
+    'Registered',
+    'Waitlist',
+    'Matching',
+    'Unscheduled',
+    'Scheduled',
+    'Early Sessions',
+    'Established',
+    'Not the Right Time',
+    'Found Somewhere Else',
+    'Went Dark (Previously Seen)',
+    'Blacklisted',
+    'Unresponsive - Warm',
+    'Unresponsive - Cold',
+    'Manual Check',
+    'No Insurance',
+    'DNC',
+  ] as const,
 ```
 
 ---
@@ -183,116 +131,69 @@ const { appointments, ... } = useAllAppointments({
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `src/hooks/useAllAppointments.tsx` | **Create** | New hook for list view, directly queries appointments table |
-| `src/hooks/useTenantStaff.tsx` | **Modify** | Add `includeInactive` option to show all clinicians |
-| `src/pages/Appointments.tsx` | **Modify** | Use new hook, fix PopoverContent overflow |
-| `src/components/Appointments/AppointmentFilters.tsx` | No change | Already correctly structured |
+| `src/hooks/useClients.tsx` | **Modify** | Fix stats calculation, remove unused treatment plans query |
+| `src/schema/enums.ts` | **Modify** | Update `pat_status_enum` to match actual database values |
 
 ---
 
 ## Data Flow After Fix
 
 ```text
-Admin visits /staff/appointments
+useClients() called
          │
          ▼
-useTenantStaff({ includeInactive: true })
-  → Returns ALL 9 staff members (including Adam Smith)
+Query: clients table with staff filter
+  (No longer queries client_treatment_plans)
          │
          ▼
-useAllAppointments({
-  staffIds: filters.staffIds (if any selected),
-  dateFrom: filters.dateFrom,
-  dateTo: filters.dateTo
-})
+Stats calculation:
+  total: clientList.length
+  active: filter where pat_status IN 
+          ('Scheduled', 'Early Sessions', 'Established')
+  new: filter where pat_status = 'Unscheduled'
          │
          ▼
-Direct query to appointments table
-  → No RPC date restrictions
-  → Joins client/service/staff
-  → Returns 171 appointments (or filtered subset)
-         │
-         ▼
-Client-side filtering for status/client/service
-         │
-         ▼
-Display in table with all data visible
+ClientStatsCards displays correct counts:
+  Total: 585 (or filtered count for clinician view)
+  Active: 9
+  New: 12
 ```
-
----
-
-## Date Display Formatting
-
-Since we're not using the RPC's timezone formatting, the new hook will format dates client-side. For the Appointments list (administrative view), browser-local formatting is acceptable:
-
-```typescript
-// Simple formatting in useAllAppointments
-const display_date = new Date(row.start_at).toLocaleDateString('en-US', {
-  weekday: 'short',
-  month: 'short', 
-  day: 'numeric',
-  year: 'numeric'
-});
-
-const display_time = new Date(row.start_at).toLocaleTimeString('en-US', {
-  hour: 'numeric',
-  minute: '2-digit',
-  hour12: true
-});
-```
-
-For clinicians viewing their own appointments, this shows times in their browser's timezone. This is reasonable for a list view (unlike the calendar where precise staff-timezone positioning is critical).
-
----
-
-## Edge Cases
-
-| Scenario | Handling |
-|----------|----------|
-| Admin selects no clinicians | Show all appointments for tenant |
-| Non-admin user | Filter by their own staff_id automatically |
-| Inactive staff with appointments | Visible in filter and results |
-| Large dataset (1000+ appointments) | Future: add pagination (not in this scope) |
-| Date filter spans years | Supported - no artificial restrictions |
-
----
-
-## Testing Checklist
-
-1. **Data Visibility**
-   - [ ] All 171 appointments visible when no filters applied (admin)
-   - [ ] Adam Smith's 102 appointments accessible via clinician filter
-   - [ ] Historical appointments (before 7 days ago) visible
-   - [ ] All status types (scheduled, documented, cancelled, late_cancel/noshow) displayed
-
-2. **Admin Multi-Clinician Filter**
-   - [ ] All 9 staff members appear in clinician dropdown (including Inactive)
-   - [ ] Selecting inactive clinician shows their historical appointments
-   - [ ] Multi-select works correctly
-
-3. **Filter UI**
-   - [ ] Filter popover scrolls when content exceeds viewport
-   - [ ] All filter options accessible on smaller screens
-
-4. **Non-Admin Experience**
-   - [ ] Non-admin sees only their own appointments
-   - [ ] Clinician filter is hidden for non-admins
 
 ---
 
 ## What This Does NOT Change
 
-- **Dashboard (`Index.tsx`)**: Continues using `useStaffAppointments` with its calendar-optimized date range
-- **Calendar (`RBCCalendar`)**: Continues using `useStaffAppointments` with fake-local Date objects
+- **`ClientStatsCards.tsx`**: No changes needed - it already correctly receives and displays the stats object
+- **`AllClients.tsx` / `Clients.tsx`**: No changes needed - they already correctly pass stats to the component
 - **Database schema**: No changes (immutable constraint respected)
-- **RPC functions**: No changes needed
+- **Filter functionality**: The status filter dropdown already uses the correct status values
 
 ---
 
-## Technical Notes
+## Testing Checklist
 
-- The new hook uses standard Supabase `.from().select()` pattern with explicit joins
-- RLS policies on `appointments` table will automatically filter by tenant
-- Date filtering happens both in the query (if provided) and client-side (for real-time filter changes)
-- Status is typed as `string` (not enum) for flexibility with filter comparisons
+1. **Stats Accuracy**
+   - [ ] "Active Clients" shows 9 (matching Scheduled + Early Sessions + Established)
+   - [ ] "New Clients" shows 12 (matching Unscheduled status)
+   - [ ] "Total Clients" shows correct count (585 for all, filtered for clinician)
 
+2. **Page Functionality**
+   - [ ] `/staff/clients` shows stats filtered to logged-in clinician's assigned clients
+   - [ ] `/staff/allclients` shows stats for all tenant clients
+
+3. **Performance**
+   - [ ] No additional queries to `client_treatment_plans` table
+   - [ ] Page loads with single clients query
+
+---
+
+## Status Definitions Reference
+
+For clarity, here's the business meaning of the status categories:
+
+| Category | Statuses | Meaning |
+|----------|----------|---------|
+| **New (Needs Scheduling)** | `Unscheduled` | Client intake complete, awaiting first appointment |
+| **Active (In Treatment)** | `Scheduled`, `Early Sessions`, `Established` | Client actively receiving care |
+| **Intake Pipeline** | `Interested`, `New`, `Registered`, `Waitlist`, `Matching` | Pre-intake stages |
+| **Inactive** | `Inactive`, `Not the Right Time`, `Found Somewhere Else`, etc. | No longer in active care |
