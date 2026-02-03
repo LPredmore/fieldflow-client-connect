@@ -56,6 +56,18 @@ const addStaffSchema = z.object({
   email: z.string().email("Invalid email address"),
   specialty: z.string().optional(),
   roles: z.array(z.string()).min(1, "At least one role must be selected"),
+}).refine((data) => {
+  const hasClinicalRole = data.roles.some(role => 
+    CLINICAL_ROLES.includes(role)
+  );
+  // If clinical role selected, specialty must be provided
+  if (hasClinicalRole && !data.specialty) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Specialty is required for clinical roles",
+  path: ["specialty"],
 });
 
 type AddStaffFormData = z.infer<typeof addStaffSchema>;

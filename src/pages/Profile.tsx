@@ -60,6 +60,7 @@ export default function Profile() {
     prov_name_f: '',
     prov_name_m: '',
     prov_name_l: '',
+    prov_field: '',
     prov_phone: '',
     email: '',
     prov_addr_1: '',
@@ -121,6 +122,7 @@ export default function Profile() {
         prov_name_f: staff.prov_name_f || '',
         prov_name_m: staff.prov_name_m || '',
         prov_name_l: staff.prov_name_l || '',
+        prov_field: staff.prov_field || '',
         prov_phone: staff.prov_phone || '',
         email: profile.email || '',
         prov_addr_1: staff.prov_addr_1 || '',
@@ -187,6 +189,7 @@ export default function Profile() {
       prov_name_f: professionalInfo.prov_name_f,
       prov_name_m: professionalInfo.prov_name_m,
       prov_name_l: professionalInfo.prov_name_l,
+      prov_field: professionalInfo.prov_field || undefined,
       prov_phone: professionalInfo.prov_phone,
       prov_addr_1: professionalInfo.prov_addr_1,
       prov_addr_2: professionalInfo.prov_addr_2,
@@ -633,6 +636,26 @@ export default function Profile() {
                       placeholder="ZIP code"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="prov_field">Specialty</Label>
+                  <Select
+                    value={professionalInfo.prov_field}
+                    onValueChange={(value) => setProfessionalInfo(prev => ({ ...prev, prov_field: value }))}
+                  >
+                    <SelectTrigger id="prov_field">
+                      <SelectValue placeholder="Select your specialty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Mental Health">Mental Health</SelectItem>
+                      <SelectItem value="Speech Therapy">Speech Therapy</SelectItem>
+                      <SelectItem value="Occupational Therapy">Occupational Therapy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Your clinical specialty determines available license types and treatment approaches
+                  </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">

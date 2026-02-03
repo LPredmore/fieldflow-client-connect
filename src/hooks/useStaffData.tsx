@@ -52,6 +52,7 @@ interface StaffUpdateData {
   prov_name_m?: string;
   prov_name_for_clients?: string;
   prov_title?: string;
+  prov_field?: string;
   prov_phone?: string;
   prov_addr_1?: string;
   prov_addr_2?: string;
