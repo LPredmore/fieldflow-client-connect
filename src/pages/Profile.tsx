@@ -656,40 +656,17 @@ export default function Profile() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Date of Birth</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !professionalInfo.prov_dob && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {professionalInfo.prov_dob ? (
-                            format(parseISO(professionalInfo.prov_dob), 'PPP')
-                          ) : (
-                            <span>Select date of birth</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={professionalInfo.prov_dob ? parseISO(professionalInfo.prov_dob) : undefined}
-                          onSelect={(date) => setProfessionalInfo(prev => ({ 
-                            ...prev, 
-                            prov_dob: date ? format(date, 'yyyy-MM-dd') : '' 
-                          }))}
-                          disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
-                          captionLayout="dropdown-buttons"
-                          fromYear={1930}
-                          toYear={new Date().getFullYear()}
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Label htmlFor="prov_dob">Date of Birth</Label>
+                    <Input
+                      id="prov_dob"
+                      type="date"
+                      value={professionalInfo.prov_dob}
+                      onChange={(e) => setProfessionalInfo(prev => ({ 
+                        ...prev, 
+                        prov_dob: e.target.value 
+                      }))}
+                      max={format(new Date(), 'yyyy-MM-dd')}
+                    />
                   </div>
                 </div>
 
