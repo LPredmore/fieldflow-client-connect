@@ -1,78 +1,164 @@
 
-# Implementation Plan: Simplify Date of Birth Picker
+# Implementation Plan: Clinical Specialty Management Fix
 
 ## Problem Summary
 
-The Date of Birth picker on `/staff/profile` currently uses a complex `react-day-picker` Calendar with `captionLayout="dropdown-buttons"`. This creates a poor UX because:
-- Year/month dropdowns render as cramped native HTML selects inside a calendar popup
-- Requires scrolling through ~95 years (1930-2026) in a tiny dropdown
-- Overly complex for a simple date entry
+Staff members created with clinical roles (Clinician, Supervisor) cannot access specialty-dependent features because the `prov_field` (specialty) is not being reliably captured and there is no UI to set or correct it afterward.
 
-Meanwhile, the "Issued On" and "Expires On" fields in **LicenseManagement** use a simple `<Input type="date" />` which provides a clean, native browser date picker.
+### Root Cause Analysis
+
+1. **Add Staff Form Schema Issue**: The `AddStaffDialog.tsx` marks specialty as optional (`z.string().optional()`), even when clinical roles are selected
+2. **Conditional Display Without Enforcement**: The specialty dropdown appears when clinical roles are selected, but the form can still submit without a selection
+3. **No Profile-Level Fix**: The Profile page reads `prov_field` but provides no way to edit it, creating a dead-end
+4. **Cascading Feature Blocks**: Missing specialty blocks:
+   - Treatment Approaches selection (filtered by specialty)
+   - License Types dropdown (filtered by specialty)
+   - Any future specialty-dependent features
+
+### Affected Code Paths
+
+```text
+AddStaffDialog.tsx (creation)
+        │
+        ▼
+create-staff-account/index.ts (edge function)
+        │
+        ▼ specialty=undefined → prov_field=NULL
+        │
+staff table (prov_field=NULL)
+        │
+        ▼
+Profile.tsx reads staff.prov_field
+        │
+        ├─► useTreatmentApproachOptions (disabled)
+        └─► LicenseManagement (unfiltered)
+        
+No way to fix after creation!
+```
 
 ---
 
 ## Technical Decision
 
-**Replace the Calendar/Popover-based DOB picker with a simple native date input (`<Input type="date" />`), matching the pattern already used in LicenseManagement.**
+**Fix this with a two-pronged approach:**
 
-### Why This Is the Right Approach
+1. **Make specialty required for clinical roles in AddStaffDialog** - Enforce via Zod's `refine()` method
+2. **Add specialty selector to Profile page** - Allow staff to set/update their specialty directly
 
-1. **Consistency**: Uses the same pattern as the Licensing & Credentials date fields that the user explicitly prefers
-2. **Simplicity**: Native date inputs are universally understood and require no complex state management
-3. **Browser Optimization**: Modern browsers (Chrome, Edge, Safari, Firefox) all provide optimized date pickers with month/year navigation built in
-4. **Less Code**: Removes ~20 lines of Popover/Calendar JSX, simplifying the component
-5. **Mobile-Friendly**: Native date pickers work excellently on mobile devices
+### Why This Is The Right Approach
+
+**Option A (Rejected): Just make it required at creation**
+- Doesn't fix existing broken accounts
+- Users still have no recoverability path
+
+**Option B (Rejected): Just add it to Profile page**
+- Allows continued creation of broken accounts
+- Admin burden increases
+
+**Option C (Chosen): Both - defensive at creation + self-service fix**
+- Prevents new broken accounts via schema validation
+- Enables existing accounts to self-fix
+- Reduces support burden
+- Follows principle of "make invalid states impossible to represent"
 
 ---
 
-## Current Implementation (Lines 658-693)
+## Implementation Details
+
+### Part 1: Enforce Specialty at Creation
+
+**File: `src/components/Settings/UserManagement/AddStaffDialog.tsx`**
+
+Modify the Zod schema to conditionally require specialty when clinical roles are selected:
 
 ```typescript
-<div className="space-y-2">
-  <Label>Date of Birth</Label>
-  <Popover>
-    <PopoverTrigger asChild>
-      <Button
-        variant="outline"
-        className={cn(...)}
-      >
-        <CalendarIcon className="mr-2 h-4 w-4" />
-        {professionalInfo.prov_dob ? format(...) : <span>Select date of birth</span>}
-      </Button>
-    </PopoverTrigger>
-    <PopoverContent className="w-auto p-0" align="start">
-      <Calendar
-        mode="single"
-        captionLayout="dropdown-buttons"
-        fromYear={1930}
-        toYear={new Date().getFullYear()}
-        ...
-      />
-    </PopoverContent>
-  </Popover>
-</div>
+const addStaffSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  specialty: z.string().optional(),
+  roles: z.array(z.string()).min(1, "At least one role must be selected"),
+}).refine((data) => {
+  const hasClinicalRole = data.roles.some(role => 
+    CLINICAL_ROLES.includes(role)
+  );
+  // If clinical role selected, specialty must be provided
+  if (hasClinicalRole && !data.specialty) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Specialty is required for clinical roles",
+  path: ["specialty"],
+});
 ```
 
----
+### Part 2: Add Specialty to Profile Page
 
-## New Implementation
+**File: `src/pages/Profile.tsx`**
+
+Add specialty selection field to the Professional Information card, right below the name fields.
 
 ```typescript
+// In professionalInfo state, add:
+prov_field: '',
+
+// Sync from staff data:
+prov_field: staff.prov_field || '',
+
+// In handleProfessionalInfoSubmit:
+prov_field: professionalInfo.prov_field || undefined,
+
+// In JSX (after name fields grid):
 <div className="space-y-2">
-  <Label htmlFor="prov_dob">Date of Birth</Label>
-  <Input
-    id="prov_dob"
-    type="date"
-    value={professionalInfo.prov_dob}
-    onChange={(e) => setProfessionalInfo(prev => ({ 
+  <Label htmlFor="prov_field">Specialty</Label>
+  <Select
+    value={professionalInfo.prov_field}
+    onValueChange={(value) => setProfessionalInfo(prev => ({ 
       ...prev, 
-      prov_dob: e.target.value 
+      prov_field: value 
     }))}
-    max={format(new Date(), 'yyyy-MM-dd')}
-  />
+  >
+    <SelectTrigger id="prov_field">
+      <SelectValue placeholder="Select your specialty" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="Mental Health">Mental Health</SelectItem>
+      <SelectItem value="Speech Therapy">Speech Therapy</SelectItem>
+      <SelectItem value="Occupational Therapy">Occupational Therapy</SelectItem>
+    </SelectContent>
+  </Select>
+  <p className="text-sm text-muted-foreground">
+    Your clinical specialty determines available license types and treatment approaches
+  </p>
 </div>
 ```
+
+**File: `src/hooks/useStaffData.tsx`**
+
+Add `prov_field` to the `StaffUpdateData` interface to allow updates:
+
+```typescript
+interface StaffUpdateData {
+  // ... existing fields ...
+  prov_field?: string;  // Add this
+}
+```
+
+### Part 3: Fix Existing Data
+
+The user asked specifically about `info+dummy@valorwell.org`. Once the Profile page UI is in place, this user (and any others with NULL specialty) can set their specialty themselves. No manual database fix required.
+
+---
+
+## Database Compatibility
+
+The `specialty_enum` in the database already supports all three values:
+- `Mental Health`
+- `Speech Therapy`  
+- `Occupational Therapy`
+
+The Profile page will use these exact strings to ensure enum compatibility.
 
 ---
 
@@ -80,87 +166,33 @@ Meanwhile, the "Issued On" and "Expires On" fields in **LicenseManagement** use 
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `src/pages/Profile.tsx` | **Modify** | Replace Calendar picker with native date input |
-
----
-
-## Visual Comparison
-
-**Before (Calendar popup with cramped dropdowns):**
-```
-┌─────────────────────────────────────────────────┐
-│ Date of Birth                                   │
-│ ┌───────────────────────────────────────────┐  │
-│ │ 📅  January 15, 1985                    ▼ │  │
-│ └───────────────────────────────────────────┘  │
-│                                                 │
-│ (Opens complex calendar popup with              │
-│  tiny year dropdown showing 1930-2026)         │
-└─────────────────────────────────────────────────┘
-```
-
-**After (Native date input, same as license dates):**
-```
-┌─────────────────────────────────────────────────┐
-│ Date of Birth                                   │
-│ ┌───────────────────────────────────────────┐  │
-│ │  1985-01-15                            📅 │  │
-│ └───────────────────────────────────────────┘  │
-│                                                 │
-│ (Click opens browser's native date picker      │
-│  with easy month/year navigation)              │
-└─────────────────────────────────────────────────┘
-```
-
----
-
-## Changes in Detail
-
-### Remove unused imports (if no longer needed elsewhere)
-
-The `Calendar`, `Popover`, `PopoverTrigger`, `PopoverContent`, `cn`, `parseISO`, and `CalendarIcon` imports may no longer be needed for the DOB field. However, `CalendarIcon` is used in the import alias and other parts of the file, so we only need to verify if `Popover` components are used elsewhere.
-
-After checking: The file uses `cn` elsewhere and may use other imports, so we'll leave imports as-is to avoid breaking other functionality.
-
-### Replace DOB field (lines 658-693)
-
-Replace the Popover/Calendar block with a simple Input.
-
----
-
-## Data Format Compatibility
-
-- Native date inputs use `yyyy-MM-dd` format
-- The current `professionalInfo.prov_dob` is already stored as `yyyy-MM-dd` in the database
-- The existing `prov_dob: date ? format(date, 'yyyy-MM-dd') : ''` logic already uses this format
-- **No data transformation needed** - the native input value directly matches the database format
-
----
-
-## What This Does NOT Change
-
-- Database schema (prov_dob remains a date string)
-- Form submission logic (already handles the correct format)
-- Other date pickers in the app (only affects DOB field)
-- LicenseManagement component (unchanged, serves as the pattern)
+| `src/components/Settings/UserManagement/AddStaffDialog.tsx` | **Modify** | Add `.refine()` validation for specialty when clinical roles selected |
+| `src/pages/Profile.tsx` | **Modify** | Add specialty selector to Professional Information section |
+| `src/hooks/useStaffData.tsx` | **Modify** | Add `prov_field` to `StaffUpdateData` interface |
 
 ---
 
 ## Testing Checklist
 
-1. **Date Selection**
-   - [ ] Clicking the input opens browser's native date picker
-   - [ ] Year/month navigation works smoothly in the native picker
-   - [ ] Selecting a date populates the field correctly
+### Add Staff Dialog
+- [ ] Creating a Clinician without selecting specialty shows validation error
+- [ ] Creating a Supervisor without selecting specialty shows validation error  
+- [ ] Creating Office/Billing/Admin staff works without specialty
+- [ ] Creating Clinician WITH specialty selected works correctly
+- [ ] Specialty saves to database correctly (verify `prov_field` is set)
 
-2. **Data Persistence**
-   - [ ] Existing DOB loads correctly when page opens
-   - [ ] Saving updates the database with correct format
-   - [ ] Clearing the field and saving stores null/empty
+### Profile Page
+- [ ] Specialty dropdown appears in Professional Information section
+- [ ] Existing specialty value loads correctly
+- [ ] Changing specialty and saving updates the database
+- [ ] After updating specialty, Treatment Approaches section becomes active
+- [ ] License Types dropdown now filters by the new specialty
 
-3. **Validation**
-   - [ ] Cannot select future dates (max constraint)
-   - [ ] Form submits correctly with or without DOB
-
-4. **Consistency**
-   - [ ] Visual style matches "Issued On" and "Expires On" fields in License section
+### End-to-End Fix for Existing User
+- [ ] Login as `info+dummy@valorwell.org`
+- [ ] Navigate to Profile page
+- [ ] Select "Mental Health" as specialty
+- [ ] Save changes
+- [ ] Scroll to Client Facing Information
+- [ ] Verify Treatment Approaches multiselect is now available
+- [ ] Verify license types are filtered to Mental Health options
