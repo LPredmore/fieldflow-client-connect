@@ -1,164 +1,228 @@
 
-# Implementation Plan: Clinical Specialty Management Fix
 
-## Problem Summary
+# Implementation Plan: Profile Completion Validation & Status Activation
 
-Staff members created with clinical roles (Clinician, Supervisor) cannot access specialty-dependent features because the `prov_field` (specialty) is not being reliably captured and there is no UI to set or correct it afterward.
+## Overview
 
-### Root Cause Analysis
-
-1. **Add Staff Form Schema Issue**: The `AddStaffDialog.tsx` marks specialty as optional (`z.string().optional()`), even when clinical roles are selected
-2. **Conditional Display Without Enforcement**: The specialty dropdown appears when clinical roles are selected, but the form can still submit without a selection
-3. **No Profile-Level Fix**: The Profile page reads `prov_field` but provides no way to edit it, creating a dead-end
-4. **Cascading Feature Blocks**: Missing specialty blocks:
-   - Treatment Approaches selection (filtered by specialty)
-   - License Types dropdown (filtered by specialty)
-   - Any future specialty-dependent features
-
-### Affected Code Paths
-
-```text
-AddStaffDialog.tsx (creation)
-        │
-        ▼
-create-staff-account/index.ts (edge function)
-        │
-        ▼ specialty=undefined → prov_field=NULL
-        │
-staff table (prov_field=NULL)
-        │
-        ▼
-Profile.tsx reads staff.prov_field
-        │
-        ├─► useTreatmentApproachOptions (disabled)
-        └─► LicenseManagement (unfiltered)
-        
-No way to fix after creation!
-```
+This plan implements a comprehensive profile completion validation system that:
+1. Prevents staff from enabling "Accepting New Clients" until all required fields are complete
+2. Automatically sets staff status to "Active" when they enable the toggle
+3. Warns users when removing required data would disable their "Accepting New Clients" status
+4. Provides clear feedback on which fields are missing
 
 ---
 
-## Technical Decision
+## Technical Architecture
 
-**Fix this with a two-pronged approach:**
+### Key Design Decisions
 
-1. **Make specialty required for clinical roles in AddStaffDialog** - Enforce via Zod's `refine()` method
-2. **Add specialty selector to Profile page** - Allow staff to set/update their specialty directly
+**Why client-side validation with server-side status update:**
+- Profile fields are spread across multiple save sections (Personal, Credentials, Client-Facing)
+- Real-time validation gives immediate feedback without server round-trips
+- Status change (`prov_status` = 'Active') is a privileged operation that should only happen when the toggle is actually turned on and saved
 
-### Why This Is The Right Approach
+**Why NOT a database trigger:**
+- Triggers can't easily validate across tables (staff + staff_licenses)
+- Client-side validation provides better UX with immediate feedback
+- The toggle action is the deliberate user intent we want to capture
 
-**Option A (Rejected): Just make it required at creation**
-- Doesn't fix existing broken accounts
-- Users still have no recoverability path
+**Required Fields (per your specifications):**
 
-**Option B (Rejected): Just add it to Profile page**
-- Allows continued creation of broken accounts
-- Admin burden increases
+| Section | Field | Database Column | Required |
+|---------|-------|-----------------|----------|
+| Personal Information | First Name | `prov_name_f` | Yes |
+| Personal Information | Last Name | `prov_name_l` | Yes |
+| Personal Information | Phone | `prov_phone` | Yes |
+| Personal Information | Address Line 1 | `prov_addr_1` | Yes |
+| Personal Information | City | `prov_city` | Yes |
+| Personal Information | State | `prov_state` | Yes |
+| Personal Information | ZIP | `prov_zip` | Yes |
+| Personal Information | Time Zone | `prov_time_zone` | Yes |
+| Licensing & Credentials | Specialty | `prov_field` | Yes |
+| Licensing & Credentials | Highest Degree | `prov_degree` | Yes |
+| Licensing & Credentials | Taxonomy Code | `prov_taxonomy` | Yes |
+| Licensing & Credentials | At Least 1 License | `staff_licenses` table | Yes |
+| Client Facing | Profile Image | `prov_image_url` | Yes |
+| Client Facing | Display Name | `prov_name_for_clients` | Yes |
+| Client Facing | Bio | `prov_bio` | Yes |
+| Client Facing | Min Client Age | `prov_min_client_age` | Yes (has default) |
 
-**Option C (Chosen): Both - defensive at creation + self-service fix**
-- Prevents new broken accounts via schema validation
-- Enables existing accounts to self-fix
-- Reduces support burden
-- Follows principle of "make invalid states impossible to represent"
+**NOT Required:** NPI Number, Treatment Approaches
 
 ---
 
 ## Implementation Details
 
-### Part 1: Enforce Specialty at Creation
+### Part 1: Create Profile Completion Hook
 
-**File: `src/components/Settings/UserManagement/AddStaffDialog.tsx`**
+**New File: `src/hooks/useProfileCompletion.ts`**
 
-Modify the Zod schema to conditionally require specialty when clinical roles are selected:
+This hook centralizes all profile completeness logic and returns:
+- `isProfileComplete`: boolean
+- `missingFields`: array of human-readable field names
+- `canAcceptClients`: boolean (same as isProfileComplete)
 
-```typescript
-const addStaffSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  specialty: z.string().optional(),
-  roles: z.array(z.string()).min(1, "At least one role must be selected"),
-}).refine((data) => {
-  const hasClinicalRole = data.roles.some(role => 
-    CLINICAL_ROLES.includes(role)
-  );
-  // If clinical role selected, specialty must be provided
-  if (hasClinicalRole && !data.specialty) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Specialty is required for clinical roles",
-  path: ["specialty"],
-});
+```text
+Hook Structure:
+├── Takes: staff object, licenses array
+├── Validates all required fields
+├── Returns completion status and missing field list
+└── Memoized for performance
 ```
 
-### Part 2: Add Specialty to Profile Page
+The hook will check:
+1. All Personal Information fields have values
+2. Specialty, Degree, and Taxonomy are set
+3. At least one license exists in `staff_licenses`
+4. Profile image URL exists
+5. Display name and bio are filled
+
+### Part 2: Modify Profile Page
 
 **File: `src/pages/Profile.tsx`**
 
-Add specialty selection field to the Professional Information card, right below the name fields.
+Changes:
+1. Import and use `useStaffLicenses` to get license count
+2. Import and use the new `useProfileCompletion` hook
+3. Replace the simple Switch with a validation-aware component
 
-```typescript
-// In professionalInfo state, add:
-prov_field: '',
+**Toggle Behavior:**
 
-// Sync from staff data:
-prov_field: staff.prov_field || '',
+When profile is INCOMPLETE and user clicks toggle:
+- Show an Alert/Dialog listing all missing fields
+- Do NOT enable the toggle
+- Provide guidance on which sections to complete
 
-// In handleProfessionalInfoSubmit:
-prov_field: professionalInfo.prov_field || undefined,
+When profile is COMPLETE and user clicks toggle ON:
+- Enable the toggle
+- On save, also update `prov_status` to 'Active'
 
-// In JSX (after name fields grid):
-<div className="space-y-2">
-  <Label htmlFor="prov_field">Specialty</Label>
-  <Select
-    value={professionalInfo.prov_field}
-    onValueChange={(value) => setProfessionalInfo(prev => ({ 
-      ...prev, 
-      prov_field: value 
-    }))}
-  >
-    <SelectTrigger id="prov_field">
-      <SelectValue placeholder="Select your specialty" />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectItem value="Mental Health">Mental Health</SelectItem>
-      <SelectItem value="Speech Therapy">Speech Therapy</SelectItem>
-      <SelectItem value="Occupational Therapy">Occupational Therapy</SelectItem>
-    </SelectContent>
-  </Select>
-  <p className="text-sm text-muted-foreground">
-    Your clinical specialty determines available license types and treatment approaches
-  </p>
-</div>
-```
+**Save Warning Behavior:**
+
+When saving ANY section (Personal, Credentials, or Client-Facing):
+- Check if any required field is being removed/cleared
+- If `prov_accepting_new_clients` is currently `true` and a required field would become empty:
+  - Show confirmation dialog warning that saving will disable their availability
+  - If confirmed, save the data AND set `prov_accepting_new_clients` to `false`
+
+### Part 3: Update useStaffData Hook
 
 **File: `src/hooks/useStaffData.tsx`**
 
-Add `prov_field` to the `StaffUpdateData` interface to allow updates:
+Add `prov_status` to `StaffUpdateData` interface:
 
 ```typescript
 interface StaffUpdateData {
   // ... existing fields ...
-  prov_field?: string;  // Add this
+  prov_status?: 'New' | 'Active' | 'Inactive';
 }
 ```
 
-### Part 3: Fix Existing Data
+This allows the Profile page to update status when the toggle is enabled.
 
-The user asked specifically about `info+dummy@valorwell.org`. Once the Profile page UI is in place, this user (and any others with NULL specialty) can set their specialty themselves. No manual database fix required.
+### Part 4: Create Missing Fields Alert Component
+
+**New File: `src/components/Profile/MissingFieldsAlert.tsx`**
+
+A reusable component that:
+- Displays as an AlertDialog when user tries to enable the toggle
+- Lists all missing fields grouped by section
+- Provides clear call-to-action
 
 ---
 
-## Database Compatibility
+## User Experience Flow
 
-The `specialty_enum` in the database already supports all three values:
-- `Mental Health`
-- `Speech Therapy`  
-- `Occupational Therapy`
+### Scenario 1: Incomplete Profile - Toggle Attempt
 
-The Profile page will use these exact strings to ensure enum compatibility.
+```text
+User clicks "Accepting New Clients" toggle
+         │
+         ▼
+useProfileCompletion checks fields
+         │
+         ▼ isProfileComplete = false
+         │
+Show AlertDialog:
+┌─────────────────────────────────────────────┐
+│ Complete Your Profile First                 │
+├─────────────────────────────────────────────┤
+│ Before you can accept new clients, please   │
+│ complete the following:                     │
+│                                             │
+│ Personal Information:                       │
+│   • Phone Number                            │
+│   • Address                                 │
+│                                             │
+│ Licensing & Credentials:                    │
+│   • Specialty                               │
+│   • At least one license                    │
+│                                             │
+│ Client Facing Information:                  │
+│   • Profile Image                           │
+│   • Professional Bio                        │
+│                                             │
+│                              [Got It]       │
+└─────────────────────────────────────────────┘
+         │
+Toggle remains OFF
+```
+
+### Scenario 2: Complete Profile - Toggle Enabled
+
+```text
+User clicks "Accepting New Clients" toggle
+         │
+         ▼
+useProfileCompletion checks fields
+         │
+         ▼ isProfileComplete = true
+         │
+Toggle switches to ON
+         │
+User clicks "Update Client Information"
+         │
+         ▼
+handleClientInfoSubmit:
+  - prov_accepting_new_clients = true
+  - prov_status = 'Active'  ← Auto-set
+         │
+         ▼
+Staff is now Active and visible to clients
+```
+
+### Scenario 3: Removing Required Data
+
+```text
+User is Active and Accepting New Clients
+         │
+User clears "Professional Bio" field
+         │
+User clicks "Update Client Information"
+         │
+         ▼
+Validation detects required field removal
+         │
+Show AlertDialog:
+┌─────────────────────────────────────────────┐
+│ This Will Disable Your Availability         │
+├─────────────────────────────────────────────┤
+│ Saving without a Professional Bio will      │
+│ automatically turn off "Accepting New       │
+│ Clients" because your profile will be       │
+│ incomplete.                                 │
+│                                             │
+│ You won't be able to turn it back on until  │
+│ you complete all required fields.           │
+│                                             │
+│             [Cancel]  [Save Anyway]         │
+└─────────────────────────────────────────────┘
+         │
+If "Save Anyway":
+  - Save data
+  - Set prov_accepting_new_clients = false
+  - Toast: "Profile saved. Accepting New Clients disabled."
+```
 
 ---
 
@@ -166,33 +230,62 @@ The Profile page will use these exact strings to ensure enum compatibility.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `src/components/Settings/UserManagement/AddStaffDialog.tsx` | **Modify** | Add `.refine()` validation for specialty when clinical roles selected |
-| `src/pages/Profile.tsx` | **Modify** | Add specialty selector to Professional Information section |
-| `src/hooks/useStaffData.tsx` | **Modify** | Add `prov_field` to `StaffUpdateData` interface |
+| `src/hooks/useProfileCompletion.ts` | **Create** | Centralized profile validation logic |
+| `src/components/Profile/MissingFieldsAlert.tsx` | **Create** | Alert dialog showing missing fields |
+| `src/components/Profile/IncompleteFieldWarningDialog.tsx` | **Create** | Warning dialog for removing required data |
+| `src/pages/Profile.tsx` | **Modify** | Integrate validation, dialogs, and status update |
+| `src/hooks/useStaffData.tsx` | **Modify** | Add `prov_status` to updatable fields |
+
+---
+
+## Technical Considerations
+
+### Data Consistency
+
+- The "Accepting New Clients" toggle lives in the Client-Facing section
+- Required fields span ALL THREE sections (Personal, Credentials, Client-Facing)
+- Validation must happen at toggle-click time, not just at save time
+- Status update to 'Active' only happens when the toggle is turned ON and saved
+
+### License Check
+
+Licenses are stored in `staff_licenses` table, not the `staff` table. The Profile page must:
+1. Fetch licenses using `useStaffLicenses({ staffId: staff.id })`
+2. Check `licenses.length >= 1` as part of completion validation
+
+### Edge Cases Handled
+
+1. **User with no staff record**: Profile page already conditionally renders staff sections
+2. **Licenses loading state**: Disable toggle while licenses are loading
+3. **Multiple section saves**: Each save validates independently and warns appropriately
+4. **Status already Active**: Toggle ON just saves normally, no status change needed (already Active)
 
 ---
 
 ## Testing Checklist
 
-### Add Staff Dialog
-- [ ] Creating a Clinician without selecting specialty shows validation error
-- [ ] Creating a Supervisor without selecting specialty shows validation error  
-- [ ] Creating Office/Billing/Admin staff works without specialty
-- [ ] Creating Clinician WITH specialty selected works correctly
-- [ ] Specialty saves to database correctly (verify `prov_field` is set)
+### Profile Completion Validation
+- [ ] Toggle disabled when First Name empty
+- [ ] Toggle disabled when no licenses exist
+- [ ] Toggle disabled when no profile image
+- [ ] Toggle enabled when ALL required fields present
+- [ ] NPI can be empty and still pass validation
+- [ ] Treatment Approaches can be empty and still pass validation
 
-### Profile Page
-- [ ] Specialty dropdown appears in Professional Information section
-- [ ] Existing specialty value loads correctly
-- [ ] Changing specialty and saving updates the database
-- [ ] After updating specialty, Treatment Approaches section becomes active
-- [ ] License Types dropdown now filters by the new specialty
+### Status Activation
+- [ ] Turning toggle ON and saving sets `prov_status` = 'Active'
+- [ ] Status change persists in database
+- [ ] User appears in contractor lists after activation
 
-### End-to-End Fix for Existing User
-- [ ] Login as `info+dummy@valorwell.org`
-- [ ] Navigate to Profile page
-- [ ] Select "Mental Health" as specialty
-- [ ] Save changes
-- [ ] Scroll to Client Facing Information
-- [ ] Verify Treatment Approaches multiselect is now available
-- [ ] Verify license types are filtered to Mental Health options
+### Required Field Removal Warning
+- [ ] Clearing bio shows warning dialog
+- [ ] Confirming save disables `prov_accepting_new_clients`
+- [ ] Toast notifies user of the change
+- [ ] Canceling keeps data and toggle unchanged
+
+### Alert Dialog
+- [ ] Lists all missing fields correctly
+- [ ] Groups fields by section
+- [ ] Dismisses on "Got It" click
+- [ ] Does not enable toggle
+
