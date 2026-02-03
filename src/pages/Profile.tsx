@@ -23,6 +23,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useStaffLicenses } from '@/hooks/useStaffLicenses';
+import { useProfileCompletion, checkFormDataCompleteness } from '@/hooks/useProfileCompletion';
+import { MissingFieldsAlert, IncompleteFieldWarningDialog } from '@/components/Profile';
 
 const TIMEZONE_LABELS: Record<string, string> = {
   'America/New_York': 'Eastern Time (ET)',
@@ -43,11 +46,30 @@ export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
   
+  // Fetch staff licenses for profile completion validation
+  const { licenses, loading: licensesLoading } = useStaffLicenses({ 
+    staffId: staff?.id, 
+    enabled: !!staff?.id 
+  });
+  
+  // Profile completion validation
+  const { isProfileComplete, missingFieldsBySection } = useProfileCompletion({
+    staff,
+    licenses,
+    licensesLoading,
+  });
+  
   const [isUpdating, setIsUpdating] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  
+  // Dialog states for profile completion validation
+  const [showMissingFieldsAlert, setShowMissingFieldsAlert] = useState(false);
+  const [showIncompleteWarning, setShowIncompleteWarning] = useState(false);
+  const [pendingWarningFields, setPendingWarningFields] = useState<string[]>([]);
+  const [pendingSubmitSection, setPendingSubmitSection] = useState<'personal' | 'credentials' | 'clientInfo' | null>(null);
 
   // Fetch treatment approach options based on specialty
   const { 
@@ -178,14 +200,66 @@ export default function Profile() {
     }
   }, [payrollRecipient]);
 
+  // Handler for toggle change with profile completion validation
+  const handleAcceptingNewClientsToggle = (checked: boolean) => {
+    if (checked && !isProfileComplete) {
+      // Trying to enable but profile is incomplete - show alert
+      setShowMissingFieldsAlert(true);
+      return;
+    }
+    // Allow the toggle change
+    setClientInfo(prev => ({ ...prev, prov_accepting_new_clients: Boolean(checked) }));
+  };
+
+  // Check if saving would make profile incomplete while accepting clients is on
+  const checkAndWarnBeforeSave = (
+    section: 'personal' | 'credentials' | 'clientInfo',
+    pendingData: Record<string, unknown>
+  ): boolean => {
+    // Only warn if currently accepting new clients
+    if (!staff?.prov_accepting_new_clients) {
+      return false; // No warning needed
+    }
+
+    const missingAfterSave = checkFormDataCompleteness(
+      staff,
+      section === 'personal' ? pendingData as typeof professionalInfo : professionalInfo,
+      section === 'credentials' ? pendingData as typeof credentials : credentials,
+      section === 'clientInfo' ? pendingData as typeof clientInfo : clientInfo,
+      section === 'personal' ? (pendingData as typeof professionalInfo).prov_field : professionalInfo.prov_field,
+      licenses
+    );
+
+    if (missingAfterSave.length > 0) {
+      // This save would make profile incomplete
+      setPendingWarningFields(missingAfterSave.map(f => f.field));
+      setPendingSubmitSection(section);
+      setShowIncompleteWarning(true);
+      return true; // Warning shown, don't proceed
+    }
+
+    return false; // No warning needed
+  };
+
   const handleProfessionalInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!staff || !user) return;
+    
+    // Check if this would make profile incomplete while accepting clients
+    if (checkAndWarnBeforeSave('personal', professionalInfo)) {
+      return; // Warning dialog shown, wait for user decision
+    }
+
+    await executeProfessionalInfoSave(false);
+  };
+
+  const executeProfessionalInfoSave = async (disableAcceptingClients: boolean) => {
     if (!staff || !user) return;
     
     setIsUpdating(true);
 
     // Update staff table
-    const staffResult = await updateStaffInfo({
+    const updateData: Record<string, unknown> = {
       prov_name_f: professionalInfo.prov_name_f,
       prov_name_m: professionalInfo.prov_name_m,
       prov_name_l: professionalInfo.prov_name_l,
@@ -198,7 +272,13 @@ export default function Profile() {
       prov_zip: professionalInfo.prov_zip,
       prov_time_zone: professionalInfo.prov_time_zone || undefined,
       prov_dob: professionalInfo.prov_dob || null,
-    });
+    };
+
+    if (disableAcceptingClients) {
+      updateData.prov_accepting_new_clients = false;
+    }
+
+    const staffResult = await updateStaffInfo(updateData);
 
     // Update email in profiles table if changed
     if (professionalInfo.email !== profile?.email) {
@@ -224,21 +304,44 @@ export default function Profile() {
         title: "Error updating professional information",
         description: staffResult.error.message,
       });
+    } else if (disableAcceptingClients) {
+      // Update local state to reflect the change
+      setClientInfo(prev => ({ ...prev, prov_accepting_new_clients: false }));
+      toast({
+        title: "Profile saved",
+        description: "Accepting New Clients has been disabled because your profile is now incomplete.",
+      });
     }
-    // Note: No cache clearing needed - server-side formatting via RPC uses fresh timezone on each fetch
   };
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!staff) return;
     
+    // Check if this would make profile incomplete while accepting clients
+    if (checkAndWarnBeforeSave('credentials', credentials)) {
+      return; // Warning dialog shown, wait for user decision
+    }
+
+    await executeCredentialsSave(false);
+  };
+
+  const executeCredentialsSave = async (disableAcceptingClients: boolean) => {
+    if (!staff) return;
+    
     setIsUpdating(true);
 
-    const result = await updateStaffInfo({
+    const updateData: Record<string, unknown> = {
       prov_npi: credentials.prov_npi,
       prov_taxonomy: credentials.prov_taxonomy,
       prov_degree: credentials.prov_degree || null,
-    });
+    };
+
+    if (disableAcceptingClients) {
+      updateData.prov_accepting_new_clients = false;
+    }
+
+    const result = await updateStaffInfo(updateData);
 
     setIsUpdating(false);
 
@@ -248,6 +351,12 @@ export default function Profile() {
         title: "Error updating credentials",
         description: result.error.message,
       });
+    } else if (disableAcceptingClients) {
+      setClientInfo(prev => ({ ...prev, prov_accepting_new_clients: false }));
+      toast({
+        title: "Profile saved",
+        description: "Accepting New Clients has been disabled because your profile is now incomplete.",
+      });
     }
   };
 
@@ -255,15 +364,37 @@ export default function Profile() {
     e.preventDefault();
     if (!staff) return;
     
+    // Check if this would make profile incomplete while accepting clients
+    // (but only if NOT currently trying to disable the toggle)
+    if (clientInfo.prov_accepting_new_clients && checkAndWarnBeforeSave('clientInfo', clientInfo)) {
+      return; // Warning dialog shown, wait for user decision
+    }
+
+    await executeClientInfoSave(false);
+  };
+
+  const executeClientInfoSave = async (disableAcceptingClients: boolean) => {
+    if (!staff) return;
+    
     setIsUpdating(true);
 
-    const result = await updateStaffInfo({
+    // Determine if we're enabling the toggle and need to set status to Active
+    const isEnablingToggle = clientInfo.prov_accepting_new_clients && !staff.prov_accepting_new_clients;
+    
+    const updateData: Record<string, unknown> = {
       prov_name_for_clients: clientInfo.prov_name_for_clients,
       prov_bio: clientInfo.prov_bio,
       prov_min_client_age: clientInfo.prov_min_client_age,
-      prov_accepting_new_clients: clientInfo.prov_accepting_new_clients,
+      prov_accepting_new_clients: disableAcceptingClients ? false : clientInfo.prov_accepting_new_clients,
       prov_treatment_approaches: clientInfo.prov_treatment_approaches,
-    });
+    };
+
+    // Auto-set status to Active when enabling "Accepting New Clients"
+    if (isEnablingToggle && !disableAcceptingClients) {
+      updateData.prov_status = 'Active';
+    }
+
+    const result = await updateStaffInfo(updateData);
 
     setIsUpdating(false);
 
@@ -273,7 +404,40 @@ export default function Profile() {
         title: "Error updating client information",
         description: result.error.message,
       });
+    } else if (disableAcceptingClients) {
+      setClientInfo(prev => ({ ...prev, prov_accepting_new_clients: false }));
+      toast({
+        title: "Profile saved",
+        description: "Accepting New Clients has been disabled because your profile is now incomplete.",
+      });
+    } else if (isEnablingToggle) {
+      toast({
+        title: "You're now active!",
+        description: "Your status has been set to Active and you're now accepting new clients.",
+      });
     }
+  };
+
+  // Handle warning dialog confirmation
+  const handleWarningConfirm = async () => {
+    setShowIncompleteWarning(false);
+    
+    if (pendingSubmitSection === 'personal') {
+      await executeProfessionalInfoSave(true);
+    } else if (pendingSubmitSection === 'credentials') {
+      await executeCredentialsSave(true);
+    } else if (pendingSubmitSection === 'clientInfo') {
+      await executeClientInfoSave(true);
+    }
+    
+    setPendingSubmitSection(null);
+    setPendingWarningFields([]);
+  };
+
+  const handleWarningCancel = () => {
+    setShowIncompleteWarning(false);
+    setPendingSubmitSection(null);
+    setPendingWarningFields([]);
   };
 
   const handleDirectDepositSubmit = async (e: React.FormEvent) => {
@@ -918,7 +1082,8 @@ export default function Profile() {
                       <Switch
                         id="prov_accepting_new_clients"
                         checked={clientInfo.prov_accepting_new_clients === true}
-                        onCheckedChange={(checked) => setClientInfo(prev => ({ ...prev, prov_accepting_new_clients: Boolean(checked) }))}
+                        onCheckedChange={handleAcceptingNewClientsToggle}
+                        disabled={licensesLoading}
                       />
                     </div>
                   </div>
@@ -1198,6 +1363,21 @@ export default function Profile() {
           )}
         </div>
       </div>
+
+      {/* Profile Completion Dialogs */}
+      <MissingFieldsAlert
+        open={showMissingFieldsAlert}
+        onOpenChange={setShowMissingFieldsAlert}
+        missingFieldsBySection={missingFieldsBySection}
+      />
+      
+      <IncompleteFieldWarningDialog
+        open={showIncompleteWarning}
+        onOpenChange={setShowIncompleteWarning}
+        missingFields={pendingWarningFields}
+        onConfirm={handleWarningConfirm}
+        onCancel={handleWarningCancel}
+      />
     </div>
   );
 }

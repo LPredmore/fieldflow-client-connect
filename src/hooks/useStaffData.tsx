@@ -72,6 +72,8 @@ interface StaffUpdateData {
   prov_time_zone?: string;
   prov_dob?: string | null;
   prov_degree?: string | null;
+  /** Staff status: 'New' | 'Active' | 'Inactive' */
+  prov_status?: string;
 }
 
 export function useStaffData() {
