@@ -514,16 +514,13 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Card 1: Professional Information */}
+          {/* Card 1: Personal Information */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-card-foreground">
                 <Briefcase className="h-5 w-5" />
-                Professional Information
+                Personal Information
               </CardTitle>
-              <CardDescription>
-                Your billing and insurance details
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleProfessionalInfoSubmit} className="space-y-4">
@@ -638,25 +635,6 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="prov_field">Specialty</Label>
-                  <Select
-                    value={professionalInfo.prov_field}
-                    onValueChange={(value) => setProfessionalInfo(prev => ({ ...prev, prov_field: value }))}
-                  >
-                    <SelectTrigger id="prov_field">
-                      <SelectValue placeholder="Select your specialty" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Mental Health">Mental Health</SelectItem>
-                      <SelectItem value="Speech Therapy">Speech Therapy</SelectItem>
-                      <SelectItem value="Occupational Therapy">Occupational Therapy</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-muted-foreground">
-                    Your clinical specialty determines available license types and treatment approaches
-                  </p>
-                </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
@@ -720,17 +698,38 @@ export default function Profile() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="prov_degree">Highest Degree</Label>
-                  <Input
-                    id="prov_degree"
-                    value={credentials.prov_degree}
-                    onChange={(e) => setCredentials(prev => ({ ...prev, prov_degree: e.target.value }))}
-                    placeholder="e.g., Ph.D., Psy.D., M.S., M.A."
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Your highest earned academic degree (e.g., Ph.D., Psy.D., M.S.W., M.A.)
-                  </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_field">Specialty</Label>
+                    <Select
+                      value={professionalInfo.prov_field}
+                      onValueChange={(value) => setProfessionalInfo(prev => ({ ...prev, prov_field: value }))}
+                    >
+                      <SelectTrigger id="prov_field">
+                        <SelectValue placeholder="Select your specialty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Mental Health">Mental Health</SelectItem>
+                        <SelectItem value="Speech Therapy">Speech Therapy</SelectItem>
+                        <SelectItem value="Occupational Therapy">Occupational Therapy</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Determines available license types and treatment approaches
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prov_degree">Highest Degree</Label>
+                    <Input
+                      id="prov_degree"
+                      value={credentials.prov_degree}
+                      onChange={(e) => setCredentials(prev => ({ ...prev, prov_degree: e.target.value }))}
+                      placeholder="e.g., Ph.D., Psy.D., M.S., M.A."
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Your highest earned academic degree
+                    </p>
+                  </div>
                 </div>
 
                 <LicenseManagement 
@@ -775,62 +774,8 @@ export default function Profile() {
             </Card>
           )}
 
-          {/* Card 3: Profile Image */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-card-foreground">
-                <Camera className="h-5 w-5" />
-                Profile Image
-              </CardTitle>
-              <CardDescription>
-                Upload a profile picture that will be visible to clients
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={imagePreview || staff?.prov_image_url || ''} />
-                  <AvatarFallback className="text-2xl">
-                    {staff?.prov_name_f && staff?.prov_name_l 
-                      ? `${staff.prov_name_f[0]}${staff.prov_name_l[0]}`.toUpperCase()
-                      : profile?.email?.[0].toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="cursor-pointer"
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    JPG, PNG, or GIF. Max size 5MB.
-                  </p>
-                </div>
-              </div>
-              {imageFile && (
-                <Button
-                  onClick={handleImageUpload}
-                  disabled={isUploadingImage}
-                  className="w-full"
-                >
-                  {isUploadingImage ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Image
-                    </>
-                  )}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Card 4: Client Facing Information */}
+          {/* Card 3: Client Facing Information */}
           {staff && (
             <Card className="bg-card border-border">
               <CardHeader>
@@ -843,7 +788,57 @@ export default function Profile() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleClientInfoSubmit} className="space-y-4">
+                <form onSubmit={handleClientInfoSubmit} className="space-y-6">
+                  {/* Profile Image Section */}
+                  <div className="flex items-start gap-6 pb-6 border-b">
+                    <Avatar className="h-24 w-24 shrink-0">
+                      <AvatarImage src={imagePreview || staff?.prov_image_url || ''} />
+                      <AvatarFallback className="text-2xl">
+                        {staff?.prov_name_f && staff?.prov_name_l 
+                          ? `${staff.prov_name_f[0]}${staff.prov_name_l[0]}`.toUpperCase()
+                          : profile?.email?.[0].toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <Label htmlFor="profile_image">Profile Image</Label>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          This photo will be visible to your clients
+                        </p>
+                      </div>
+                      <Input
+                        id="profile_image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="cursor-pointer"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        JPG, PNG, or GIF. Max size 5MB.
+                      </p>
+                      {imageFile && (
+                        <Button
+                          type="button"
+                          onClick={handleImageUpload}
+                          disabled={isUploadingImage}
+                          size="sm"
+                        >
+                          {isUploadingImage ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Image
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="prov_name_for_clients">Display Name for Clients</Label>
                     <Input
@@ -942,6 +937,69 @@ export default function Profile() {
               </CardContent>
             </Card>
           )}
+
+          {/* Card 4: Password & Security */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-card-foreground">
+                <Lock className="h-5 w-5" />
+                Password & Security
+              </CardTitle>
+              <CardDescription>Change your account password</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!showPasswordForm ? (
+                <Button onClick={() => setShowPasswordForm(true)} variant="outline">
+                  Change Password
+                </Button>
+              ) : (
+                <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                      placeholder="Enter new password"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      placeholder="Confirm new password"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={isUpdating}>
+                      {isUpdating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        'Update Password'
+                      )}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => {
+                        setShowPasswordForm(false);
+                        setPasswordForm({ newPassword: '', confirmPassword: '' });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Card 5: Direct Deposit */}
           {staff && (
@@ -1138,69 +1196,6 @@ export default function Profile() {
               </CardContent>
             </Card>
           )}
-
-          {/* Card 6: Password & Security */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-card-foreground">
-                <Lock className="h-5 w-5" />
-                Password & Security
-              </CardTitle>
-              <CardDescription>Change your account password</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!showPasswordForm ? (
-                <Button onClick={() => setShowPasswordForm(true)} variant="outline">
-                  Change Password
-                </Button>
-              ) : (
-                <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                      placeholder="Enter new password"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      placeholder="Confirm new password"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="submit" disabled={isUpdating}>
-                      {isUpdating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Updating...
-                        </>
-                      ) : (
-                        'Update Password'
-                      )}
-                    </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => {
-                        setShowPasswordForm(false);
-                        setPasswordForm({ newPassword: '', confirmPassword: '' });
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
