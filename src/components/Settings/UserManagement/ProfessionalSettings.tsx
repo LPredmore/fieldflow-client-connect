@@ -148,8 +148,8 @@ export function ProfessionalSettings({ userId, onDataChange }: ProfessionalSetti
           </div>
           <Switch
             id="accepting-clients"
-            checked={formData.prov_accepting_new_clients ?? false}
-            onCheckedChange={(checked) => handleChange('prov_accepting_new_clients', checked)}
+            checked={formData.prov_accepting_new_clients === true}
+            onCheckedChange={(checked) => handleChange('prov_accepting_new_clients', Boolean(checked))}
           />
         </div>
       </CardContent>

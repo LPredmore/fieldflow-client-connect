@@ -922,8 +922,8 @@ export default function Profile() {
                       </div>
                       <Switch
                         id="prov_accepting_new_clients"
-                        checked={clientInfo.prov_accepting_new_clients}
-                        onCheckedChange={(checked) => setClientInfo(prev => ({ ...prev, prov_accepting_new_clients: checked }))}
+                        checked={clientInfo.prov_accepting_new_clients === true}
+                        onCheckedChange={(checked) => setClientInfo(prev => ({ ...prev, prov_accepting_new_clients: Boolean(checked) }))}
                       />
                     </div>
                   </div>
