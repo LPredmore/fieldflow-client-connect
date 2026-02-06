@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppointmentCreation } from '@/hooks/useAppointmentCreation';
 import { useAppointmentSeries } from '@/hooks/useAppointmentSeries';
-import { useClients } from '@/hooks/useClients';
 import { useServices } from '@/hooks/useServices';
-import { getClientDisplayName } from '@/utils/clientDisplayName';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -13,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { RRuleBuilder } from '@/components/Appointments/RRuleBuilder';
+import { ClientSelector } from '@/components/Clients/ClientSelector';
 import { Plus, Calendar, Clock, User, Settings, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +38,6 @@ export function CreateAppointmentDialog({
   
   const { createAppointment } = useAppointmentCreation();
   const { createSeries } = useAppointmentSeries();
-  const { clients } = useClients();
   const { services, defaultService, loading: servicesLoading } = useServices();
   const { toast } = useToast();
 
@@ -197,26 +195,10 @@ export function CreateAppointmentDialog({
 
                 <div>
                   <Label htmlFor="client">Client *</Label>
-                  <Select
+                  <ClientSelector
                     value={formData.client_id}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(clients || []).map(client => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {getClientDisplayName(client)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {(!clients || clients.length === 0) && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      No clients assigned to you. Please add clients first.
-                    </p>
-                  )}
+                    onValueChange={(clientId) => setFormData(prev => ({ ...prev, client_id: clientId }))}
+                  />
                 </div>
 
                 <div className="flex items-center space-x-2">
