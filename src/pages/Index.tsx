@@ -132,20 +132,6 @@ const Index = () => {
             <RoleIndicator />
           </div>
         </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <div className="flex flex-wrap gap-4">
-            <Button 
-              onClick={() => navigate('/staff/appointments')}
-              className="shadow-material-sm hover:shadow-material-md transition-shadow duration-fast"
-            >
-              <Briefcase className="h-4 w-4 mr-2" />
-              New Appointment
-            </Button>
-          </div>
-        </div>
-
         {/* Three Cards Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Today's Appointments */}
