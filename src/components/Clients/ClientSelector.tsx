@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronsUpDown, User } from "lucide-react";
@@ -63,32 +63,34 @@ export function ClientSelector({ value, onValueChange, disabled }: ClientSelecto
       <PopoverContent className="w-full p-0">
         <Command>
           <CommandInput placeholder="Search patients..." />
-          <CommandEmpty>No patients found.</CommandEmpty>
-          <CommandGroup>
-            {(clients || []).map((client) => (
-              <CommandItem
-                key={client.id}
-                value={getClientDisplayName(client)}
-                onSelect={() => handleSelect(client)}
-              >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    value === client.id ? "opacity-100" : "opacity-0"
-                  )}
-                />
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex flex-col">
-                    <span>{getClientDisplayName(client)}</span>
-                    {client.phone && (
-                      <span className="text-xs text-muted-foreground">{client.phone}</span>
+          <CommandList>
+            <CommandEmpty>No patients found.</CommandEmpty>
+            <CommandGroup>
+              {(clients || []).map((client) => (
+                <CommandItem
+                  key={client.id}
+                  value={getClientDisplayName(client)}
+                  onSelect={() => handleSelect(client)}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === client.id ? "opacity-100" : "opacity-0"
                     )}
+                  />
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex flex-col">
+                      <span>{getClientDisplayName(client)}</span>
+                      {client.phone && (
+                        <span className="text-xs text-muted-foreground">{client.phone}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
