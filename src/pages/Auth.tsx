@@ -33,18 +33,42 @@ export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check for password recovery token in URL hash
+  // Check for password recovery token in URL (query param or hash)
   useEffect(() => {
-    const hashParams = new URLSearchParams(location.hash.slice(1));
-    const type = hashParams.get('type');
+    const handlePasswordRecovery = async () => {
+      const searchParams = new URLSearchParams(location.search);
+      const hashParams = new URLSearchParams(location.hash.slice(1));
+      
+      const isResetMode = searchParams.get('mode') === 'reset';
+      const isRecoveryType = hashParams.get('type') === 'recovery';
+      const code = searchParams.get('code');
+      
+      // Handle PKCE code exchange if present
+      if (code) {
+        try {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            setAuthError(`Failed to process reset link: ${error.message}`);
+            return;
+          }
+          // Clear the code from URL after successful exchange
+          window.history.replaceState(null, '', location.pathname + (isResetMode ? '?mode=reset' : ''));
+        } catch (err) {
+          setAuthError('Failed to process reset link');
+          return;
+        }
+      }
+      
+      // Show password update form if this is a reset flow
+      if (isResetMode || isRecoveryType) {
+        setShowUpdatePassword(true);
+        setShowForgotPassword(false);
+        setIsLogin(true);
+      }
+    };
     
-    if (type === 'recovery') {
-      // User arrived from a password reset link
-      setShowUpdatePassword(true);
-      setShowForgotPassword(false);
-      setIsLogin(true);
-    }
-  }, [location.hash]);
+    handlePasswordRecovery();
+  }, [location.search, location.hash]);
 
   // Redirect to main page if already authenticated
   useEffect(() => {
