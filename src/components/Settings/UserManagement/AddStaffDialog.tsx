@@ -29,8 +29,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UserPlus, Loader2, Copy, Check } from "lucide-react";
-import { useAddStaff } from "@/hooks/useAddStaff";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { UserPlus, Loader2, Copy, Check, AlertCircle, ChevronDown, ChevronUp, ClipboardCopy } from "lucide-react";
+import { useAddStaff, DiagnosticTrace } from "@/hooks/useAddStaff";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -78,9 +84,12 @@ interface AddStaffDialogProps {
 
 export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
   const [open, setOpen] = useState(false);
-  const [successData, setSuccessData] = useState<{ email: string; password: string } | null>(null);
+  const [successData, setSuccessData] = useState<{ email: string; password: string; diagnosticId?: string } | null>(null);
+  const [errorData, setErrorData] = useState<{ message: string; diagnostics?: DiagnosticTrace } | null>(null);
   const [copied, setCopied] = useState(false);
-  const { createStaff, loading } = useAddStaff();
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const { createStaff, loading, lastDiagnostics } = useAddStaff();
   const { tenantId } = useAuth();
   const { toast } = useToast();
 
@@ -108,6 +117,9 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
       return;
     }
 
+    // Clear previous error state
+    setErrorData(null);
+
     const result = await createStaff({
       email: data.email,
       firstName: data.firstName,
@@ -118,8 +130,17 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
     });
 
     if (result.success && result.password) {
-      setSuccessData({ email: data.email, password: result.password });
+      setSuccessData({ 
+        email: data.email, 
+        password: result.password,
+        diagnosticId: result.diagnostics?.diagnosticId,
+      });
       onSuccess?.();
+    } else if (!result.success) {
+      setErrorData({
+        message: result.error || "An unknown error occurred",
+        diagnostics: result.diagnostics,
+      });
     }
   };
 
@@ -135,10 +156,27 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
     }
   };
 
+  const handleCopyDiagnostics = async () => {
+    const diagnostics = errorData?.diagnostics || lastDiagnostics;
+    if (diagnostics) {
+      const diagnosticsJson = JSON.stringify(diagnostics, null, 2);
+      await navigator.clipboard.writeText(diagnosticsJson);
+      setDiagnosticsCopied(true);
+      toast({
+        title: "Diagnostics Copied",
+        description: "Full diagnostic trace copied to clipboard. Paste it into chat for analysis.",
+      });
+      setTimeout(() => setDiagnosticsCopied(false), 2000);
+    }
+  };
+
   const handleClose = () => {
     setOpen(false);
     setSuccessData(null);
+    setErrorData(null);
     setCopied(false);
+    setDiagnosticsCopied(false);
+    setShowDiagnostics(false);
     form.reset();
   };
 
@@ -158,6 +196,54 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
         form.setValue("specialty", undefined);
       }
     }
+  };
+
+  const renderDiagnosticsSection = () => {
+    const diagnostics = errorData?.diagnostics;
+    if (!diagnostics) return null;
+
+    return (
+      <Collapsible open={showDiagnostics} onOpenChange={setShowDiagnostics}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="w-full justify-between mt-2">
+            <span>View Diagnostic Details</span>
+            {showDiagnostics ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2">
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-xs font-mono">
+            <div>
+              <span className="text-muted-foreground">Diagnostic ID:</span>{" "}
+              <span className="font-semibold">{diagnostics.diagnosticId}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Timestamp:</span>{" "}
+              {diagnostics.timestamp}
+            </div>
+            <div>
+              <span className="text-muted-foreground">Duration:</span>{" "}
+              {diagnostics.timingMs}ms
+            </div>
+            {diagnostics.response?.errorName && (
+              <div>
+                <span className="text-muted-foreground">Error Type:</span>{" "}
+                <span className="text-destructive">{diagnostics.response.errorName}</span>
+              </div>
+            )}
+            {diagnostics.response?.error && (
+              <div>
+                <span className="text-muted-foreground">Error:</span>{" "}
+                <span className="text-destructive">{diagnostics.response.error}</span>
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
   };
 
   return (
@@ -194,6 +280,13 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
                     </Button>
                   </div>
                 </div>
+                {successData.diagnosticId && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Diagnostic ID: {successData.diagnosticId}
+                    </p>
+                  </div>
+                )}
               </div>
               <p className="text-sm text-muted-foreground">
                 Please share these credentials securely with the new staff member.
@@ -211,6 +304,36 @@ export function AddStaffDialog({ onSuccess }: AddStaffDialogProps) {
                 Create a new staff account. They will receive login credentials upon creation.
               </DialogDescription>
             </DialogHeader>
+
+            {/* Error Alert with Diagnostics */}
+            {errorData && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="space-y-2">
+                  <div>
+                    <strong>Error:</strong> {errorData.message}
+                  </div>
+                  {errorData.diagnostics && (
+                    <div className="text-xs opacity-80">
+                      Diagnostic ID: <code className="bg-destructive/20 px-1 rounded">{errorData.diagnostics.diagnosticId}</code>
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyDiagnostics}
+                      className="text-xs"
+                    >
+                      <ClipboardCopy className="h-3 w-3 mr-1" />
+                      {diagnosticsCopied ? "Copied!" : "Copy Diagnostics"}
+                    </Button>
+                  </div>
+                  {renderDiagnosticsSection()}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
