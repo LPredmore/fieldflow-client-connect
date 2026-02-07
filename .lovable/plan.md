@@ -1,105 +1,202 @@
 
 
-## Implementation Plan: Searchable, Scrollable Client Dropdown
+# Implementation Plan: Staff Creation Diagnostic Logging
 
-### Problem Summary
+## Objective
 
-The "Create New Appointment" dialog uses a basic `Select` component for client selection that:
-- Has no search functionality
-- Cannot scroll (CSS viewport height is locked to trigger height)
-- Forces users to manually scan a potentially long list
+Add comprehensive diagnostic logging to the staff creation flow so that when something fails, you can capture the exact state at every step and share it with me for analysis - even on the published site where I cannot directly access console logs.
 
-### The Right Technical Decision
+---
 
-**Replace the raw `Select` in `CreateAppointmentDialog.tsx` with the existing `ClientSelector` component.**
+## Technical Overview
 
-This is the correct approach because:
+The solution adds logging at three layers:
 
-1. **Reuse over duplication**: `ClientSelector` already exists and is used successfully in `AppointmentForm.tsx`. Creating a new component or modifying the base `Select` component would violate DRY principles.
-
-2. **`ClientSelector` uses the correct architecture**: It's built on `cmdk` (Command) + Popover, which is the industry-standard pattern for searchable dropdowns (used by VS Code, Linear, Notion, etc.). This provides:
-   - Built-in fuzzy search via `CommandInput`
-   - Keyboard navigation
-   - Accessible ARIA patterns
-
-3. **One bug to fix first**: The current `ClientSelector` is missing a `CommandList` wrapper around its items. The `CommandList` component provides `max-h-[300px] overflow-y-auto` which enables scrolling. Without it, the list height is unconstrained inside the popover.
-
-### Implementation Steps
-
-**Step 1: Fix the `ClientSelector` scrolling bug**
-
-File: `src/components/Clients/ClientSelector.tsx`
-
-Current structure (broken):
-```
-<Command>
-  <CommandInput />
-  <CommandEmpty />
-  <CommandGroup>
-    {items...}
-  </CommandGroup>
-</Command>
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Browser (AddStaffDialog + useAddStaff)                      │
+│  - Pre-call validation logging                               │
+│  - Request/response capture                                  │
+│  - Exportable diagnostics with "Copy Diagnostics" button     │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│  Edge Function (create-staff-account)                        │
+│  - Step-by-step logging with unique diagnosticId             │
+│  - Each step logged BEFORE and AFTER execution               │
+│  - Full error context on failure                             │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│  Supabase Logs (Dashboard → Edge Functions → Logs)           │
+│  - Filter by diagnosticId to find exact execution trace     │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-Correct structure:
+---
+
+## File Changes
+
+### 1. `src/hooks/useAddStaff.ts`
+
+**Purpose**: Capture complete request/response data with timestamps
+
+**Changes**:
+- Generate unique `diagnosticId` for each creation attempt
+- Log all input data before calling edge function
+- Capture full response (success or error)
+- Store diagnostic trace in state for export
+- Return diagnostics alongside result
+
+**New Interface**:
+```typescript
+interface DiagnosticTrace {
+  diagnosticId: string;
+  timestamp: string;
+  input: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    specialty?: string;
+    roles: string[];
+    tenantId: string;
+  };
+  response?: {
+    success: boolean;
+    data?: any;
+    error?: string;
+    httpStatus?: number;
+  };
+  timingMs: number;
+  browserInfo: {
+    userAgent: string;
+    url: string;
+  };
+}
 ```
-<Command>
-  <CommandInput />
-  <CommandList>          <-- ADD THIS WRAPPER
-    <CommandEmpty />
-    <CommandGroup>
-      {items...}
-    </CommandGroup>
-  </CommandList>         <-- CLOSE HERE
-</Command>
+
+---
+
+### 2. `src/components/Settings/UserManagement/AddStaffDialog.tsx`
+
+**Purpose**: Display diagnostic info and provide export capability
+
+**Changes**:
+- Show `diagnosticId` in error state
+- Add "Copy Diagnostics" button when creation fails
+- Display diagnostic summary in collapsible section
+- Store last diagnostic trace for retrieval
+
+**New UI Elements**:
+- Error state shows: "Error creating staff. Diagnostic ID: `abc-123-xyz`"
+- "Copy Diagnostics" button that copies full JSON trace to clipboard
+- Expandable "View Details" section showing step-by-step trace
+
+---
+
+### 3. `supabase/functions/create-staff-account/index.ts`
+
+**Purpose**: Log every step with the diagnosticId for correlation
+
+**Changes**:
+- Accept optional `diagnosticId` from client (or generate one)
+- Log at START and END of each step with structured data
+- Include diagnosticId in all log messages for filtering
+- Return diagnosticId in response for correlation
+
+**Logging Format**:
+```
+[DIAG:abc-123-xyz] STEP 1 START: Checking if user exists | email=test@example.com
+[DIAG:abc-123-xyz] STEP 1 COMPLETE: User does not exist | duration=45ms
+[DIAG:abc-123-xyz] STEP 2 START: Generating password
+[DIAG:abc-123-xyz] STEP 2 COMPLETE: Password generated | length=12
+... etc
 ```
 
-The `CommandList` component (line 57-66 of command.tsx) provides the scrolling container with `max-h-[300px] overflow-y-auto`.
-
-**Step 2: Replace Select with ClientSelector in CreateAppointmentDialog**
-
-File: `src/components/Appointments/CreateAppointmentDialog.tsx`
-
-Changes required:
-1. Import `ClientSelector` from `@/components/Clients/ClientSelector`
-2. Replace the client `Select` block (lines 198-220) with:
-```tsx
-<div>
-  <Label htmlFor="client">Client *</Label>
-  <ClientSelector
-    value={formData.client_id}
-    onValueChange={(clientId) => 
-      setFormData(prev => ({ ...prev, client_id: clientId }))
-    }
-  />
-  {(!clients || clients.length === 0) && (
-    <p className="text-sm text-muted-foreground mt-1">
-      No clients assigned to you. Please add clients first.
-    </p>
-  )}
-</div>
+**Error Logging**:
 ```
-3. Remove the now-unused `useClients` import and `clients` variable (since `ClientSelector` manages its own data fetching internally)
-4. Remove the `getClientDisplayName` import (no longer needed in this file)
+[DIAG:abc-123-xyz] STEP 5 FAILED: tenant_memberships insert
+  error_code: 23505
+  error_message: duplicate key value violates unique constraint
+  input: { tenant_id: "...", profile_id: "..." }
+```
 
-### Why Not Other Approaches?
+---
 
-| Alternative | Why Not |
-|-------------|---------|
-| Fix the `Select` component globally | Would change behavior for all dropdowns in the app, including ones where search isn't needed (duration, status). Adds complexity to simple use cases. |
-| Create a new `SearchableClientSelect` | Duplicates existing `ClientSelector` functionality. More code to maintain. |
-| Add inline scroll CSS to `SelectContent` | Fixes scrolling but doesn't add search. Users with 20+ clients still can't find people quickly. |
+## Diagnostic Workflow
 
-### Files Changed
+When staff creation fails, you will:
 
-| File | Change |
-|------|--------|
-| `src/components/Clients/ClientSelector.tsx` | Add `CommandList` wrapper for scrolling |
-| `src/components/Appointments/CreateAppointmentDialog.tsx` | Replace `Select` with `ClientSelector`, remove unused imports |
+1. **See the error in the dialog** with a Diagnostic ID displayed
+2. **Click "Copy Diagnostics"** to copy the full JSON trace
+3. **Paste the JSON into chat** so I can analyze:
+   - Exact input data
+   - Timing information
+   - Browser context
+   - Error messages
+4. **Optionally**: Check Supabase Dashboard → Edge Functions → create-staff-account → Logs, filter by the Diagnostic ID to see server-side step execution
 
-### Technical Notes
+---
 
-- The `ClientSelector` callback provides both `clientId` and `clientName`, but `CreateAppointmentDialog` only needs `clientId`. The second parameter can be ignored.
-- `ClientSelector` internally calls `useClients()` with default filtering (clinician's assigned clients only), which matches the current behavior.
-- No database or API changes required.
+## Example Diagnostic Output
+
+```json
+{
+  "diagnosticId": "staff-create-1707334567890-a1b2c3",
+  "timestamp": "2026-02-07T15:36:07.890Z",
+  "input": {
+    "email": "newstaff@example.com",
+    "firstName": "Test",
+    "lastName": "User",
+    "specialty": "Mental Health",
+    "roles": ["CLINICIAN"],
+    "tenantId": "00000000-0000-0000-0000-000000000001"
+  },
+  "response": {
+    "success": false,
+    "error": "FunctionsHttpError: Edge Function returned a non-2xx status code",
+    "httpStatus": 500
+  },
+  "timingMs": 1234,
+  "browserInfo": {
+    "userAgent": "Mozilla/5.0...",
+    "url": "https://ehr-staff.lovable.app/staff/settings"
+  }
+}
+```
+
+---
+
+## Why This Approach
+
+1. **Correlation**: The diagnosticId links browser logs, exported diagnostics, and Supabase edge function logs together
+
+2. **Works on Published Site**: You can copy diagnostics to clipboard and paste them to me, even without console access
+
+3. **Non-Invasive**: Logging only activates during staff creation, no performance impact on normal usage
+
+4. **Step-by-Step Visibility**: Edge function logs each of the 9 steps, so we'll know exactly which one failed
+
+5. **Captures Silent Failures**: If the edge function never gets called (JWT issue, network error), the browser-side diagnostics will show `response: null`
+
+---
+
+## Files Modified
+
+| File | Type | Description |
+|------|------|-------------|
+| `src/hooks/useAddStaff.ts` | Edit | Add diagnostic trace capture and export |
+| `src/components/Settings/UserManagement/AddStaffDialog.tsx` | Edit | Add diagnostic ID display and "Copy Diagnostics" button |
+| `supabase/functions/create-staff-account/index.ts` | Edit | Add step-by-step logging with diagnosticId |
+
+---
+
+## Success Criteria
+
+After implementation, when you attempt to add a staff member:
+1. You see a Diagnostic ID in the success/error message
+2. If it fails, you can click "Copy Diagnostics" and paste the JSON
+3. The JSON shows exactly what was sent and what came back
+4. Supabase logs show step-by-step execution with the same Diagnostic ID
+5. Together, these will reveal exactly where and why the process failed
 
