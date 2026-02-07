@@ -3393,6 +3393,450 @@ export type Database = {
           },
         ]
       }
+      crm_bulk_sms_logs: {
+        Row: {
+          body_text: string
+          completed_at: string | null
+          created_at: string
+          created_by_profile_id: string
+          failed_count: number
+          id: string
+          recipient_count: number
+          recipient_type: string
+          sent_count: number
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          body_text: string
+          completed_at?: string | null
+          created_at?: string
+          created_by_profile_id: string
+          failed_count?: number
+          id?: string
+          recipient_count?: number
+          recipient_type?: string
+          sent_count?: number
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          body_text?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by_profile_id?: string
+          failed_count?: number
+          id?: string
+          recipient_count?: number
+          recipient_type?: string
+          sent_count?: number
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_bulk_sms_logs_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_bulk_sms_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_bulk_sms_recipients: {
+        Row: {
+          bulk_sms_id: string
+          client_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          sent_at: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          bulk_sms_id: string
+          client_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          bulk_sms_id?: string
+          client_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_bulk_sms_recipients_bulk_sms_id_fkey"
+            columns: ["bulk_sms_id"]
+            isOneToOne: false
+            referencedRelation: "crm_bulk_sms_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_bulk_sms_recipients_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_bulk_sms_recipients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_bulk_sms_staff_recipients: {
+        Row: {
+          bulk_sms_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          sent_at: string | null
+          staff_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          bulk_sms_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          staff_id: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          bulk_sms_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          staff_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_bulk_sms_staff_recipients_bulk_sms_id_fkey"
+            columns: ["bulk_sms_id"]
+            isOneToOne: false
+            referencedRelation: "crm_bulk_sms_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_bulk_sms_staff_recipients_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_bulk_sms_staff_recipients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_campaign_enrollments: {
+        Row: {
+          campaign_id: string
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          enrolled_at: string
+          enrolled_by_profile_id: string | null
+          id: string
+          pause_reason: string | null
+          paused_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          enrolled_at?: string
+          enrolled_by_profile_id?: string | null
+          id?: string
+          pause_reason?: string | null
+          paused_at?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          enrolled_at?: string
+          enrolled_by_profile_id?: string | null
+          id?: string
+          pause_reason?: string | null
+          paused_at?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_campaign_enrollments_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaign_enrollments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaign_enrollments_enrolled_by_profile_id_fkey"
+            columns: ["enrolled_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaign_enrollments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_campaign_step_logs: {
+        Row: {
+          channel: string
+          client_id: string
+          created_at: string
+          enrollment_id: string
+          error_message: string | null
+          helpscout_conversation_id: string | null
+          id: string
+          scheduled_for: string
+          sent_at: string | null
+          skip_reason: string | null
+          status: string
+          step_id: string
+          tenant_id: string
+        }
+        Insert: {
+          channel: string
+          client_id: string
+          created_at?: string
+          enrollment_id: string
+          error_message?: string | null
+          helpscout_conversation_id?: string | null
+          id?: string
+          scheduled_for: string
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          step_id: string
+          tenant_id: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string
+          created_at?: string
+          enrollment_id?: string
+          error_message?: string | null
+          helpscout_conversation_id?: string | null
+          id?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          step_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_campaign_step_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaign_step_logs_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaign_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaign_step_logs_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaign_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaign_step_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_campaign_steps: {
+        Row: {
+          campaign_id: string
+          channel: string
+          created_at: string
+          delay_days: number
+          delay_hours: number
+          email_body_html: string | null
+          email_subject: string | null
+          id: string
+          is_active: boolean
+          sms_body_text: string | null
+          step_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          channel: string
+          created_at?: string
+          delay_days?: number
+          delay_hours?: number
+          email_body_html?: string | null
+          email_subject?: string | null
+          id?: string
+          is_active?: boolean
+          sms_body_text?: string | null
+          step_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          channel?: string
+          created_at?: string
+          delay_days?: number
+          delay_hours?: number
+          email_body_html?: string | null
+          email_subject?: string | null
+          id?: string
+          is_active?: boolean
+          sms_body_text?: string | null
+          step_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_campaign_steps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaign_steps_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_campaigns: {
+        Row: {
+          created_at: string
+          created_by_profile_id: string | null
+          default_timezone: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          send_window_end: string
+          send_window_start: string
+          tenant_id: string
+          updated_at: string
+          weekdays_only: boolean
+        }
+        Insert: {
+          created_at?: string
+          created_by_profile_id?: string | null
+          default_timezone?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          send_window_end?: string
+          send_window_start?: string
+          tenant_id: string
+          updated_at?: string
+          weekdays_only?: boolean
+        }
+        Update: {
+          created_at?: string
+          created_by_profile_id?: string | null
+          default_timezone?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          send_window_end?: string
+          send_window_start?: string
+          tenant_id?: string
+          updated_at?: string
+          weekdays_only?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_campaigns_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaigns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_conversation_cache: {
         Row: {
           cached_at: string
