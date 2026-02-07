@@ -1,202 +1,207 @@
 
 
-# Implementation Plan: Staff Creation Diagnostic Logging
+# Password Reset Flow Alignment with Custom Email System
 
-## Objective
+## Current State Analysis
 
-Add comprehensive diagnostic logging to the staff creation flow so that when something fails, you can capture the exact state at every step and share it with me for analysis - even on the published site where I cannot directly access console logs.
-
----
-
-## Technical Overview
-
-The solution adds logging at three layers:
+The password reset flow currently works as follows:
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│  Browser (AddStaffDialog + useAddStaff)                      │
-│  - Pre-call validation logging                               │
-│  - Request/response capture                                  │
-│  - Exportable diagnostics with "Copy Diagnostics" button     │
-└──────────────────────────────────────────────────────────────┘
-                              ↓
-┌──────────────────────────────────────────────────────────────┐
-│  Edge Function (create-staff-account)                        │
-│  - Step-by-step logging with unique diagnosticId             │
-│  - Each step logged BEFORE and AFTER execution               │
-│  - Full error context on failure                             │
-└──────────────────────────────────────────────────────────────┘
-                              ↓
-┌──────────────────────────────────────────────────────────────┐
-│  Supabase Logs (Dashboard → Edge Functions → Logs)           │
-│  - Filter by diagnosticId to find exact execution trace     │
-└──────────────────────────────────────────────────────────────┘
+User clicks "Forgot Password" in Auth.tsx
+         ↓
+resetPassword() called with redirectTo: /reset-password
+         ↓
+Supabase Auth Hook triggers → send-auth-email edge function
+         ↓
+Email sent from noreply@valorwell.org (already working!)
+         ↓
+User clicks link → /reset-password#access_token=...&type=recovery
+         ↓
+ResetPasswordRedirect exchanges token, redirects to /auth#...
+         ↓
+Auth.tsx detects type=recovery in hash, shows "Set New Password" form
 ```
+
+**Good News**: The core flow is already functional! The custom email system is working because the Supabase Auth Hook applies to ALL authentication emails for the project.
+
+**Issues Identified**:
+1. The redirect URL uses `/reset-password` which requires an extra redirect hop
+2. The Auth page detection logic relies on hash parameters, which works but could be cleaner
+3. The flow could be simplified to match the documentation's recommended pattern
 
 ---
 
-## File Changes
+## Recommended Changes
 
-### 1. `src/hooks/useAddStaff.ts`
+### Option A: Minimal Changes (Lower Risk)
+Keep the current two-step flow but ensure it's robust:
+- The `/reset-password` intermediary page handles token exchange
+- Auth page continues to detect `type=recovery` from hash
 
-**Purpose**: Capture complete request/response data with timestamps
+**Pros**: Minimal code changes, existing flow works
+**Cons**: Extra redirect hop, slightly more complex
 
-**Changes**:
-- Generate unique `diagnosticId` for each creation attempt
-- Log all input data before calling edge function
-- Capture full response (success or error)
-- Store diagnostic trace in state for export
-- Return diagnostics alongside result
+### Option B: Streamlined Flow (Recommended)
+Align with the documentation's pattern - redirect directly to `/auth`:
 
-**New Interface**:
+```text
+User clicks "Forgot Password"
+         ↓
+resetPassword() with redirectTo: /auth?mode=reset
+         ↓
+User clicks email link → /auth?mode=reset#access_token=...
+         ↓
+Auth.tsx handles token exchange AND shows password form
+```
+
+**Pros**: Single page, cleaner URL, matches documentation
+**Cons**: Auth.tsx becomes slightly more complex
+
+---
+
+## Implementation Plan (Option B - Recommended)
+
+### File 1: `src/providers/AuthenticationProvider.tsx`
+
+**Change**: Update the `resetPassword` function redirect URL
+
+**Current** (line 553-554):
 ```typescript
-interface DiagnosticTrace {
-  diagnosticId: string;
-  timestamp: string;
-  input: {
-    email: string;
-    firstName: string;
-    lastName: string;
-    specialty?: string;
-    roles: string[];
-    tenantId: string;
-  };
-  response?: {
-    success: boolean;
-    data?: any;
-    error?: string;
-    httpStatus?: number;
-  };
-  timingMs: number;
-  browserInfo: {
-    userAgent: string;
-    url: string;
-  };
-}
+const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  redirectTo: `${window.location.origin}/reset-password`
+});
+```
+
+**Updated**:
+```typescript
+const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  redirectTo: `${window.location.origin}/auth?mode=reset`
+});
 ```
 
 ---
 
-### 2. `src/components/Settings/UserManagement/AddStaffDialog.tsx`
-
-**Purpose**: Display diagnostic info and provide export capability
+### File 2: `src/pages/Auth.tsx`
 
 **Changes**:
-- Show `diagnosticId` in error state
-- Add "Copy Diagnostics" button when creation fails
-- Display diagnostic summary in collapsible section
-- Store last diagnostic trace for retrieval
+1. Detect password reset from BOTH `?mode=reset` query param AND `type=recovery` hash param
+2. Handle PKCE code exchange if `?code=` is present
+3. Add error handling for token exchange
 
-**New UI Elements**:
-- Error state shows: "Error creating staff. Diagnostic ID: `abc-123-xyz`"
-- "Copy Diagnostics" button that copies full JSON trace to clipboard
-- Expandable "View Details" section showing step-by-step trace
-
----
-
-### 3. `supabase/functions/create-staff-account/index.ts`
-
-**Purpose**: Log every step with the diagnosticId for correlation
-
-**Changes**:
-- Accept optional `diagnosticId` from client (or generate one)
-- Log at START and END of each step with structured data
-- Include diagnosticId in all log messages for filtering
-- Return diagnosticId in response for correlation
-
-**Logging Format**:
-```
-[DIAG:abc-123-xyz] STEP 1 START: Checking if user exists | email=test@example.com
-[DIAG:abc-123-xyz] STEP 1 COMPLETE: User does not exist | duration=45ms
-[DIAG:abc-123-xyz] STEP 2 START: Generating password
-[DIAG:abc-123-xyz] STEP 2 COMPLETE: Password generated | length=12
-... etc
-```
-
-**Error Logging**:
-```
-[DIAG:abc-123-xyz] STEP 5 FAILED: tenant_memberships insert
-  error_code: 23505
-  error_message: duplicate key value violates unique constraint
-  input: { tenant_id: "...", profile_id: "..." }
-```
-
----
-
-## Diagnostic Workflow
-
-When staff creation fails, you will:
-
-1. **See the error in the dialog** with a Diagnostic ID displayed
-2. **Click "Copy Diagnostics"** to copy the full JSON trace
-3. **Paste the JSON into chat** so I can analyze:
-   - Exact input data
-   - Timing information
-   - Browser context
-   - Error messages
-4. **Optionally**: Check Supabase Dashboard → Edge Functions → create-staff-account → Logs, filter by the Diagnostic ID to see server-side step execution
-
----
-
-## Example Diagnostic Output
-
-```json
-{
-  "diagnosticId": "staff-create-1707334567890-a1b2c3",
-  "timestamp": "2026-02-07T15:36:07.890Z",
-  "input": {
-    "email": "newstaff@example.com",
-    "firstName": "Test",
-    "lastName": "User",
-    "specialty": "Mental Health",
-    "roles": ["CLINICIAN"],
-    "tenantId": "00000000-0000-0000-0000-000000000001"
-  },
-  "response": {
-    "success": false,
-    "error": "FunctionsHttpError: Edge Function returned a non-2xx status code",
-    "httpStatus": 500
-  },
-  "timingMs": 1234,
-  "browserInfo": {
-    "userAgent": "Mozilla/5.0...",
-    "url": "https://ehr-staff.lovable.app/staff/settings"
+**Current detection** (lines 36-47):
+```typescript
+useEffect(() => {
+  const hashParams = new URLSearchParams(location.hash.slice(1));
+  const type = hashParams.get('type');
+  
+  if (type === 'recovery') {
+    setShowUpdatePassword(true);
+    setShowForgotPassword(false);
+    setIsLogin(true);
   }
-}
+}, [location.hash]);
 ```
+
+**Updated logic**:
+```typescript
+useEffect(() => {
+  const handlePasswordRecovery = async () => {
+    const searchParams = new URLSearchParams(location.search);
+    const hashParams = new URLSearchParams(location.hash.slice(1));
+    
+    const isResetMode = searchParams.get('mode') === 'reset';
+    const isRecoveryType = hashParams.get('type') === 'recovery';
+    const code = searchParams.get('code');
+    
+    // Handle PKCE code exchange if present
+    if (code) {
+      try {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          setAuthError(`Failed to process reset link: ${error.message}`);
+          return;
+        }
+      } catch (err) {
+        setAuthError('Failed to process reset link');
+        return;
+      }
+    }
+    
+    // Show password update form if this is a reset flow
+    if (isResetMode || isRecoveryType) {
+      setShowUpdatePassword(true);
+      setShowForgotPassword(false);
+      setIsLogin(true);
+    }
+  };
+  
+  handlePasswordRecovery();
+}, [location.search, location.hash]);
+```
+
+---
+
+### File 3: `src/pages/ResetPasswordRedirect.tsx`
+
+**Change**: Keep for backwards compatibility but simplify to just redirect
+
+This page can remain as a fallback for any old/existing password reset emails that may have been sent before the change. It will continue to work but new emails will go directly to `/auth`.
+
+**Optional Enhancement**: Add a message indicating redirect is happening, then forward to the new URL pattern.
+
+---
+
+### File 4: `src/App.tsx`
+
+**No changes required** - the `/reset-password` route stays for backwards compatibility.
+
+---
+
+## Testing Plan
+
+After implementation, test the following:
+
+1. **New Password Reset Flow**:
+   - Go to `/auth`
+   - Click "Forgot Password"
+   - Enter email and submit
+   - Verify email arrives from `noreply@valorwell.org` (not Supabase default)
+   - Click the "Reset Your Password" button in email
+   - Verify redirect to `/auth?mode=reset#...` (not `/reset-password`)
+   - Verify "Set New Password" form appears
+   - Enter new password and confirm
+   - Verify password is updated and success message shown
+
+2. **Legacy Fallback** (if old emails exist):
+   - Any existing emails pointing to `/reset-password` should still work
+   - The ResetPasswordRedirect page will handle token exchange and forward to `/auth`
+
+3. **Edge Function Logs**:
+   - Check https://supabase.com/dashboard/project/ahqauomkgflopxgnlndd/functions/send-auth-email/logs
+   - Look for `Processing recovery email for:` entries to confirm custom email system is processing requests
+
+---
+
+## Summary of Changes
+
+| File | Change Type | Description |
+|------|-------------|-------------|
+| `src/providers/AuthenticationProvider.tsx` | Edit | Change redirectTo from `/reset-password` to `/auth?mode=reset` |
+| `src/pages/Auth.tsx` | Edit | Add PKCE code exchange handling, detect both query param and hash param |
+| `src/pages/ResetPasswordRedirect.tsx` | No change | Keep for backwards compatibility |
+| `src/App.tsx` | No change | Routes remain the same |
 
 ---
 
 ## Why This Approach
 
-1. **Correlation**: The diagnosticId links browser logs, exported diagnostics, and Supabase edge function logs together
+1. **Alignment with Documentation**: Matches the recommended pattern from the client portal implementation notes
 
-2. **Works on Published Site**: You can copy diagnostics to clipboard and paste them to me, even without console access
+2. **Backwards Compatible**: Old emails still work via the ResetPasswordRedirect fallback
 
-3. **Non-Invasive**: Logging only activates during staff creation, no performance impact on normal usage
+3. **Cleaner URLs**: Users see `/auth?mode=reset` instead of `/reset-password` then `/auth`
 
-4. **Step-by-Step Visibility**: Edge function logs each of the 9 steps, so we'll know exactly which one failed
+4. **Single Page Handling**: All password reset UI logic lives in Auth.tsx
 
-5. **Captures Silent Failures**: If the edge function never gets called (JWT issue, network error), the browser-side diagnostics will show `response: null`
-
----
-
-## Files Modified
-
-| File | Type | Description |
-|------|------|-------------|
-| `src/hooks/useAddStaff.ts` | Edit | Add diagnostic trace capture and export |
-| `src/components/Settings/UserManagement/AddStaffDialog.tsx` | Edit | Add diagnostic ID display and "Copy Diagnostics" button |
-| `supabase/functions/create-staff-account/index.ts` | Edit | Add step-by-step logging with diagnosticId |
-
----
-
-## Success Criteria
-
-After implementation, when you attempt to add a staff member:
-1. You see a Diagnostic ID in the success/error message
-2. If it fails, you can click "Copy Diagnostics" and paste the JSON
-3. The JSON shows exactly what was sent and what came back
-4. Supabase logs show step-by-step execution with the same Diagnostic ID
-5. Together, these will reveal exactly where and why the process failed
+5. **Custom Email System Already Works**: The Supabase Auth Hook is project-wide, so no edge function changes needed
 
