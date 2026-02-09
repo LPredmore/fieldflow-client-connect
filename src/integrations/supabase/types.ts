@@ -537,7 +537,7 @@ export type Database = {
           thru_date_1?: string | null
           time_zone: Database["public"]["Enums"]["time_zones"]
           units_1?: number | null
-          updated_at?: string
+          updated_at: string
           videoroom_url?: string | null
         }
         Update: {
