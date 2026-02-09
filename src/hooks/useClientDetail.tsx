@@ -308,6 +308,7 @@ export function useClientDetail({ clientId, activeTab = 'overview' }: UseClientD
   const {
     data: treatmentPlans,
     loading: treatmentPlansLoading,
+    refetch: refetchTreatmentPlans,
   } = useSupabaseQuery<TreatmentPlan>({
     table: 'client_treatment_plans',
     select: '*',
@@ -566,5 +567,8 @@ export function useClientDetail({ clientId, activeTab = 'overview' }: UseClientD
     
     // Loading state per tab
     tabLoading,
+    
+    // Refetch functions
+    refetchTreatmentPlans,
   };
 }
