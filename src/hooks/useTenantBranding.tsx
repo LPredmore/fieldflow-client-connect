@@ -16,6 +16,16 @@ export function useTenantBranding() {
   });
 
   const logoUrl = data?.[0]?.logo_url || null;
+  const displayName = data?.[0]?.display_name || null;
+
+  // Dynamically update document title when tenant name changes
+  useEffect(() => {
+    if (!displayName) return;
+    document.title = displayName;
+    return () => {
+      document.title = 'Loading...';
+    };
+  }, [displayName]);
 
   // Dynamically update favicon when tenant logo changes
   useEffect(() => {
