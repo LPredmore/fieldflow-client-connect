@@ -160,6 +160,7 @@ const Index = () => {
                       displayDate={appt.display_date}
                       displayTime={appt.display_time}
                       isTelehealth={appt.is_telehealth}
+                      videoroomUrl={appt.videoroom_url}
                       showDocumentButton
                       onDocumentClick={handleDocumentSession}
                     />
