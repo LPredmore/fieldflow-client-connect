@@ -1,29 +1,18 @@
 
 
-# Fix: Update Resend "From" Address to Verified Domain
+# Remove RoleIndicator Component
 
-## Problem
+## What's Being Removed
 
-The `notify-new-message` Edge Function sends emails from `noreply@valorwell.com`, but the verified sending domain in Resend is `valorwell.org`. This causes Resend to silently reject the email (returning `undefined` for the `resend_id`).
+The "Contractor View / Limited Access" and "Admin View / Full Access" badge that appears in the top-right of the Dashboard and Appointments pages.
 
-## Fix
-
-One line change in `supabase/functions/notify-new-message/index.ts`:
-
-Change the `from` field from:
-```
-"ValorWell <noreply@valorwell.com>"
-```
-to:
-```
-"ValorWell <noreply@valorwell.org>"
-```
-
-## Files Modified
+## Changes
 
 | File | Change |
 |---|---|
-| `supabase/functions/notify-new-message/index.ts` | Update `from` address to `noreply@valorwell.org` |
+| `src/pages/Index.tsx` | Remove `RoleIndicator` import and usage (lines 4, 132) |
+| `src/pages/Appointments.tsx` | Remove `RoleIndicator` import and usage (lines 3, 211) |
+| `src/components/Layout/RoleIndicator.tsx` | Delete the file entirely |
 
-No other files, database changes, or configuration changes needed. After deploying, the next client message will trigger a successful email delivery.
+No database, permission, or routing changes. This is purely cosmetic cleanup.
 
