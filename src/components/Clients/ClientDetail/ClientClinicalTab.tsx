@@ -15,6 +15,7 @@ interface ClientClinicalTabProps {
   activeDiagnoses: ClientDiagnosis[];
   sessionNotes: SessionNote[];
   onViewTreatmentPlan: () => void;
+  onCreateNewPlan?: () => void;
   onViewSessionNote: (noteId: string) => void;
   onPrintSelectedNotes: (noteIds: string[]) => void;
 }
@@ -25,6 +26,7 @@ export function ClientClinicalTab({
   activeDiagnoses,
   sessionNotes,
   onViewTreatmentPlan,
+  onCreateNewPlan,
   onViewSessionNote,
   onPrintSelectedNotes,
 }: ClientClinicalTabProps) {
@@ -154,10 +156,18 @@ export function ClientClinicalTab({
             <FileText className="h-4 w-4" />
             Current Treatment Plan
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={onViewTreatmentPlan}>
-            <Eye className="h-4 w-4 mr-2" />
-            {currentTreatmentPlan ? 'View/Edit' : 'Create'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {currentTreatmentPlan && onCreateNewPlan && (
+              <Button variant="outline" size="sm" onClick={onCreateNewPlan}>
+                <FileText className="h-4 w-4 mr-2" />
+                New Plan
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={onViewTreatmentPlan}>
+              <Eye className="h-4 w-4 mr-2" />
+              {currentTreatmentPlan ? 'View/Edit' : 'Create'}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {!currentTreatmentPlan ? (
