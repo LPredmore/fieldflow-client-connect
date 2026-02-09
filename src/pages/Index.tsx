@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Briefcase } from "lucide-react";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import RoleIndicator from "@/components/Layout/RoleIndicator";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStaffAppointments, StaffAppointment } from "@/hooks/useStaffAppointments";
@@ -129,7 +129,7 @@ const Index = () => {
               <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
               <p className="text-muted-foreground">Welcome back! Here's your schedule overview.</p>
             </div>
-            <RoleIndicator />
+            
           </div>
         </div>
         {/* Three Cards Grid */}
