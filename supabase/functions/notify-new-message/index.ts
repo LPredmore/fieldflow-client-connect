@@ -103,7 +103,7 @@ serve(async (req: Request) => {
 
     // 5. Send PHI-safe email (no message content)
     const emailResponse = await resend.emails.send({
-      from: "ValorWell <noreply@valorwell.com>",
+      from: "ValorWell <noreply@valorwell.org>",
       to: [profile.email],
       subject: `New message from ${clientName}`,
       html: `
