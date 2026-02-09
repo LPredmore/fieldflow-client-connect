@@ -194,7 +194,7 @@ function determineRoute(
  * Wraps route content and enforces routing rules based on user authentication and role.
  */
 export function UnifiedRoutingGuard({ children }: UnifiedRoutingGuardProps) {
-  const { user, isLoading, error } = useAuth();
+  const { user, isLoading, error, isPasswordRecovery } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -306,6 +306,11 @@ export function UnifiedRoutingGuard({ children }: UnifiedRoutingGuardProps) {
           }
         }
       }
+      return;
+    }
+
+    // Allow password recovery users to stay on /auth
+    if (isPasswordRecovery && location.pathname.startsWith('/auth')) {
       return;
     }
 

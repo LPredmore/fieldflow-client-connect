@@ -27,7 +27,12 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(false);
   const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearPasswordRecovery = useCallback(() => {
+    setIsPasswordRecovery(false);
+  }, []);
 
   /**
    * Load user data after authentication
@@ -424,6 +429,12 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
 
         try {
           switch (event) {
+            case 'PASSWORD_RECOVERY':
+              console.log('[AuthenticationProvider] PASSWORD_RECOVERY event received');
+              setIsPasswordRecovery(true);
+              setIsLoading(false);
+              return;
+
             case 'SIGNED_IN':
               if (session?.user) {
                 // Prevent infinite retry loop if loadUserData previously failed for this user
@@ -585,7 +596,9 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
     signOut: logout, // alias
     signIn,
     signUp,
-    resetPassword
+    resetPassword,
+    isPasswordRecovery,
+    clearPasswordRecovery
   };
 
   // Don't render children until initialized
