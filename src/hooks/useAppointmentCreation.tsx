@@ -115,6 +115,8 @@ export function useAppointmentCreation() {
       time_zone: dbTimezone, // Creator's timezone (metadata only)
       created_by_profile_id: user.id,
       series_id: null, // Single appointment, not part of a series
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     const { data: appointment, error } = await supabase
