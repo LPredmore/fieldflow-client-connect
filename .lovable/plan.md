@@ -1,56 +1,50 @@
 
 
-# Fix Staff Portal Password Reset Flow
+# Email Notification for New Client Messages
 
-## Problem
+## Summary
 
-When a user clicks a password reset link, Supabase fires a `PASSWORD_RECOVERY` auth event. The current `AuthenticationProvider` has no handler for this event, so it falls through to `SIGNED_IN`, which loads user data and sets the user context. The `UnifiedRoutingGuard` then sees an authenticated user and redirects them straight into the portal -- they never see the password reset form.
+When a client sends a message, the staff member receives an email notification via the Resend API. This is implemented with a new edge function and triggered from the staff portal's existing realtime subscription.
 
-## Solution
+## How It Works
 
-Three targeted changes to intercept the recovery flow before the normal auth pipeline takes over.
+1. A client sends a message (inserted into the `messages` table with `sender_type = 'client'`)
+2. The staff portal's existing realtime subscription (`useMessagesRealtime`) already detects the INSERT
+3. A new hook adds a second realtime channel that, on detecting a client message, calls the new `notify-new-message` edge function
+4. The edge function looks up the staff member's email and the client's name, then sends a notification email via Resend
 
-## Changes
+## New Edge Function: `notify-new-message`
 
-### 1. AuthenticationProvider.tsx -- Handle `PASSWORD_RECOVERY` event
+- Receives `{ message_id }` in the request body
+- Uses the service role key to query:
+  - The message row (to get `staff_id`, `client_id`, `body`, `sender_type`)
+  - The staff member's email (via `staff -> profile_id -> profiles.email`)
+  - The client's name (from `clients`)
+- Sends an email via Resend with subject like "New message from [Client Name]"
+- The email body includes a brief preview of the message and a link to the messages page
+- Only sends if `sender_type = 'client'` (safety check)
+- Uses `verify_jwt = false` but validates an internal check (the message must exist and be from a client)
 
-Add a new state flag `isPasswordRecovery` and a `clearPasswordRecovery` function. In the `onAuthStateChange` listener, add a `PASSWORD_RECOVERY` case **before** `SIGNED_IN` that:
-- Sets `isPasswordRecovery = true`
-- Sets loading to false
-- Does NOT call `loadUserData()` (no redirect to dashboard)
-
-Also expose `isPasswordRecovery` and `clearPasswordRecovery` through the context.
-
-### 2. AuthenticationContext.tsx -- Extend context interface
-
-Add `isPasswordRecovery: boolean` and `clearPasswordRecovery: () => void` to the `AuthenticationContextValue` interface so consuming components can access them.
-
-### 3. Auth.tsx -- Use `isPasswordRecovery` flag to show reset form
-
-- Pull `isPasswordRecovery` and `clearPasswordRecovery` from `useAuth()`
-- When `isPasswordRecovery` is true, set `showUpdatePassword = true` immediately (show the "Set New Password" form)
-- In the redirect effect (lines 79-87), skip the redirect if `isPasswordRecovery` is true or `showUpdatePassword` is true
-- After successful password update: call `clearPasswordRecovery()`, sign out, then redirect to `/auth`
-
-### 4. UnifiedRoutingGuard.tsx -- Allow recovery users to reach /auth
-
-- Pull `isPasswordRecovery` from `useAuth()`
-- If `isPasswordRecovery` is true and user is on `/auth`, skip redirect (return `shouldRedirect: false`)
-
-## Files Changed
+## Application Code Changes
 
 | File | Change |
 |---|---|
-| `src/contexts/AuthenticationContext.tsx` | Add `isPasswordRecovery` and `clearPasswordRecovery` to context interface and defaults |
-| `src/providers/AuthenticationProvider.tsx` | Add `isPasswordRecovery` state, handle `PASSWORD_RECOVERY` event, expose via context |
-| `src/pages/Auth.tsx` | Use `isPasswordRecovery` to show reset form, skip redirect, sign out after update |
-| `src/components/routing/UnifiedRoutingGuard.tsx` | Skip redirect when `isPasswordRecovery` is true and user is on `/auth` |
+| `supabase/functions/notify-new-message/index.ts` | New edge function that sends the notification email |
+| `supabase/config.toml` | Add `[functions.notify-new-message]` with `verify_jwt = false` |
+| `src/hooks/useMessages.tsx` | In `useMessagesRealtime`, when a new client message arrives, call the edge function |
+
+## Important Details
+
+- The email is sent from `onboarding@resend.dev` (matching existing edge functions) -- you can update this to a verified domain later
+- The edge function truncates the message body in the email to avoid exposing too much PHI in email (first 100 characters + ellipsis)
+- If the staff member is currently viewing the conversation (message gets marked as read), the email still sends -- this is intentional since the email may arrive after they navigate away
+- No database changes required
+- The existing `RESEND_API_KEY` secret is already configured
 
 ## What Does NOT Change
 
-- No database changes
-- No Edge Function changes
+- No database tables or columns modified
 - No RLS policy changes
-- No new routes needed (`/auth` already exists)
-- The existing `?mode=reset` and `#type=recovery` URL detection in `Auth.tsx` remains as a fallback
+- The existing realtime subscription and unread badge continue to work as before
+- No changes to the client portal
 
