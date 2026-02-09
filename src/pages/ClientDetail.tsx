@@ -69,7 +69,7 @@ export default function ClientDetail() {
 
   // Dialog states
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [isTreatmentPlanOpen, setIsTreatmentPlanOpen] = useState(false);
+  const [treatmentPlanMode, setTreatmentPlanMode] = useState<'closed' | 'edit' | 'create'>('closed');
   const [isAssignFormOpen, setIsAssignFormOpen] = useState(false);
   const [viewingSessionNote, setViewingSessionNote] = useState<SessionNote | null>(null);
   const [batchPrintNoteIds, setBatchPrintNoteIds] = useState<string[]>([]);
@@ -155,7 +155,11 @@ export default function ClientDetail() {
   };
 
   const handleViewTreatmentPlan = () => {
-    setIsTreatmentPlanOpen(true);
+    setTreatmentPlanMode('edit');
+  };
+
+  const handleCreateNewTreatmentPlan = () => {
+    setTreatmentPlanMode('create');
   };
 
   const handleViewSessionNote = (noteId: string) => {
@@ -352,6 +356,7 @@ export default function ClientDetail() {
             activeDiagnoses={activeDiagnoses}
             sessionNotes={sessionNotes}
             onViewTreatmentPlan={handleViewTreatmentPlan}
+            onCreateNewPlan={handleCreateNewTreatmentPlan}
             onViewSessionNote={handleViewSessionNote}
             onPrintSelectedNotes={handlePrintSelectedNotes}
           />
@@ -409,10 +414,11 @@ export default function ClientDetail() {
 
       {/* Treatment Plan Dialog */}
       <TreatmentPlanDialog
-        open={isTreatmentPlanOpen}
-        onOpenChange={setIsTreatmentPlanOpen}
+        open={treatmentPlanMode !== 'closed'}
+        onOpenChange={(open) => { if (!open) setTreatmentPlanMode('closed'); }}
         clientId={client.id}
         clinicianName={clinicianName}
+        existingPlan={treatmentPlanMode === 'edit' ? currentTreatmentPlan : null}
         onSaved={refetchTreatmentPlans}
       />
 
