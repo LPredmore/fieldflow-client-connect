@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.generate-clinical-note]
 verify_jwt = true
+
+[functions.notify-new-message]
+verify_jwt = false
