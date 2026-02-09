@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Plus, Search, Filter, Video } from "lucide-react";
-import RoleIndicator from "@/components/Layout/RoleIndicator";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,7 +208,7 @@ export default function Appointments() {
                 <h1 className="text-3xl font-bold text-foreground mb-2">Appointments</h1>
                 <p className="text-muted-foreground">Manage and track your appointments</p>
               </div>
-              <RoleIndicator />
+              
             </div>
             <CreateAppointmentDialog 
               open={createDialogOpen}
