@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, DollarSign } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -143,24 +143,6 @@ export function BillingSection({
         />
       </div>
 
-      {/* Calculated Charge Display */}
-      {selectedCptCode && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
-          <DollarSign className="h-4 w-4" />
-          {calculatedCharge != null ? (
-            <span>
-              Charge: <strong className="text-foreground">${calculatedCharge.toFixed(2)}</strong>
-              <span className="ml-2">
-                ({units} unit{units !== 1 ? "s" : ""} × ${selectedCptCode.custom_rate}/unit)
-              </span>
-            </span>
-          ) : (
-            <span className="text-warning">
-              Rate not set for this CPT code. Charge will be calculated as $0.00
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
