@@ -1,47 +1,53 @@
 
 
-# Fix Telehealth Default and Post-Creation Refresh
+# Fix Recurring Appointment Occurrence Generation
 
-## Changes
+## What's broken
 
-### 1. Telehealth defaults to ON
+Two independent bugs prevent recurring appointments from generating individual occurrences:
 
-In `CreateAppointmentDialog`, change the initial `is_telehealth` value from `false` to `true`. This is the only behavioral change needed -- the form already has the toggle, it just starts in the wrong position.
+1. **The edge function was never registered in `config.toml`**, so Lovable has never deployed the current code. The version running on Supabase is stale and incorrectly reports "Series is inactive" even when `is_active` is `true`.
 
-### 2. Eliminate the duplicate "Create Appointment" dialog on the Calendar page
+2. **The edge function's insert payload is missing `updated_at`**, which is a `NOT NULL` column with no server-side default. Even after redeployment, every insert would fail silently (the error is caught and counted as "skipped").
 
-**Problem**: `Calendar.tsx` creates its own `CreateAppointmentDialog` in the page header, but it has no way to trigger a refresh of `RBCCalendar`'s internal data (which uses `useStaffAppointments`). Meanwhile, `RBCCalendar` already has its own `CreateAppointmentDialog` that correctly refreshes.
+Additionally, there is a minor inconsistency: after creating an appointment, the form resets `is_telehealth` to `false` instead of `true`, contradicting the new default.
 
-**Fix**: Remove the standalone dialog from `Calendar.tsx` entirely. Instead, add a `showCreateButton` prop to `RBCCalendar` (defaulting to `false`) so the calendar's own header can include the "Create Appointment" button. This keeps a single dialog instance that already has direct access to `refetch`. This is the architecturally correct approach because:
+## What changes
 
-- It eliminates duplicate component instances doing the same thing
-- The component that owns the data (`RBCCalendar` via `useStaffAppointments`) also owns the create action
-- No prop-drilling or callback chains needed
-- The existing `onAppointmentCreated={refetch}` wiring already works
+### 1. `supabase/config.toml` -- Register the edge function
 
-**Files changed**:
-- `src/pages/Calendar.tsx` -- Remove the `CreateAppointmentDialog` and import, simplify to just render heading + `CalendarWrapper`
-- `src/components/Calendar/CalendarWrapper.tsx` -- Pass `showCreateButton` through to `RBCCalendar`
-- `src/components/Calendar/RBCCalendar.tsx` -- Accept `showCreateButton` prop; render the "Create Appointment" button in the card header next to the title when true
+Add:
 
-### 3. Appointments page: ensure refresh after recurring creation
+```toml
+[functions.generate-appointment-occurrences]
+verify_jwt = false
+```
 
-The `onAppointmentCreated` callback fires after the series is created, but the edge function that generates individual appointment rows runs asynchronously. By the time `refetchAppointments()` runs, the rows may not exist yet.
+This triggers Lovable's automatic deployment, syncing the repository code to Supabase. `verify_jwt = false` is correct because the function creates its own service-role client internally and is only called programmatically from authenticated frontend code.
 
-**Fix**: Add a small delay (1.5 seconds) before calling the refresh callback in `CreateAppointmentDialog` specifically for recurring appointments. This gives the `generate-appointment-occurrences` edge function time to insert the materialized rows before the list re-fetches. This is pragmatic -- the alternative (polling or WebSocket subscriptions) adds significant complexity for minimal gain.
+### 2. `supabase/functions/generate-appointment-occurrences/index.ts` -- Add missing timestamps
 
-**File changed**: `src/components/Appointments/CreateAppointmentDialog.tsx`
+Add `created_at` and `updated_at` to the `appointmentData` object (after `created_by_profile_id`), mirroring the single-appointment pattern in `useAppointmentCreation`:
 
----
+```
+created_at: new Date().toISOString(),
+updated_at: new Date().toISOString(),
+```
 
-## Technical Summary
+### 3. `src/components/Appointments/CreateAppointmentDialog.tsx` -- Fix telehealth reset
 
-| File | Change |
-|---|---|
-| `src/components/Appointments/CreateAppointmentDialog.tsx` | Set `is_telehealth: true` in initial state; add 1.5s delay before callback for recurring appointments |
-| `src/pages/Calendar.tsx` | Remove duplicate CreateAppointmentDialog; pass `showCreateButton` to CalendarWrapper |
-| `src/components/Calendar/CalendarWrapper.tsx` | Accept and forward `showCreateButton` prop |
-| `src/components/Calendar/RBCCalendar.tsx` | Accept `showCreateButton` prop; render create button in card header |
+In the form reset block (line 136), change `is_telehealth: false` to `is_telehealth: true` so reopening the dialog after a submission still defaults to telehealth on.
 
-Four files, no database changes, no new dependencies.
+## What does NOT change
+
+- No database modifications
+- No new dependencies
+- No changes to timezone logic, series creation, or the RRule generation algorithm
+- No changes to the calendar refresh architecture
+
+## Risk assessment
+
+- **Zero risk to single appointments**: the `useAppointmentCreation` hook is untouched.
+- **Zero risk to existing data**: the edge function uses `upsert` with `ignoreDuplicates: true`, so rerunning it against existing series won't create duplicates.
+- **Telehealth reset fix** is cosmetic UX -- no downstream impact.
 
