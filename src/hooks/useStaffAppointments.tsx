@@ -345,7 +345,7 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
     const filtered = appointments.filter(appt => {
       // Extract date from fake local Date in same YYYY-MM-DD format
       const apptDate = getDateFromFakeLocalDate(appt.calendar_start);
-      return apptDate === today;
+      return apptDate === today && (appt.status === 'scheduled' || appt.status === 'documented');
     });
     
     console.log('[useStaffAppointments] Today calculation:', {
