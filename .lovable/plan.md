@@ -1,60 +1,56 @@
 
 
-# Add `documented_at` Column to Appointments
+# Fix Staff Portal Password Reset Flow
 
-## Summary
+## Problem
 
-Add an immutable `documented_at` timestamptz column to the `appointments` table, set automatically by a database trigger when status transitions to `'documented'`. Backfill existing documented appointments using their `start_at` (session date), not `updated_at`.
+When a user clicks a password reset link, Supabase fires a `PASSWORD_RECOVERY` auth event. The current `AuthenticationProvider` has no handler for this event, so it falls through to `SIGNED_IN`, which loads user data and sets the user context. The `UnifiedRoutingGuard` then sees an authenticated user and redirects them straight into the portal -- they never see the password reset form.
 
-## Why `start_at` for Backfill
+## Solution
 
-For historical records, the date the session actually occurred is the correct payroll reference. `updated_at` could reflect any later edit and would introduce the same inaccuracy this feature is designed to eliminate. Going forward, the trigger captures the real-time moment of documentation.
+Three targeted changes to intercept the recovery flow before the normal auth pipeline takes over.
 
-## Database Migration
+## Changes
 
-```text
--- 1. Add column
-ALTER TABLE appointments ADD COLUMN documented_at timestamptz;
+### 1. AuthenticationProvider.tsx -- Handle `PASSWORD_RECOVERY` event
 
--- 2. Trigger function: set documented_at once on status -> 'documented'
-CREATE OR REPLACE FUNCTION set_documented_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.status = 'documented'
-     AND (OLD.status IS DISTINCT FROM 'documented')
-     AND NEW.documented_at IS NULL THEN
-    NEW.documented_at := now();
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+Add a new state flag `isPasswordRecovery` and a `clearPasswordRecovery` function. In the `onAuthStateChange` listener, add a `PASSWORD_RECOVERY` case **before** `SIGNED_IN` that:
+- Sets `isPasswordRecovery = true`
+- Sets loading to false
+- Does NOT call `loadUserData()` (no redirect to dashboard)
 
-CREATE TRIGGER trg_set_documented_at
-  BEFORE UPDATE ON appointments
-  FOR EACH ROW
-  EXECUTE FUNCTION set_documented_at();
+Also expose `isPasswordRecovery` and `clearPasswordRecovery` through the context.
 
--- 3. Backfill: use session date (start_at) for existing documented appointments
-UPDATE appointments
-SET documented_at = start_at
-WHERE status = 'documented' AND documented_at IS NULL;
-```
+### 2. AuthenticationContext.tsx -- Extend context interface
 
-## Application Code Changes
+Add `isPasswordRecovery: boolean` and `clearPasswordRecovery: () => void` to the `AuthenticationContextValue` interface so consuming components can access them.
+
+### 3. Auth.tsx -- Use `isPasswordRecovery` flag to show reset form
+
+- Pull `isPasswordRecovery` and `clearPasswordRecovery` from `useAuth()`
+- When `isPasswordRecovery` is true, set `showUpdatePassword = true` immediately (show the "Set New Password" form)
+- In the redirect effect (lines 79-87), skip the redirect if `isPasswordRecovery` is true or `showUpdatePassword` is true
+- After successful password update: call `clearPasswordRecovery()`, sign out, then redirect to `/auth`
+
+### 4. UnifiedRoutingGuard.tsx -- Allow recovery users to reach /auth
+
+- Pull `isPasswordRecovery` from `useAuth()`
+- If `isPasswordRecovery` is true and user is on `/auth`, skip redirect (return `shouldRedirect: false`)
+
+## Files Changed
 
 | File | Change |
 |---|---|
-| `src/integrations/supabase/types.ts` | Add `documented_at` to appointments Row, Insert, Update types |
-| `src/schema/tables/appointments.ts` | Add `documented_at` column definition |
-| `src/hooks/useStaffAppointments.tsx` | Add `documented_at` to `StaffAppointment` interface and row mapping |
+| `src/contexts/AuthenticationContext.tsx` | Add `isPasswordRecovery` and `clearPasswordRecovery` to context interface and defaults |
+| `src/providers/AuthenticationProvider.tsx` | Add `isPasswordRecovery` state, handle `PASSWORD_RECOVERY` event, expose via context |
+| `src/pages/Auth.tsx` | Use `isPasswordRecovery` to show reset form, skip redirect, sign out after update |
+| `src/components/routing/UnifiedRoutingGuard.tsx` | Skip redirect when `isPasswordRecovery` is true and user is on `/auth` |
 
 ## What Does NOT Change
 
-- No existing columns modified
-- `useSessionNote.tsx` unchanged -- the trigger handles everything
-- No RLS policy changes needed
-- `updated_at` continues to work as before
+- No database changes
+- No Edge Function changes
+- No RLS policy changes
+- No new routes needed (`/auth` already exists)
+- The existing `?mode=reset` and `#type=recovery` URL detection in `Auth.tsx` remains as a fallback
 
-## Payroll Coordination
-
-After deployment, any external system querying payroll dates should switch from `updated_at` to `documented_at`.
