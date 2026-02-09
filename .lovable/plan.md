@@ -1,56 +1,70 @@
 
 
-# Fix Treatment Plan Refresh After Save
+# Fix Treatment Plan Dialog Population and Add "Create New Plan" Button
 
 ## Problem
 
-When a treatment plan is created or updated via `TreatmentPlanDialog`, the Clinical tab on the client detail page does not refresh to show the new/updated plan. This happens because `TreatmentPlanDialog` and `useClientDetail` each instantiate their own separate `useSupabaseQuery` for the `client_treatment_plans` table. When the dialog saves and calls its internal `refetch()`, only the dialog's local data updates -- the parent page's data is untouched.
+Two issues:
+
+1. **Fields don't populate when editing**: `ClientDetail.tsx` opens `TreatmentPlanDialog` without passing the `existingPlan` prop. The dialog already accepts this prop and has logic to populate form fields from it, but it's never wired up.
+2. **No way to create a new versioned plan**: Once a plan exists, the only button says "View/Edit." The versioning system (`plan_version`, `supersedes_plan_id`) exists in the database and hook, but there's no UI to trigger it.
 
 ## Technical Decision
 
-Add an `onSaved` callback prop to `TreatmentPlanDialog`. When the dialog successfully creates or updates a plan, it calls `onSaved()` before closing. `useClientDetail` will expose a `refetchClinical()` function, and `ClientDetail.tsx` will wire it into the dialog's `onSaved` prop.
+Solve both with a single state variable pattern: replace the boolean `isTreatmentPlanOpen` with a mode enum that tells the dialog whether it's editing the existing plan or creating a new one.
 
-This is the correct approach because:
+This is the right approach because:
 
-- It follows the existing callback pattern already used throughout this codebase (e.g., `onDocumentClick`, `onCancelAssignment`).
-- It keeps `TreatmentPlanDialog` as a self-contained component with no knowledge of its parent's data layer.
-- It avoids global state or shared query keys, which would couple unrelated components.
-- `useSupabaseQuery` already returns a `refetch` function on every instance, so no changes to the data layer are needed.
+- It avoids adding a second dialog instance or a second boolean state.
+- The dialog already handles both create and edit paths based on whether `existingPlan` is provided.
+- It keeps `ClientClinicalTab` as a pure presentational component -- it fires callbacks, the parent decides what to do.
 
 ## Changes
 
-### 1. `src/hooks/useClientDetail.tsx`
+### 1. `src/pages/ClientDetail.tsx`
 
-- Destructure `refetch` from the treatment plans `useSupabaseQuery` call (line ~308).
-- Expose it from the hook's return object as `refetchTreatmentPlans`.
+- Replace `const [isTreatmentPlanOpen, setIsTreatmentPlanOpen] = useState(false)` with `const [treatmentPlanMode, setTreatmentPlanMode] = useState<'closed' | 'edit' | 'create'>('closed')`.
+- Update `handleViewTreatmentPlan` to set mode to `'edit'`.
+- Add `handleCreateNewTreatmentPlan` that sets mode to `'create'`.
+- Pass `existingPlan={treatmentPlanMode === 'edit' ? currentTreatmentPlan : null}` to `TreatmentPlanDialog`.
+- Pass `open={treatmentPlanMode !== 'closed'}` and `onOpenChange` that resets to `'closed'`.
+- Pass `onCreateNewPlan={handleCreateNewTreatmentPlan}` to `ClientClinicalTab`.
 
-### 2. `src/components/Clinical/TreatmentPlanDialog.tsx`
+### 2. `src/components/Clients/ClientDetail/ClientClinicalTab.tsx`
 
-- Add an optional `onSaved?: () => void` prop to `TreatmentPlanDialogProps`.
-- In `onSubmit`, call `onSaved?.()` after a successful create or update, right before `onOpenChange(false)`.
+- Add `onCreateNewPlan?: () => void` to props.
+- When a treatment plan exists, render two buttons in the card header:
+  - "View/Edit" (existing behavior, calls `onViewTreatmentPlan`)
+  - "New Plan" (calls `onCreateNewPlan`), shown only when `currentTreatmentPlan` exists and `onCreateNewPlan` is provided.
 
-### 3. `src/pages/ClientDetail.tsx`
+### 3. No changes to `TreatmentPlanDialog.tsx`
 
-- Destructure `refetchTreatmentPlans` from `useClientDetail`.
-- Pass `onSaved={refetchTreatmentPlans}` to the `TreatmentPlanDialog` component.
+The dialog already handles both paths correctly:
+- When `existingPlan` is provided: it populates form fields and calls `updatePlan`.
+- When `existingPlan` is null/undefined: it shows empty fields and calls `createPlan` (which handles deactivating the old plan and incrementing the version).
+
+## Technical Details
+
+### State mapping in `ClientDetail.tsx`
+
+```text
+treatmentPlanMode === 'closed'  -->  dialog not rendered (open=false)
+treatmentPlanMode === 'edit'    -->  dialog open, existingPlan = currentTreatmentPlan
+treatmentPlanMode === 'create'  -->  dialog open, existingPlan = null (empty form, new version)
+```
+
+### Button layout in `ClientClinicalTab.tsx` card header
+
+```text
+When no plan exists:    [Create]
+When plan exists:       [View/Edit]  [New Plan]
+```
 
 ## What Does NOT Change
 
 - No database changes.
-- No changes to `useTreatmentPlans.tsx` (the dialog's internal hook).
-- No changes to `useSupabaseQuery` or the data layer.
-- No changes to `ClientClinicalTab` -- it already reactively renders from `currentTreatmentPlan` passed as a prop.
-
-## Sequence
-
-```text
-User clicks "Save" in TreatmentPlanDialog
-  -> onSubmit runs createPlan/updatePlan (dialog's own hook)
-  -> onSaved() fires (new callback)
-     -> ClientDetail calls refetchTreatmentPlans()
-        -> useClientDetail's useSupabaseQuery re-fetches client_treatment_plans
-        -> currentTreatmentPlan updates
-        -> ClientClinicalTab re-renders with new data
-  -> onOpenChange(false) closes the dialog
-```
+- No changes to `TreatmentPlanDialog.tsx` (it already handles both modes).
+- No changes to `useTreatmentPlans.tsx` (versioning logic already works).
+- No changes to `useClientDetail.tsx`.
+- The `onSaved` callback wiring from the previous fix remains intact.
 
