@@ -47,7 +47,7 @@ export function CreateAppointmentDialog({
     date: prefilledDate || format(new Date(), 'yyyy-MM-dd'),
     time: '09:00',
     duration_minutes: 60,
-    is_telehealth: false,
+    is_telehealth: true,
     is_recurring: false,
     rrule: 'FREQ=WEEKLY;INTERVAL=1',
   });
@@ -115,6 +115,11 @@ export function CreateAppointmentDialog({
       
       // Notify parent to refresh calendar and wait for it to complete
       if (onAppointmentCreated) {
+        if (formData.is_recurring) {
+          // Recurring: edge function generates rows asynchronously, wait before refresh
+          console.log('[CreateAppointmentDialog] Waiting for recurring occurrences to generate...');
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
         console.log('[CreateAppointmentDialog] Calling onAppointmentCreated callback');
         await onAppointmentCreated();
         console.log('[CreateAppointmentDialog] Callback completed');

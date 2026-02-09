@@ -24,10 +24,14 @@ const CalendarLoadingFallback = () => (
   </Card>
 );
 
-export function CalendarWrapper() {
+interface CalendarWrapperProps {
+  showCreateButton?: boolean;
+}
+
+export function CalendarWrapper({ showCreateButton = false }: CalendarWrapperProps) {
   return (
     <Suspense fallback={<CalendarLoadingFallback />}>
-      <RBCCalendar />
+      <RBCCalendar showCreateButton={showCreateButton} />
     </Suspense>
   );
 }
