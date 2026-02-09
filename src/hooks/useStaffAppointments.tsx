@@ -28,6 +28,7 @@ export interface StaffAppointment {
   time_zone: string; // Creator's timezone (metadata only)
   created_at: string;
   updated_at: string;
+  documented_at: string | null; // Immutable timestamp set when status transitions to 'documented'
   videoroom_url: string | null; // Daily.co video room URL for telehealth
   
   // Joined data
@@ -204,6 +205,7 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
           time_zone: row.time_zone,
           created_at: row.created_at,
           updated_at: row.updated_at,
+          documented_at: row.documented_at || null,
           videoroom_url: row.videoroom_url || null,
           client_name: row.client_name || 'Unknown Client',
           client_legal_name: row.client_legal_name || 'Unknown Client',

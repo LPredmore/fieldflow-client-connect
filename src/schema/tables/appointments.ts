@@ -43,6 +43,7 @@ export const APPOINTMENT_TABLES = {
       remote_chgid_1: { type: 'text', nullable: true },
       created_at: { type: 'timestamptz', nullable: false, default: 'now()' },
       updated_at: { type: 'timestamptz', nullable: false, default: 'now()' },
+      documented_at: { type: 'timestamptz', nullable: true },
     },
   },
 

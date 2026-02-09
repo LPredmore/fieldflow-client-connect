@@ -476,6 +476,7 @@ export type Database = {
           client_id: string
           created_at: string
           created_by_profile_id: string
+          documented_at: string | null
           employment_related: boolean | null
           end_at: string
           from_date_1: string | null
@@ -512,6 +513,7 @@ export type Database = {
           client_id: string
           created_at?: string
           created_by_profile_id: string
+          documented_at?: string | null
           employment_related?: boolean | null
           end_at: string
           from_date_1?: string | null
@@ -548,6 +550,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           created_by_profile_id?: string
+          documented_at?: string | null
           employment_related?: boolean | null
           end_at?: string
           from_date_1?: string | null
