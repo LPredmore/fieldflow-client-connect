@@ -5,8 +5,9 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 import { useStaffAppointments } from '@/hooks/useStaffAppointments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Plus } from 'lucide-react';
 import { CalendarToolbar } from './CalendarToolbar';
 import { AppointmentEvent } from './AppointmentEvent';
 import AppointmentView from '@/components/Appointments/AppointmentView';
@@ -47,7 +48,11 @@ function saveWorkingHours(start: number, end: number) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ start, end }));
 }
 
-export function RBCCalendar() {
+interface RBCCalendarProps {
+  showCreateButton?: boolean;
+}
+
+export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   // Use the unified staff appointments hook - timezone is handled server-side
   const { appointments, loading, refetch, staffTimezone } = useStaffAppointments({
     lookbackDays: 14,
@@ -242,11 +247,24 @@ export function RBCCalendar() {
             <CalendarIcon className="h-5 w-5" />
             Schedule Calendar
           </CardTitle>
-          {tzMismatch && (
-            <span className="text-xs text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-1 rounded border border-yellow-300 dark:border-yellow-700">
-              Showing times in {staffTimezone}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {tzMismatch && (
+              <span className="text-xs text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-1 rounded border border-yellow-300 dark:border-yellow-700">
+                Showing times in {staffTimezone}
+              </span>
+            )}
+            {showCreateButton && (
+              <CreateAppointmentDialog
+                trigger={
+                  <Button className="flex items-center gap-2" size="sm">
+                    <Plus className="h-4 w-4" />
+                    Create Appointment
+                  </Button>
+                }
+                onAppointmentCreated={refetch}
+              />
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
