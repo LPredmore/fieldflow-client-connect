@@ -7,6 +7,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenantBranding } from "@/hooks/useTenantBranding";
@@ -14,6 +15,7 @@ import { usePermissionChecks } from "@/hooks/permissions/usePermissionChecks";
 import { getRoleDisplayName, UserRole } from "@/utils/roleUtils";
 import { STAFF_NAVIGATION, BILLING_NAVIGATION } from "@/config/navigation";
 import { isAdminOrAccountOwner } from "@/utils/permissionUtils";
+import { useUnreadCount } from "@/hooks/useMessages";
 
 function NavigationContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -28,6 +30,7 @@ function NavigationContent() {
   // Check staff roles for admin-only pages (Settings, All Clients, Forms)
   const staffRoleCodes = user?.staffAttributes?.staffRoleCodes;
   const canAccessAdminPages = isAdminOrAccountOwner(staffRoleCodes);
+  const { data: unreadCount = 0 } = useUnreadCount();
 
   // Detect portal type based on current route
   const portalType = location.pathname.startsWith('/billing') ? 'billing' : 'staff';
@@ -111,6 +114,11 @@ function NavigationContent() {
                 >
                   <Icon className="h-4 w-4" />
                   {item.name}
+                  {item.name === 'Messages' && unreadCount > 0 && (
+                    <Badge variant="default" className="ml-auto h-5 min-w-[20px] flex items-center justify-center text-xs rounded-full px-1.5">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Badge>
+                  )}
                 </Link>
               );
             })}

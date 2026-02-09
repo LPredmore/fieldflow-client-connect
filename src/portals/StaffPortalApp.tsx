@@ -14,6 +14,7 @@ import ClientDetail from "@/pages/ClientDetail";
 import Settings from "@/pages/Settings";
 import Profile from "@/pages/Profile";
 import Forms from "@/pages/Forms";
+import Messages from "@/pages/Messages";
 
 // Lazy load less critical pages
 const Calendar = lazy(() => import("@/pages/Calendar"));
@@ -103,6 +104,8 @@ const StaffPortalApp = () => {
               <Forms />
             </AdminOnlyRoute>
           } />
+          
+          <Route path="/messages" element={<Messages />} />
           
           <Route path="/calendar" element={
             <Suspense fallback={<PageLoadingFallback />}>
