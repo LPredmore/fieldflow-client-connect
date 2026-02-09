@@ -3786,6 +3786,8 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          on_complete_action: string
+          on_complete_status: string | null
           send_window_end: string
           send_window_start: string
           tenant_id: string
@@ -3800,6 +3802,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          on_complete_action?: string
+          on_complete_status?: string | null
           send_window_end?: string
           send_window_start?: string
           tenant_id: string
@@ -3814,6 +3818,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          on_complete_action?: string
+          on_complete_status?: string | null
           send_window_end?: string
           send_window_start?: string
           tenant_id?: string
@@ -4037,6 +4043,60 @@ export type Database = {
           },
         ]
       }
+      crm_inbound_sms_logs: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          from_phone: string
+          id: string
+          is_read: boolean
+          message_body: string | null
+          received_at: string
+          ringcentral_message_id: string | null
+          tenant_id: string
+          to_phone: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          from_phone: string
+          id?: string
+          is_read?: boolean
+          message_body?: string | null
+          received_at?: string
+          ringcentral_message_id?: string | null
+          tenant_id: string
+          to_phone: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          from_phone?: string
+          id?: string
+          is_read?: boolean
+          message_body?: string | null
+          received_at?: string
+          ringcentral_message_id?: string | null
+          tenant_id?: string
+          to_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_inbound_sms_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_inbound_sms_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_kanban_config: {
         Row: {
           created_at: string
@@ -4252,6 +4312,45 @@ export type Database = {
           is_billable?: boolean
           system?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      donation_attribution: {
+        Row: {
+          created_at: string
+          gbraid: string | null
+          gclid: string | null
+          token: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          wbraid: string | null
+        }
+        Insert: {
+          created_at?: string
+          gbraid?: string | null
+          gclid?: string | null
+          token: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          wbraid?: string | null
+        }
+        Update: {
+          created_at?: string
+          gbraid?: string | null
+          gclid?: string | null
+          token?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          wbraid?: string | null
         }
         Relationships: []
       }
@@ -5034,6 +5133,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      givebutter_donations: {
+        Row: {
+          ads_upload_error: string | null
+          ads_upload_status: string
+          ads_uploaded_at: string | null
+          amount: number
+          currency: string
+          donated_at: string
+          raw: Json
+          token: string | null
+          transaction_id: string
+        }
+        Insert: {
+          ads_upload_error?: string | null
+          ads_upload_status?: string
+          ads_uploaded_at?: string | null
+          amount: number
+          currency?: string
+          donated_at: string
+          raw: Json
+          token?: string | null
+          transaction_id: string
+        }
+        Update: {
+          ads_upload_error?: string | null
+          ads_upload_status?: string
+          ads_uploaded_at?: string | null
+          amount?: number
+          currency?: string
+          donated_at?: string
+          raw?: Json
+          token?: string | null
+          transaction_id?: string
+        }
+        Relationships: []
       }
       ignore: {
         Row: {

@@ -107,6 +107,37 @@ export function SessionNoteDialog({
   const { savePrivateNote } = useAppointmentPrivateNote(appointment?.id);
   const { enabledCptCodes, loading: cptCodesLoading } = useEnabledCptCodes();
 
+  // Fetch most recent clinical note for this client (for auto-populating dropdowns)
+  const { data: previousNotes } = useSupabaseQuery<{
+    client_appearance: string | null;
+    client_attitude: string | null;
+    client_behavior: string | null;
+    client_speech: string | null;
+    client_affect: string | null;
+    client_thoughtprocess: string | null;
+    client_perception: string | null;
+    client_orientation: string | null;
+    client_memoryconcentration: string | null;
+    client_insightjudgement: string | null;
+    client_substanceabuserisk: string | null;
+    client_suicidalideation: string | null;
+    client_homicidalideation: string | null;
+    client_functioning: string | null;
+    client_prognosis: string | null;
+    client_progress: string | null;
+  }>({
+    table: 'appointment_clinical_notes',
+    select: 'client_appearance, client_attitude, client_behavior, client_speech, client_affect, client_thoughtprocess, client_perception, client_orientation, client_memoryconcentration, client_insightjudgement, client_substanceabuserisk, client_suicidalideation, client_homicidalideation, client_functioning, client_prognosis, client_progress',
+    filters: {
+      tenant_id: 'auto',
+      client_id: appointment?.client_id,
+    },
+    orderBy: { column: 'created_at', ascending: false },
+    enabled: !!appointment?.client_id,
+  });
+
+  const previousNote = previousNotes?.[0] || null;
+
   // Fetch most recent PHQ-9 for this client
   const { data: phq9Records, loading: phq9Loading } = useSupabaseQuery<{
     id: string;
@@ -157,15 +188,43 @@ export function SessionNoteDialog({
     },
   });
 
-  // Reset form and state when dialog opens
+  // Reset form and auto-populate dropdowns when dialog opens
   useEffect(() => {
     if (open) {
       form.reset();
       setSelectedInterventions([]);
       setIsAiAssistMode(false);
       setSelectedCptCode(null);
+
+      // Auto-populate dropdown fields from most recent note
+      if (previousNote) {
+        const dropdownFields = [
+          'client_appearance', 'client_attitude', 'client_behavior',
+          'client_speech', 'client_affect', 'client_thoughtprocess',
+          'client_perception', 'client_orientation', 'client_memoryconcentration',
+          'client_insightjudgement', 'client_functioning', 'client_prognosis', 'client_progress',
+        ] as const;
+
+        dropdownFields.forEach((field) => {
+          const value = previousNote[field];
+          if (value) {
+            form.setValue(field, value);
+          }
+        });
+
+        // Risk enum fields
+        if (previousNote.client_substanceabuserisk) {
+          form.setValue('client_substanceabuserisk', previousNote.client_substanceabuserisk as any);
+        }
+        if (previousNote.client_suicidalideation) {
+          form.setValue('client_suicidalideation', previousNote.client_suicidalideation as any);
+        }
+        if (previousNote.client_homicidalideation) {
+          form.setValue('client_homicidalideation', previousNote.client_homicidalideation as any);
+        }
+      }
     }
-  }, [open, form]);
+  }, [open, form, previousNote]);
 
   // AI Assist handler - requires interventions selected
   const handleAiAssist = async () => {
