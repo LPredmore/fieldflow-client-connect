@@ -70,6 +70,8 @@ export interface AuthenticationContextValue {
     userType?: 'contractor' | 'client'
   ) => Promise<{error?: any}>;
   resetPassword: (email: string) => Promise<{error?: any}>;
+  isPasswordRecovery: boolean;
+  clearPasswordRecovery: () => void;
 }
 
 /**
@@ -108,6 +110,8 @@ const defaultContextValue: AuthenticationContextValue = {
   resetPassword: async () => {
     throw new Error('AuthenticationProvider not initialized');
   },
+  isPasswordRecovery: false,
+  clearPasswordRecovery: () => {},
 };
 
 /**

@@ -31,7 +31,9 @@ export default function Auth() {
     signUp,
     resetPassword,
     user,
-    loading: authLoading
+    loading: authLoading,
+    isPasswordRecovery,
+    clearPasswordRecovery
   } = useAuth();
   const {
     displayName
@@ -76,15 +78,24 @@ export default function Auth() {
     handlePasswordRecovery();
   }, [location.search, location.hash]);
 
-  // Redirect to main page if already authenticated
+  // Show password update form when PASSWORD_RECOVERY event fires
   useEffect(() => {
-    if (user && !authLoading) {
+    if (isPasswordRecovery) {
+      setShowUpdatePassword(true);
+      setShowForgotPassword(false);
+      setIsLogin(true);
+    }
+  }, [isPasswordRecovery]);
+
+  // Redirect to main page if already authenticated (but not during password recovery)
+  useEffect(() => {
+    if (user && !authLoading && !isPasswordRecovery && !showUpdatePassword) {
       const redirectTo = (location.state as any)?.from?.pathname || '/';
       navigate(redirectTo, {
         replace: true
       });
     }
-  }, [user, authLoading, navigate, location]);
+  }, [user, authLoading, navigate, location, isPasswordRecovery, showUpdatePassword]);
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -109,12 +120,14 @@ export default function Auth() {
       if (error) {
         setAuthError(error.message);
       } else {
-        setSuccessMessage('Password updated successfully! You can now sign in.');
+        // Clear recovery state, sign out, then show success
+        clearPasswordRecovery();
         setShowUpdatePassword(false);
         setNewPassword('');
         setConfirmPassword('');
-        // Clear the hash from URL
         window.history.replaceState(null, '', location.pathname);
+        await supabase.auth.signOut();
+        setSuccessMessage('Password updated successfully! Please sign in with your new password.');
       }
     } finally {
       setLoading(false);
