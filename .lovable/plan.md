@@ -1,40 +1,56 @@
 
 
-# Add "Start Session" Button to Today's Appointments Cards
+# Fix Treatment Plan Refresh After Save
 
 ## Problem
 
-The `AppointmentCard` component on the Dashboard shows a "Telehealth" badge and a "Document Session" button, but has no way to launch the video call. Clinicians must navigate to the full appointment view just to click "Join Video Call." For the primary landing page of the app, this is a broken workflow.
+When a treatment plan is created or updated via `TreatmentPlanDialog`, the Clinical tab on the client detail page does not refresh to show the new/updated plan. This happens because `TreatmentPlanDialog` and `useClientDetail` each instantiate their own separate `useSupabaseQuery` for the `client_treatment_plans` table. When the dialog saves and calls its internal `refetch()`, only the dialog's local data updates -- the parent page's data is untouched.
 
 ## Technical Decision
 
-Add an optional `videoroomUrl` prop to `AppointmentCard` and render a "Start Session" button that opens the Daily.co room in a new tab. This is the right approach because:
+Add an `onSaved` callback prop to `TreatmentPlanDialog`. When the dialog successfully creates or updates a plan, it calls `onSaved()` before closing. `useClientDetail` will expose a `refetchClinical()` function, and `ClientDetail.tsx` will wire it into the dialog's `onSaved` prop.
 
-- The data is already loaded. `StaffAppointment` includes `videoroom_url` on every appointment record. No new queries or API calls are needed.
-- `AppointmentCard` is a presentational component. It should receive what to render via props and not fetch data itself.
-- Opening in a new tab (`target="_blank"`) matches the existing pattern in `AppointmentView.tsx` (line 357-365) where "Join Video Call" is an anchor tag opening in a new window.
-- The button should only appear when `isTelehealth` is true AND `videoroomUrl` is a non-empty string. If the room is still being provisioned (URL is null), the button is not shown -- no confusing disabled states.
+This is the correct approach because:
+
+- It follows the existing callback pattern already used throughout this codebase (e.g., `onDocumentClick`, `onCancelAssignment`).
+- It keeps `TreatmentPlanDialog` as a self-contained component with no knowledge of its parent's data layer.
+- It avoids global state or shared query keys, which would couple unrelated components.
+- `useSupabaseQuery` already returns a `refetch` function on every instance, so no changes to the data layer are needed.
 
 ## Changes
 
-### 1. `src/components/Dashboard/AppointmentCard.tsx`
+### 1. `src/hooks/useClientDetail.tsx`
 
-- Add optional prop `videoroomUrl?: string | null`
-- Render a "Start Session" button (with `Video` icon) when `isTelehealth && videoroomUrl` is truthy
-- The button is an anchor styled as a primary button, opening the URL in a new tab
-- It renders above the "Document Session" button (if present), since starting the session is the higher-priority action
+- Destructure `refetch` from the treatment plans `useSupabaseQuery` call (line ~308).
+- Expose it from the hook's return object as `refetchTreatmentPlans`.
 
-### 2. `src/pages/Index.tsx`
+### 2. `src/components/Clinical/TreatmentPlanDialog.tsx`
 
-- Pass `videoroomUrl={appt.videoroom_url}` to every `AppointmentCard` in the Today's Appointments section
-- No change needed to the Undocumented Appointments section (those sessions already happened -- starting a video call is not relevant there)
-- No change needed to the Upcoming Appointments section (those are future-dated, not actionable today)
+- Add an optional `onSaved?: () => void` prop to `TreatmentPlanDialogProps`.
+- In `onSubmit`, call `onSaved?.()` after a successful create or update, right before `onOpenChange(false)`.
 
-## What does NOT change
+### 3. `src/pages/ClientDetail.tsx`
 
-- No database changes
-- No new hooks or queries
-- No changes to `useStaffAppointments` -- it already returns `videoroom_url`
-- No changes to the Upcoming or Undocumented sections
-- The existing "Document Session" button behavior is untouched
+- Destructure `refetchTreatmentPlans` from `useClientDetail`.
+- Pass `onSaved={refetchTreatmentPlans}` to the `TreatmentPlanDialog` component.
+
+## What Does NOT Change
+
+- No database changes.
+- No changes to `useTreatmentPlans.tsx` (the dialog's internal hook).
+- No changes to `useSupabaseQuery` or the data layer.
+- No changes to `ClientClinicalTab` -- it already reactively renders from `currentTreatmentPlan` passed as a prop.
+
+## Sequence
+
+```text
+User clicks "Save" in TreatmentPlanDialog
+  -> onSubmit runs createPlan/updatePlan (dialog's own hook)
+  -> onSaved() fires (new callback)
+     -> ClientDetail calls refetchTreatmentPlans()
+        -> useClientDetail's useSupabaseQuery re-fetches client_treatment_plans
+        -> currentTreatmentPlan updates
+        -> ClientClinicalTab re-renders with new data
+  -> onOpenChange(false) closes the dialog
+```
 
