@@ -11,6 +11,8 @@ interface AppointmentCardProps {
   /** @deprecated Use displayDate and displayTime instead. Kept for backward compatibility. */
   startAt?: string;
   isTelehealth: boolean;
+  /** Daily.co room URL for telehealth appointments */
+  videoroomUrl?: string | null;
   showDocumentButton?: boolean;
   onDocumentClick?: (id: string) => void;
 }
@@ -47,6 +49,7 @@ const AppointmentCard = ({
   displayTime,
   startAt,
   isTelehealth,
+  videoroomUrl,
   showDocumentButton = false,
   onDocumentClick,
 }: AppointmentCardProps) => {
@@ -71,6 +74,18 @@ const AppointmentCard = ({
           </div>
         )}
       </div>
+      {isTelehealth && videoroomUrl && (
+        <Button
+          size="sm"
+          asChild
+          className="w-full"
+        >
+          <a href={videoroomUrl} target="_blank" rel="noopener noreferrer">
+            <Video className="h-4 w-4 mr-2" />
+            Start Session
+          </a>
+        </Button>
+      )}
       {showDocumentButton && onDocumentClick && (
         <Button
           size="sm"
