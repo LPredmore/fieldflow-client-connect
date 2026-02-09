@@ -178,6 +178,8 @@ serve(async (req) => {
         location_id: defaultLocation?.id || null,
         location_name: effectiveLocationName,
         created_by_profile_id: series.created_by_profile_id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       // Use upsert to avoid duplicates (based on series_id + start_at)

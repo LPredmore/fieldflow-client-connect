@@ -133,7 +133,7 @@ export function CreateAppointmentDialog({
         date: format(new Date(), 'yyyy-MM-dd'),
         time: '09:00',
         duration_minutes: 60,
-        is_telehealth: false,
+        is_telehealth: true,
         is_recurring: false,
         rrule: 'FREQ=WEEKLY;INTERVAL=1',
       });
