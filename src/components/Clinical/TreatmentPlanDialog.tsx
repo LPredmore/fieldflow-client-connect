@@ -81,6 +81,7 @@ interface TreatmentPlanDialogProps {
   clientId: string | null;
   existingPlan?: TreatmentPlan | null;
   clinicianName?: string;
+  onSaved?: () => void;
 }
 
 const PLAN_LENGTH_OPTIONS = [
@@ -104,6 +105,7 @@ export function TreatmentPlanDialog({
   clientId,
   existingPlan,
   clinicianName = '',
+  onSaved,
 }: TreatmentPlanDialogProps) {
   const [showSecondaryObjective, setShowSecondaryObjective] = useState(false);
   const [showTertiaryObjective, setShowTertiaryObjective] = useState(false);
@@ -339,6 +341,7 @@ export function TreatmentPlanDialog({
         }
       }
 
+      onSaved?.();
       onOpenChange(false);
     } finally {
       setIsSaving(false);

@@ -106,6 +106,7 @@ export default function ClientDetail() {
     insurance,
     emergencyContacts,
     tabLoading,
+    refetchTreatmentPlans,
   } = useClientDetail({ clientId: clientId ?? null, activeTab });
 
   // Fetch form assignments
@@ -412,6 +413,7 @@ export default function ClientDetail() {
         onOpenChange={setIsTreatmentPlanOpen}
         clientId={client.id}
         clinicianName={clinicianName}
+        onSaved={refetchTreatmentPlans}
       />
 
       {/* Session Note View Dialog */}
