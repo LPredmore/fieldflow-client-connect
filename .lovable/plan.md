@@ -1,28 +1,20 @@
 
 
-# Update Browser Tab Title to Show Tenant Name
+# Fix Appointment Creation: Add Timestamps
 
-## What's Changing
+## Problem
 
-The browser tab currently shows the hardcoded text "FieldFlow - Field Service Management Platform" (set in `index.html`). It should instead show the tenant's name from the database (e.g., "ValorWell").
+Single appointment creation fails because the `created_at` and `updated_at` fields are NOT NULL but aren't included in the insert payload. The database has no default for these columns on INSERT.
 
-## Approach
+## Fix
 
-The `useTenantBranding` hook already fetches `display_name` from the `tenants` table. We just need to add a `useEffect` in that same hook to update `document.title` when the tenant name is available -- the same pattern already used there for the favicon.
+Add `created_at` and `updated_at` (both set to `new Date().toISOString()`) to the insert payload in `useAppointmentCreation.tsx`.
 
-## Changes
+## Technical Details
 
 | File | Change |
 |---|---|
-| `index.html` | Update the default `<title>` to something generic like "Loading..." so it doesn't flash "FieldFlow" before the tenant name loads |
-| `src/hooks/useTenantBranding.tsx` | Add a `useEffect` that sets `document.title` to the tenant's `display_name`, reverting to a default on unmount |
+| `src/hooks/useAppointmentCreation.tsx` | Add `created_at: new Date().toISOString()` and `updated_at: new Date().toISOString()` to the `appointmentData` object (around line 104) |
 
-## How It Works
-
-1. Page loads with a neutral default title
-2. User authenticates, `useTenantBranding` fetches tenant data
-3. The new `useEffect` sets `document.title` to the tenant's `display_name`
-4. If the hook unmounts or no name is available, it falls back to a generic default
-
-No database changes. No new files. Just two small edits.
+One file, two lines added. No database changes.
 
