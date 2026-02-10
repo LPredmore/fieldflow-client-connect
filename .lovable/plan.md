@@ -1,37 +1,26 @@
 
 
-# Training Page: Admin-Only Controls, Cover Image Upload, and Click-to-Play Dialog
+# Fix AI Clinical Note Output Format
 
-## Changes
+## Problem
+The AI-generated narrative includes metadata fields (Date, Client ID, Clinician, Session Number, "End of Narrative" marker, "Next Steps" section) that don't belong in the session narrative field. The output should be **only** the clinical narrative paragraphs -- as if written directly by the clinician.
 
-### 1. Admin permission fix
-Replace `isAdminOrAccountOwner(user?.staffAttributes?.staffRoleCodes)` with `isAdmin` from `useAuth()`. This already exists in the auth context and checks the `user_roles` table. The "+ Add Video" button, Edit button, and Delete button will all use this single `isAdmin` boolean.
+## Change
 
-### 2. Click-to-play video dialog (from previously approved plan)
-Remove the always-visible video player at the top. Remove `selectedVideo` state and auto-select logic. Instead, clicking a video card opens a Dialog containing the iframe player, title, and description. Closing the dialog returns to the grid.
+**File:** `supabase/functions/generate-clinical-note/index.ts`
 
-### 3. Cover image support
+Update the `userPrompt` to explicitly instruct the model to output only the narrative body, with no headers, metadata, labels, or sign-off markers.
 
-**Database**: Add a `cover_image_url` column (text, nullable) to the `training_videos` table.
+Add these rules to the prompt:
+- Output ONLY the narrative paragraphs -- no title, no headers, no metadata
+- Do NOT include Date, Client ID, Clinician Name, or Session Number
+- Do NOT include "Clinical Session Narrative:" or "[End of Narrative]" markers
+- Do NOT include a "Next Steps" section (that information is captured in other fields of the session note)
+- Write in first-person clinical voice as if the clinician is documenting directly
 
-**Storage**: Create a new `training-covers` Supabase Storage bucket (public read, authenticated upload) for cover images.
+No database changes. No frontend changes. Single file edit, prompt-only update.
 
-**UI changes in the Add/Edit Dialog**: Add an optional "Cover Image" field with a file input. When a file is selected, it uploads to the `training-covers` bucket and stores the public URL in `cover_image_url`.
+## Technical Detail
 
-**Video grid cards**: If a video has a `cover_image_url`, display it as the card thumbnail background. Otherwise, fall back to the current Play icon placeholder.
-
-### Technical Details
-
-**Files modified:**
-- `src/pages/Training.tsx` -- All three changes above
-- `src/hooks/useTrainingVideos.tsx` -- Add `cover_image_url` to the `TrainingVideo` interface
-
-**Database migration:**
-- `ALTER TABLE public.training_videos ADD COLUMN cover_image_url text;`
-
-**Storage bucket creation:**
-- Create `training-covers` bucket with public access
-- RLS: authenticated users can upload, public can read
-
-**No changes to any existing database columns or tables** -- only adding a new nullable column to the new `training_videos` table.
+The key change is adding explicit negative instructions to the prompt string in `index.ts` (around line 42-57) so the LLM stops generating the wrapper metadata. The existing edge function structure, error handling, and API call remain unchanged.
 
