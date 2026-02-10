@@ -49,12 +49,20 @@ Please rewrite the following session information into a professional, clinical n
 - Does not include specific quotes or overly detailed personal information
 - Maintains HIPAA compliance
 
+CRITICAL OUTPUT RULES:
+- Output ONLY the narrative paragraphs. No title, no headers, no metadata.
+- Do NOT include Date, Client ID, Clinician Name, or Session Number.
+- Do NOT include labels like "Clinical Session Narrative:" or markers like "[End of Narrative]".
+- Do NOT include a "Next Steps" section — that information is captured elsewhere.
+- Write in first-person clinical voice as if the clinician is documenting directly into the session narrative field.
+- Start immediately with the narrative content. No preamble.
+
 Session Information:
 - Current Symptoms: ${currentSymptoms || 'None specified'}
 - Informal Session Notes: ${sessionNarrative || 'None provided'}
 - Interventions Used: ${selectedInterventions?.join(', ') || 'None specified'}
 
-Please provide a clinically sound session narrative that incorporates this information appropriately:`;
+Provide the clinical narrative now:`;
 
     console.log('Calling OpenRouter API with gpt-4o-mini...');
 
