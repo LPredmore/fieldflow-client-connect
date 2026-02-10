@@ -269,8 +269,7 @@ export function SessionNoteDialog({
       if (data?.generatedNarrative) {
         form.setValue('client_sessionnarrative', data.generatedNarrative);
         // Exit AI Assist mode and clear selections after successful generation
-        setIsAiAssistMode(false);
-        setSelectedInterventions([]);
+setIsAiAssistMode(false);
         toast({
           title: "Note Generated",
           description: "AI-generated clinical narrative applied. Please review before saving.",
