@@ -6569,6 +6569,53 @@ export type Database = {
         }
         Relationships: []
       }
+      training_videos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          drive_file_id: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          drive_file_id: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          drive_file_id?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_videos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       treatment_approaches: {
         Row: {
           approaches: string | null
