@@ -9,6 +9,7 @@ export interface TrainingVideo {
   drive_file_id: string;
   sort_order: number;
   is_active: boolean;
+  cover_image_url: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
