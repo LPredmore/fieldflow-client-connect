@@ -1,70 +1,105 @@
 
 
-# Fix Treatment Plan Dialog Population and Add "Create New Plan" Button
+# Add Training Page with Admin-Managed Video Library
 
-## Problem
+## Overview
 
-Two issues:
+Add a `/staff/training` route accessible to all staff. The page displays a list of training videos stored in a new database table. Admins can add, edit, and remove videos. All staff can browse and watch them. Videos are embedded from Google Drive using iframes.
 
-1. **Fields don't populate when editing**: `ClientDetail.tsx` opens `TreatmentPlanDialog` without passing the `existingPlan` prop. The dialog already accepts this prop and has logic to populate form fields from it, but it's never wired up.
-2. **No way to create a new versioned plan**: Once a plan exists, the only button says "View/Edit." The versioning system (`plan_version`, `supersedes_plan_id`) exists in the database and hook, but there's no UI to trigger it.
+## Database
 
-## Technical Decision
+A new table is needed: `training_videos`
 
-Solve both with a single state variable pattern: replace the boolean `isTreatmentPlanOpen` with a mode enum that tells the dialog whether it's editing the existing plan or creating a new one.
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid (PK) | Default gen_random_uuid() |
+| tenant_id | uuid (FK) | References tenants.id |
+| title | text | Video title |
+| description | text | Optional description |
+| drive_file_id | text | The Google Drive file ID extracted from the share link |
+| sort_order | integer | Controls display order, default 0 |
+| is_active | boolean | Soft-delete/hide toggle, default true |
+| created_at | timestamptz | Default now() |
+| updated_at | timestamptz | Default now() |
+| created_by | uuid (FK) | References auth.users(id) |
 
-This is the right approach because:
+RLS policies:
+- SELECT: All authenticated users within the same tenant
+- INSERT/UPDATE/DELETE: Only users with ADMIN or ACCOUNT_OWNER staff roles
 
-- It avoids adding a second dialog instance or a second boolean state.
-- The dialog already handles both create and edit paths based on whether `existingPlan` is provided.
-- It keeps `ClientClinicalTab` as a pure presentational component -- it fires callbacks, the parent decides what to do.
+## File Changes
 
-## Changes
+### 1. New file: `src/pages/Training.tsx`
 
-### 1. `src/pages/ClientDetail.tsx`
+The main Training page with two sections:
 
-- Replace `const [isTreatmentPlanOpen, setIsTreatmentPlanOpen] = useState(false)` with `const [treatmentPlanMode, setTreatmentPlanMode] = useState<'closed' | 'edit' | 'create'>('closed')`.
-- Update `handleViewTreatmentPlan` to set mode to `'edit'`.
-- Add `handleCreateNewTreatmentPlan` that sets mode to `'create'`.
-- Pass `existingPlan={treatmentPlanMode === 'edit' ? currentTreatmentPlan : null}` to `TreatmentPlanDialog`.
-- Pass `open={treatmentPlanMode !== 'closed'}` and `onOpenChange` that resets to `'closed'`.
-- Pass `onCreateNewPlan={handleCreateNewTreatmentPlan}` to `ClientClinicalTab`.
+- **Video list (left/top)**: Cards showing title, description, and a thumbnail. Clicking a card selects it.
+- **Video player (right/main area)**: An iframe embedding the selected Google Drive video using the `https://drive.google.com/file/d/{drive_file_id}/preview` URL format.
+- **Admin controls**: If the user has ADMIN or ACCOUNT_OWNER roles, show "Add Video", "Edit", and "Delete" buttons. The "Add Video" dialog asks for a title, description, and the Google Drive share link (the component extracts the file ID automatically).
 
-### 2. `src/components/Clients/ClientDetail/ClientClinicalTab.tsx`
+### 2. `src/config/routes.ts`
 
-- Add `onCreateNewPlan?: () => void` to props.
-- When a treatment plan exists, render two buttons in the card header:
-  - "View/Edit" (existing behavior, calls `onViewTreatmentPlan`)
-  - "New Plan" (calls `onCreateNewPlan`), shown only when `currentTreatmentPlan` exists and `onCreateNewPlan` is provided.
+Add `TRAINING: '/staff/training'` to `STAFF_ROUTES`.
 
-### 3. No changes to `TreatmentPlanDialog.tsx`
+### 3. `src/config/navigation.ts`
 
-The dialog already handles both paths correctly:
-- When `existingPlan` is provided: it populates form fields and calls `updatePlan`.
-- When `existingPlan` is null/undefined: it shows empty fields and calls `createPlan` (which handles deactivating the old plan and incrementing the version).
+Add a "Training" entry to `STAFF_NAVIGATION` using the `GraduationCap` icon from lucide-react. Position it after "Messages" and before "Profile". No `requireAdmin` flag since all staff can view it.
 
-## Technical Details
+### 4. `src/portals/StaffPortalApp.tsx`
 
-### State mapping in `ClientDetail.tsx`
+Add a route: `<Route path="/training" element={<Training />} />` in the core business functionality section (available to all staff).
 
-```text
-treatmentPlanMode === 'closed'  -->  dialog not rendered (open=false)
-treatmentPlanMode === 'edit'    -->  dialog open, existingPlan = currentTreatmentPlan
-treatmentPlanMode === 'create'  -->  dialog open, existingPlan = null (empty form, new version)
+### 5. New file: `src/hooks/useTrainingVideos.tsx`
+
+A hook using the existing `useSupabaseQuery` and `useSupabaseMutation` patterns for CRUD operations on `training_videos`. Provides:
+- `videos` (list, filtered to active, ordered by sort_order)
+- `addVideo`, `updateVideo`, `deleteVideo` mutations
+- `refetch` for post-mutation refresh
+
+## How Google Drive Embedding Works
+
+When a user pastes a Google Drive share link like:
+`https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsTuVwXyZ/view?usp=sharing`
+
+The component extracts the file ID (`1aBcDeFgHiJkLmNoPqRsTuVwXyZ`) and stores it. To play the video, it renders:
+
+```html
+<iframe
+  src="https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsTuVwXyZ/preview"
+  width="100%"
+  height="100%"
+  allow="autoplay"
+  allowFullScreen
+/>
 ```
 
-### Button layout in `ClientClinicalTab.tsx` card header
+This works for any Google Drive video set to "Anyone with the link can view."
+
+## UI Layout
 
 ```text
-When no plan exists:    [Create]
-When plan exists:       [View/Edit]  [New Plan]
++----------------------------------------------------------+
+|  Training                              [+ Add Video] (admin only)  |
++----------------------------------------------------------+
+|                                                          |
+|  +--------------------------------------------------+   |
+|  |                                                    |   |
+|  |          Selected Video Player (iframe)            |   |
+|  |                                                    |   |
+|  +--------------------------------------------------+   |
+|                                                          |
+|  Video 1 Card  |  Video 2 Card  |  Video 3 Card  | ...  |
+|  (selected)    |                |                 |      |
++----------------------------------------------------------+
 ```
+
+- Video player takes the top/main area
+- Video cards are displayed in a responsive grid below
+- Selected card is visually highlighted
+- Admin users see edit/delete icons on each card
 
 ## What Does NOT Change
 
-- No database changes.
-- No changes to `TreatmentPlanDialog.tsx` (it already handles both modes).
-- No changes to `useTreatmentPlans.tsx` (versioning logic already works).
-- No changes to `useClientDetail.tsx`.
-- The `onSaved` callback wiring from the previous fix remains intact.
-
+- No changes to the authentication system, Layout, or Navigation component logic (Navigation already dynamically renders items from `STAFF_NAVIGATION`).
+- No changes to existing pages or hooks.
+- No changes to any existing database tables.
