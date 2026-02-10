@@ -1,105 +1,37 @@
 
 
-# Add Training Page with Admin-Managed Video Library
+# Training Page: Admin-Only Controls, Cover Image Upload, and Click-to-Play Dialog
 
-## Overview
+## Changes
 
-Add a `/staff/training` route accessible to all staff. The page displays a list of training videos stored in a new database table. Admins can add, edit, and remove videos. All staff can browse and watch them. Videos are embedded from Google Drive using iframes.
+### 1. Admin permission fix
+Replace `isAdminOrAccountOwner(user?.staffAttributes?.staffRoleCodes)` with `isAdmin` from `useAuth()`. This already exists in the auth context and checks the `user_roles` table. The "+ Add Video" button, Edit button, and Delete button will all use this single `isAdmin` boolean.
 
-## Database
+### 2. Click-to-play video dialog (from previously approved plan)
+Remove the always-visible video player at the top. Remove `selectedVideo` state and auto-select logic. Instead, clicking a video card opens a Dialog containing the iframe player, title, and description. Closing the dialog returns to the grid.
 
-A new table is needed: `training_videos`
+### 3. Cover image support
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid (PK) | Default gen_random_uuid() |
-| tenant_id | uuid (FK) | References tenants.id |
-| title | text | Video title |
-| description | text | Optional description |
-| drive_file_id | text | The Google Drive file ID extracted from the share link |
-| sort_order | integer | Controls display order, default 0 |
-| is_active | boolean | Soft-delete/hide toggle, default true |
-| created_at | timestamptz | Default now() |
-| updated_at | timestamptz | Default now() |
-| created_by | uuid (FK) | References auth.users(id) |
+**Database**: Add a `cover_image_url` column (text, nullable) to the `training_videos` table.
 
-RLS policies:
-- SELECT: All authenticated users within the same tenant
-- INSERT/UPDATE/DELETE: Only users with ADMIN or ACCOUNT_OWNER staff roles
+**Storage**: Create a new `training-covers` Supabase Storage bucket (public read, authenticated upload) for cover images.
 
-## File Changes
+**UI changes in the Add/Edit Dialog**: Add an optional "Cover Image" field with a file input. When a file is selected, it uploads to the `training-covers` bucket and stores the public URL in `cover_image_url`.
 
-### 1. New file: `src/pages/Training.tsx`
+**Video grid cards**: If a video has a `cover_image_url`, display it as the card thumbnail background. Otherwise, fall back to the current Play icon placeholder.
 
-The main Training page with two sections:
+### Technical Details
 
-- **Video list (left/top)**: Cards showing title, description, and a thumbnail. Clicking a card selects it.
-- **Video player (right/main area)**: An iframe embedding the selected Google Drive video using the `https://drive.google.com/file/d/{drive_file_id}/preview` URL format.
-- **Admin controls**: If the user has ADMIN or ACCOUNT_OWNER roles, show "Add Video", "Edit", and "Delete" buttons. The "Add Video" dialog asks for a title, description, and the Google Drive share link (the component extracts the file ID automatically).
+**Files modified:**
+- `src/pages/Training.tsx` -- All three changes above
+- `src/hooks/useTrainingVideos.tsx` -- Add `cover_image_url` to the `TrainingVideo` interface
 
-### 2. `src/config/routes.ts`
+**Database migration:**
+- `ALTER TABLE public.training_videos ADD COLUMN cover_image_url text;`
 
-Add `TRAINING: '/staff/training'` to `STAFF_ROUTES`.
+**Storage bucket creation:**
+- Create `training-covers` bucket with public access
+- RLS: authenticated users can upload, public can read
 
-### 3. `src/config/navigation.ts`
+**No changes to any existing database columns or tables** -- only adding a new nullable column to the new `training_videos` table.
 
-Add a "Training" entry to `STAFF_NAVIGATION` using the `GraduationCap` icon from lucide-react. Position it after "Messages" and before "Profile". No `requireAdmin` flag since all staff can view it.
-
-### 4. `src/portals/StaffPortalApp.tsx`
-
-Add a route: `<Route path="/training" element={<Training />} />` in the core business functionality section (available to all staff).
-
-### 5. New file: `src/hooks/useTrainingVideos.tsx`
-
-A hook using the existing `useSupabaseQuery` and `useSupabaseMutation` patterns for CRUD operations on `training_videos`. Provides:
-- `videos` (list, filtered to active, ordered by sort_order)
-- `addVideo`, `updateVideo`, `deleteVideo` mutations
-- `refetch` for post-mutation refresh
-
-## How Google Drive Embedding Works
-
-When a user pastes a Google Drive share link like:
-`https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsTuVwXyZ/view?usp=sharing`
-
-The component extracts the file ID (`1aBcDeFgHiJkLmNoPqRsTuVwXyZ`) and stores it. To play the video, it renders:
-
-```html
-<iframe
-  src="https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsTuVwXyZ/preview"
-  width="100%"
-  height="100%"
-  allow="autoplay"
-  allowFullScreen
-/>
-```
-
-This works for any Google Drive video set to "Anyone with the link can view."
-
-## UI Layout
-
-```text
-+----------------------------------------------------------+
-|  Training                              [+ Add Video] (admin only)  |
-+----------------------------------------------------------+
-|                                                          |
-|  +--------------------------------------------------+   |
-|  |                                                    |   |
-|  |          Selected Video Player (iframe)            |   |
-|  |                                                    |   |
-|  +--------------------------------------------------+   |
-|                                                          |
-|  Video 1 Card  |  Video 2 Card  |  Video 3 Card  | ...  |
-|  (selected)    |                |                 |      |
-+----------------------------------------------------------+
-```
-
-- Video player takes the top/main area
-- Video cards are displayed in a responsive grid below
-- Selected card is visually highlighted
-- Admin users see edit/delete icons on each card
-
-## What Does NOT Change
-
-- No changes to the authentication system, Layout, or Navigation component logic (Navigation already dynamically renders items from `STAFF_NAVIGATION`).
-- No changes to existing pages or hooks.
-- No changes to any existing database tables.
