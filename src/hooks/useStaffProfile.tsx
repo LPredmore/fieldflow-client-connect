@@ -31,6 +31,7 @@ interface StaffMember {
   prov_min_client_age?: number | null;
   /** Boolean in database - convert to "Yes"/"No" for display only */
   prov_accepting_new_clients?: boolean | null;
+  intl?: boolean | null;
 }
 
 interface UseStaffProfileOptions {

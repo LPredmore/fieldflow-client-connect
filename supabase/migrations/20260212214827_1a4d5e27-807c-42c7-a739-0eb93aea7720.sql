@@ -1,0 +1,1 @@
+ALTER TABLE public.staff ADD COLUMN intl boolean NOT NULL DEFAULT false;

@@ -6313,6 +6313,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          intl: boolean
           profile_id: string
           prov_accepting_new_clients: boolean
           prov_addr_1: string | null
@@ -6349,6 +6350,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          intl?: boolean
           profile_id: string
           prov_accepting_new_clients?: boolean
           prov_addr_1?: string | null
@@ -6385,6 +6387,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          intl?: boolean
           profile_id?: string
           prov_accepting_new_clients?: boolean
           prov_addr_1?: string | null
