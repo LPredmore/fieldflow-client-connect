@@ -107,7 +107,6 @@ export default function Profile() {
     prov_bio: '',
     prov_min_client_age: 18,
     prov_accepting_new_clients: false,
-    intl: false,
     prov_treatment_approaches: [] as string[],
   });
 
@@ -178,7 +177,6 @@ export default function Profile() {
         prov_bio: staff.prov_bio || '',
         prov_min_client_age: staff.prov_min_client_age ?? 18,
         prov_accepting_new_clients: staff.prov_accepting_new_clients ?? false,
-        intl: (staff as any).intl ?? false,
         prov_treatment_approaches: staff.prov_treatment_approaches || [],
       });
     }
@@ -388,7 +386,6 @@ export default function Profile() {
       prov_bio: clientInfo.prov_bio,
       prov_min_client_age: clientInfo.prov_min_client_age,
       prov_accepting_new_clients: disableAcceptingClients ? false : clientInfo.prov_accepting_new_clients,
-      intl: clientInfo.intl,
       prov_treatment_approaches: clientInfo.prov_treatment_approaches,
     };
 
@@ -1063,7 +1060,7 @@ export default function Profile() {
                     )}
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="prov_min_client_age">Minimum Client Age</Label>
                       <Input
@@ -1087,19 +1084,6 @@ export default function Profile() {
                         checked={clientInfo.prov_accepting_new_clients === true}
                         onCheckedChange={handleAcceptingNewClientsToggle}
                         disabled={licensesLoading}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="intl">Accept International Clients</Label>
-                        <p className="text-sm text-muted-foreground">
-                          {clientInfo.intl ? 'Yes' : 'No'}
-                        </p>
-                      </div>
-                      <Switch
-                        id="intl"
-                        checked={clientInfo.intl === true}
-                        onCheckedChange={(checked) => setClientInfo(prev => ({ ...prev, intl: Boolean(checked) }))}
                       />
                     </div>
                   </div>
