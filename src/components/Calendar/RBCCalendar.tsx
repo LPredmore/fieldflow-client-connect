@@ -5,6 +5,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 import { useStaffAppointments } from '@/hooks/useStaffAppointments';
 import { useStaffCalendarBlocks } from '@/hooks/useStaffCalendarBlocks';
+import { useStaffTimezone } from '@/hooks/useStaffTimezone';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -13,9 +14,6 @@ import { CalendarToolbar } from './CalendarToolbar';
 import { AppointmentEvent } from './AppointmentEvent';
 import AppointmentView from '@/components/Appointments/AppointmentView';
 import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppointmentDialog';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { syncAppointmentToGoogle } from '@/lib/googleCalendarSync';
 
 // Luxon localizer for React Big Calendar
 const localizer = luxonLocalizer(DateTime);
@@ -56,15 +54,17 @@ interface RBCCalendarProps {
 
 export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   // Use the unified staff appointments hook - timezone is handled server-side
-  const { appointments, loading, refetch, staffTimezone } = useStaffAppointments({
+  const { appointments, loading, refetch, getAppointmentById, updateAppointment } = useStaffAppointments({
     lookbackDays: 14,
   });
-  const { tenantId } = useAuth();
+  
+  // Get staff timezone directly from auth context (independent of appointment loading)
+  const authStaffTimezone = useStaffTimezone();
   
   // Fetch external calendar blocks (Google Calendar busy periods)
   const { backgroundEvents: externalBlocks } = useStaffCalendarBlocks({
-    staffTimezone: staffTimezone || 'America/New_York',
-    enabled: !!staffTimezone,
+    staffTimezone: authStaffTimezone,
+    enabled: true,
   });
   
   // Debug: log when appointments change
@@ -74,7 +74,6 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState<string>('');
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   
   // Working hours state with localStorage persistence
   const [workingHoursStart, setWorkingHoursStart] = useState(() => loadWorkingHours().start);
@@ -91,9 +90,9 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   const maxTime = useMemo(() => createLocalTime(workingHoursEnd, 0), [workingHoursEnd]);
   const scrollToTime = useMemo(() => createLocalTime(workingHoursStart, 0), [workingHoursStart]);
 
-  // Timezone mismatch indicator
+  // Timezone mismatch indicator (uses auth-based timezone, not appointment-dependent)
   const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const tzMismatch = staffTimezone && staffTimezone !== browserTimezone;
+  const tzMismatch = authStaffTimezone !== browserTimezone;
 
   // Convert appointments to RBC event format using "fake local" Dates
   // The calendar_start and calendar_end Dates are constructed so getHours() returns
@@ -124,7 +123,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
       const firstAppt = appointments[0];
       console.log('[RBCCalendar] Events mapped:', {
         count: mapped.length,
-        staffTimezone,
+        authStaffTimezone,
         firstEvent: {
           displayTime: firstAppt.display_time,
           calendarStartHour: first.start.getHours(),
@@ -134,7 +133,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
     }
 
     return mapped;
-  }, [appointments, staffTimezone]);
+  }, [appointments, authStaffTimezone]);
 
   // Dynamic event styling based on status
   const eventStyleGetter = useCallback((event: any) => {
@@ -186,66 +185,13 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
     setCreateDialogOpen(true);
   }, []);
 
-  // Fetch full appointment data when selected
-  useEffect(() => {
-    if (!selectedAppointmentId || !tenantId) {
-      setSelectedAppointment(null);
-      return;
-    }
+  // Derive selected appointment from the already-loaded hook data (no raw query needed)
+  const selectedAppointment = selectedAppointmentId ? getAppointmentById(selectedAppointmentId) : undefined;
 
-    const fetchAppointment = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('appointments')
-          .select(`
-            *,
-            clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred, email, phone),
-            services!inner(id, name)
-          `)
-          .eq('id', selectedAppointmentId)
-          .eq('tenant_id', tenantId)
-          .single();
-
-        if (error) throw error;
-        
-        const clientName = data.clients?.pat_name_preferred || 
-          [data.clients?.pat_name_f, data.clients?.pat_name_m, data.clients?.pat_name_l]
-            .filter(Boolean).join(' ').trim() || 'Unknown Client';
-
-        setSelectedAppointment({
-          ...data,
-          client_name: clientName,
-          service_name: data.services?.name || 'Unknown Service',
-        });
-      } catch (error) {
-        console.error('Error fetching appointment:', error);
-        setSelectedAppointment(null);
-      }
-    };
-
-    fetchAppointment();
-  }, [selectedAppointmentId, tenantId]);
-
-  // Handle appointment update
+  // Handle appointment update via the hook (includes Google Calendar sync)
   const handleUpdateAppointment = async (appointmentId: string, updates: any) => {
-    try {
-      const { error } = await supabase
-        .from('appointments')
-        .update(updates)
-        .eq('id', appointmentId)
-        .eq('tenant_id', tenantId);
-
-      if (error) throw error;
-      
-      // Fire-and-forget Google Calendar sync
-      syncAppointmentToGoogle(appointmentId, 'update');
-      
-      setViewDialogOpen(false);
-      refetch();
-    } catch (error) {
-      console.error('Error updating appointment:', error);
-      throw error;
-    }
+    await updateAppointment(appointmentId, updates);
+    setViewDialogOpen(false);
   };
 
   if (loading) {
@@ -277,7 +223,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
           <div className="flex items-center gap-2">
             {tzMismatch && (
               <span className="text-xs text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-1 rounded border border-yellow-300 dark:border-yellow-700">
-                Showing times in {staffTimezone}
+                Showing times in {authStaffTimezone}
               </span>
             )}
             {showCreateButton && (
