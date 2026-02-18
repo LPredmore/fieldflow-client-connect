@@ -1,116 +1,112 @@
 
 
-# Server-Authoritative Timezone Conversion for Staff Portal
+# Fix Edit Form 9:00 AM Default and Misplaced Busy Blocks
 
-## The Problem (confirmed by debug logs)
+## Two Bugs, One Root Cause
 
-Luxon's `setZone('America/Chicago')` returns `offset: 0` and `hour: 16` (unchanged from UTC input). The browser's `Intl` API in the production environment does not have timezone data, so **every client-side timezone library silently fails** -- both `date-fns-tz` and Luxon produce UTC values instead of local values.
+Both issues stem from incomplete adoption of the server-authoritative timezone model. Some code paths still rely on the browser's broken `Intl` API or simply never received the server-computed data.
 
-This affects two directions:
-- **Reads (Edit form)**: `utcToLocalStrings` shows UTC time instead of local time
-- **Writes (Create/Edit save)**: `localToUTC` uses `date-fns-tz`'s `fromZonedTime`, which also depends on `Intl` -- meaning new appointments may be stored with wrong UTC values
+---
 
-The calendar display works because it uses `get_staff_calendar_appointments` RPC, which does all conversion inside PostgreSQL using `AT TIME ZONE`. **PostgreSQL is the only reliable timezone engine in this stack.**
+## Bug 1: Edit Form Always Shows 9:00 AM
 
-## The Decision: Eliminate All Client-Side Timezone Conversion
+### What is happening
 
-Move to 100% server-authoritative timezone handling, matching the pattern the client portal already uses successfully. This is not a preference -- it is the only correct option given the confirmed environmental constraint.
+The RPC `get_staff_calendar_appointments` returns seven time component columns for every appointment: `start_year`, `start_month`, `start_day`, `start_hour`, `start_minute`, `end_hour`, `end_minute`. These are correct -- PostgreSQL computes them using `AT TIME ZONE`.
 
-**Why not "fix" the client-side libraries?**
-The `Intl` API limitation is a property of the deployment environment, not a bug in the libraries. There is no client-side fix. Any library that calls `Intl.DateTimeFormat` with a timezone will fail the same way.
+The `useStaffAppointments` hook reads these columns to build `calendar_start` and `calendar_end` Date objects (lines 177-192), but then **discards them**. The `StaffAppointment` interface (lines 12-51) does not declare `start_year`, `start_month`, `start_day`, `start_hour`, or `start_minute` as fields, and the object constructed at lines 194-221 never maps them.
 
-## Scope of Changes
+When `AppointmentView` tries to build `serverLocalDate` and `serverLocalTime` (lines 216-235), it accesses `appointment.start_year` etc., but these are all `undefined` because they were never carried through. The fallback in `AppointmentForm.getInitialValues` (line 105) then fires: `time: '09:00'`.
 
-### 1. Fix READS: Edit Form Prepopulation
+### The fix
 
-**File:** `src/components/Appointments/AppointmentView.tsx`
+Add `start_year`, `start_month`, `start_day`, `start_hour`, and `start_minute` to the `StaffAppointment` interface and populate them in the transform mapping inside `useStaffAppointments`. No new RPC, no new database function -- the data is already there, it just gets dropped at the TypeScript mapping step.
 
-The `AppointmentView` component already has access to `display_date`, `display_time`, `display_end_time`, `start_hour`, `start_minute` etc. from the `StaffAppointment` interface (provided by `useStaffAppointments`). When it passes the appointment to `AppointmentForm` for editing, it currently only passes `start_at` (raw UTC), forcing the form to reconvert.
+### Files changed
 
-**Change:** Pass server-resolved time components into `AppointmentForm` so it never needs to call `utcToLocalStrings`.
+- `src/hooks/useStaffAppointments.tsx`
+  - Add five fields to the `StaffAppointment` interface: `start_year: number`, `start_month: number`, `start_day: number`, `start_hour: number`, `start_minute: number`
+  - Add five lines to the transform object (around line 218): `start_year: row.start_year`, `start_month: row.start_month`, `start_day: row.start_day`, `start_hour: row.start_hour`, `start_minute: row.start_minute`
 
-**File:** `src/components/Appointments/AppointmentForm.tsx`
+That is the entire fix for Bug 1. No other files need changes -- `AppointmentView` already reads these fields and formats them for `AppointmentForm`, which already accepts `server_local_date` and `server_local_time`.
 
-- Remove the `utcToLocalStrings` import and usage in `getInitialValues`
-- Accept server-provided date/time strings (from the RPC) as props
-- Use those directly as `defaultValues` for the date and time form fields
+---
 
-### 2. Fix WRITES: Appointment Creation and Editing
+## Bug 2: Busy Block at 5 AM on Feb 19 (Should Be 11 PM on Feb 18)
 
-**File:** `src/lib/appointmentTimezone.ts`
+### What is happening
 
-Replace the `localToUTC` implementation. Instead of using `date-fns-tz`'s `fromZonedTime` (which depends on broken `Intl`), use pure arithmetic with Luxon's `DateTime.fromObject` with an explicit `zone` parameter, then call `.toUTC().toISO()`. 
+The database contains a Google Calendar block:
+- `start_at`: `2026-02-19 05:00:00+00` (UTC)
+- `end_at`: `2026-02-19 06:00:00+00` (UTC)
 
-**However** -- since we just proved Luxon's `setZone` also fails in this environment, Luxon arithmetic will also produce wrong results. Therefore:
+In `America/Chicago` (UTC-6), this is **February 18, 11:00 PM to midnight**. But `useStaffCalendarBlocks` uses `createFakeLocalDateFromISO`, which calls `Intl.DateTimeFormat` with `timeZone: 'America/Chicago'`. In the production environment, this API is broken and returns UTC components (offset 0), so the block renders at 5:00 AM on Feb 19.
 
-**The real fix for writes:** Create a small PostgreSQL RPC function (e.g., `convert_local_to_utc`) that accepts a date string, time string, and timezone, and returns the UTC timestamp. This moves the write-path conversion server-side too, matching the read path. The function is trivial:
+### The fix
+
+Apply the same server-authoritative pattern: create a small PostgreSQL RPC that fetches calendar blocks with server-side timezone conversion, returning integer time components just like `get_staff_calendar_appointments` does for appointments.
+
+### New database function
 
 ```sql
-CREATE OR REPLACE FUNCTION convert_local_to_utc(
-  p_date TEXT,
-  p_time TEXT, 
-  p_timezone TEXT DEFAULT 'America/New_York'
-) RETURNS TIMESTAMPTZ
-LANGUAGE SQL STABLE
-AS $$
-  SELECT (p_date || ' ' || p_time)::TIMESTAMP AT TIME ZONE p_timezone;
-$$;
+CREATE OR REPLACE FUNCTION get_staff_calendar_blocks(
+  p_staff_id UUID,
+  p_from_date TIMESTAMPTZ DEFAULT NOW()
+)
+RETURNS TABLE(
+  id UUID,
+  staff_id UUID,
+  start_at TIMESTAMPTZ,
+  end_at TIMESTAMPTZ,
+  source TEXT,
+  summary TEXT,
+  start_year INT, start_month INT, start_day INT,
+  start_hour INT, start_minute INT,
+  end_year INT, end_month INT, end_day INT,
+  end_hour INT, end_minute INT
+)
 ```
 
-**Files affected:**
-- `src/hooks/useAppointmentCreation.tsx` -- call RPC instead of `localToUTC`
-- `src/hooks/useAppointmentSeries.tsx` -- call RPC instead of `localToUTC`
-- `src/components/Appointments/AppointmentForm.tsx` -- call RPC instead of `localToUTC` in `handleSubmit`
+This function looks up the staff member's `prov_time_zone` and uses `EXTRACT(... FROM timestamp AT TIME ZONE tz)` to return integer components, exactly matching the appointments RPC pattern.
 
-### 3. Propagate Server Data Through the Edit Flow
+### Hook refactor
 
-**File:** `src/components/Appointments/AppointmentView.tsx` (lines 210-218)
+`useStaffCalendarBlocks` will:
+- Call the new RPC instead of a direct table query
+- Use `createFakeLocalDate(year, month, day, hour, minute)` (the same function already in `useStaffAppointments`) instead of `createFakeLocalDateFromISO`
+- Delete the broken `createFakeLocalDateFromISO` function entirely
 
-Currently passes a stripped-down object to `AppointmentForm`. Expand this to include:
-- `display_date` (for prepopulating the date input)
-- `start_hour`, `start_minute` (for prepopulating the time input)
-- Or simply pass a pre-formatted `YYYY-MM-DD` date and `HH:mm` time derived from the RPC's time components
+### Files changed
 
-The `StaffAppointment` interface already includes `start_year`, `start_month`, `start_day`, `start_hour`, `start_minute` from the RPC. These can be formatted into `YYYY-MM-DD` and `HH:mm` strings trivially without any timezone conversion.
+- New migration: create `get_staff_calendar_blocks` function
+- `src/hooks/useStaffCalendarBlocks.tsx`: replace direct query with RPC call, use integer components for fake local dates, remove `createFakeLocalDateFromISO`
 
-### 4. Clean Up Dead Code
+---
 
-- Remove `utcToLocalStrings` from `appointmentTimezone.ts` (no longer called anywhere)
-- Remove `localToUTC` and `localToUTCDate` from `appointmentTimezone.ts` (replaced by RPC)
-- Remove `formatUTCAsLocal` if unused
-- Remove `fromZonedTime` import from `date-fns-tz`
-- Keep `calculateEndUTC` and `calculateEndDate` (pure arithmetic, no timezone logic)
-- Keep `getDBTimezoneEnum` (simple string mapping)
-- Remove the debug `console.log` added in the previous step
+## Bug 2b: Metadata Timestamps (created_at, updated_at)
 
-### 5. Update `AppointmentView` Metadata Timestamps
+`AppointmentView` lines 104-116 use `dt.setZone(appointmentTimezone)` via Luxon to format `created_at` and `updated_at`. This also produces wrong times due to the same broken `Intl` API. Since this is low-priority metadata (not clinical data), the fix is to use the `format_timestamp_in_timezone` PostgreSQL function that already exists in the database, called via RPC when the view renders. Alternatively, accept slightly wrong metadata timestamps for now and address in a follow-up.
 
-Lines 98-110 in `AppointmentView.tsx` use `dt.setZone(appointmentTimezone)` for `created_at` and `updated_at` display. These will also show wrong times. Either:
-- Accept slightly wrong metadata timestamps (low impact), or
-- Add `display_created_at` and `display_updated_at` to the RPC return (preferred for consistency)
+**Decision**: Use the existing `format_timestamp_in_timezone` database function via RPC for these two values. This keeps the "zero client-side timezone conversion" guarantee complete rather than leaving a known-broken path in the code.
+
+### Files changed
+
+- `src/components/Appointments/AppointmentView.tsx`: Replace Luxon-based `displayCreatedAt` and `displayUpdatedAt` with calls to `format_timestamp_in_timezone` RPC, or accept raw UTC display with a "(UTC)" label as a simpler alternative.
+
+---
 
 ## Execution Order
 
-1. Create the `convert_local_to_utc` database function
-2. Update `AppointmentForm` interface to accept server-resolved date/time props, remove `utcToLocalStrings`
-3. Update `AppointmentView` to pass server-resolved date/time when entering edit mode
-4. Replace `localToUTC` calls in `useAppointmentCreation`, `useAppointmentSeries`, and `AppointmentForm.handleSubmit` with the new RPC call
-5. Clean up dead code in `appointmentTimezone.ts`
-6. Remove debug logging
-7. Test create and edit flows
+1. Add `start_year/month/day/hour/minute` to `StaffAppointment` interface and mapping (fixes Bug 1)
+2. Create `get_staff_calendar_blocks` database function (migration)
+3. Refactor `useStaffCalendarBlocks` to use the new RPC (fixes Bug 2)
+4. Fix metadata timestamp display in `AppointmentView` (fixes Bug 2b)
+5. Remove dead `createFakeLocalDateFromISO` function
 
-## Architecture After This Change
+## What This Does NOT Change
 
-```
-READS (display):
-  PostgreSQL AT TIME ZONE --> pre-formatted strings --> React renders as-is
-
-WRITES (save):
-  User input (date + time) --> PostgreSQL convert_local_to_utc RPC --> UTC timestamptz stored
-
-Client-side timezone code:
-  None. Zero. Eliminated entirely.
-```
-
-This matches the client portal architecture exactly and makes PostgreSQL the single authority for all timezone operations in both directions.
+- No database table columns are modified (respecting the custom knowledge constraint)
+- No changes to appointment creation or write path (already fixed in prior work)
+- No changes to the calendar grid display (already working via fake local dates)
+- No changes to client portal code
 
