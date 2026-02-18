@@ -7051,6 +7051,10 @@ export type Database = {
         Args: { p_end: string; p_staff_id: string; p_start: string }
         Returns: boolean
       }
+      convert_local_to_utc: {
+        Args: { p_date: string; p_time: string; p_timezone?: string }
+        Returns: string
+      }
       find_clients_by_emails_insensitive: {
         Args: { p_emails: string[]; p_tenant_id: string }
         Returns: {

@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useStaffTimezone } from './useStaffTimezone';
-import { localToUTC, getDBTimezoneEnum } from '@/lib/appointmentTimezone';
+import { getDBTimezoneEnum } from '@/lib/appointmentTimezone';
 import { syncMultipleAppointmentsToGoogle } from '@/lib/googleCalendarSync';
 
 /**
@@ -47,7 +47,7 @@ export interface CreateAppointmentSeriesInput {
   series_end_date?: string | null;
   max_occurrences?: number | null;
   notes?: string;
-  is_telehealth?: boolean; // Whether appointments in this series are telehealth
+  is_telehealth?: boolean;
 }
 
 // Legacy alias
@@ -56,13 +56,11 @@ export type JobSeries = AppointmentSeries;
 /**
  * Hook to manage recurring appointment series.
  * 
- * Time Model:
+ * Time Model (server-authoritative):
  * 1. User selects start date/time in their LOCAL timezone
- * 2. This hook converts local → UTC before saving to database
+ * 2. This hook calls PostgreSQL convert_local_to_utc RPC for conversion
  * 3. Database stores UTC timestamps (start_at as timestamptz)
  * 4. time_zone column stores creator's timezone as metadata
- * 
- * This is the authoritative hook for appointment series CRUD operations.
  */
 export function useAppointmentSeries() {
   const { user, tenantId } = useAuth();
@@ -72,7 +70,6 @@ export function useAppointmentSeries() {
   const [series, setSeries] = useState<AppointmentSeries[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Get the current staff_id from auth context
   const staffId = user?.staffAttributes?.staffData?.id;
 
   // Fetch all appointment series with joined data and stats
@@ -82,26 +79,13 @@ export function useAppointmentSeries() {
     try {
       setLoading(true);
 
-      // Fetch appointment series with joins
       const { data: seriesData, error: seriesError } = await supabase
         .from('appointment_series')
         .select(`
-          id,
-          tenant_id,
-          client_id,
-          staff_id,
-          service_id,
-          rrule,
-          start_at,
-          duration_minutes,
-          time_zone,
-          series_end_date,
-          max_occurrences,
-          is_active,
-          notes,
-          created_by_profile_id,
-          created_at,
-          updated_at,
+          id, tenant_id, client_id, staff_id, service_id, rrule,
+          start_at, duration_minutes, time_zone, series_end_date,
+          max_occurrences, is_active, notes, created_by_profile_id,
+          created_at, updated_at,
           clients!inner(pat_name_f, pat_name_l, pat_name_m, pat_name_preferred),
           services!inner(name),
           staff!inner(prov_name_f, prov_name_l, prov_name_for_clients)
@@ -111,19 +95,13 @@ export function useAppointmentSeries() {
 
       if (seriesError) {
         console.error('[useAppointmentSeries] Error loading series:', seriesError);
-        toast({
-          variant: "destructive",
-          title: "Error loading appointment series",
-          description: seriesError.message,
-        });
+        toast({ variant: "destructive", title: "Error loading appointment series", description: seriesError.message });
         return;
       }
 
-      // Transform series with occurrence stats
       const transformedSeries: AppointmentSeries[] = [];
       
       for (const s of seriesData || []) {
-        // Get occurrence stats for this series
         const { data: occurrenceStats } = await supabase
           .from('appointments')
           .select('id, status, start_at')
@@ -140,22 +118,13 @@ export function useAppointmentSeries() {
         const staffData = s.staff as any;
         
         transformedSeries.push({
-          id: s.id,
-          tenant_id: s.tenant_id,
-          client_id: s.client_id,
-          staff_id: s.staff_id,
-          service_id: s.service_id,
-          rrule: s.rrule,
-          start_at: s.start_at,
-          duration_minutes: s.duration_minutes,
-          time_zone: s.time_zone,
-          series_end_date: s.series_end_date,
-          max_occurrences: s.max_occurrences,
-          is_active: s.is_active,
-          notes: s.notes,
-          created_by_profile_id: s.created_by_profile_id,
-          created_at: s.created_at,
-          updated_at: s.updated_at,
+          id: s.id, tenant_id: s.tenant_id, client_id: s.client_id,
+          staff_id: s.staff_id, service_id: s.service_id, rrule: s.rrule,
+          start_at: s.start_at, duration_minutes: s.duration_minutes,
+          time_zone: s.time_zone, series_end_date: s.series_end_date,
+          max_occurrences: s.max_occurrences, is_active: s.is_active,
+          notes: s.notes, created_by_profile_id: s.created_by_profile_id,
+          created_at: s.created_at, updated_at: s.updated_at,
           client_name: clientData?.pat_name_preferred || 
             [clientData?.pat_name_f, clientData?.pat_name_m, clientData?.pat_name_l]
               .filter(Boolean).join(' ').trim() || 'Unknown Client',
@@ -172,17 +141,12 @@ export function useAppointmentSeries() {
       setSeries(transformedSeries);
     } catch (error: any) {
       console.error('[useAppointmentSeries] Error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error loading appointment series",
-        description: error.message,
-      });
+      toast({ variant: "destructive", title: "Error loading appointment series", description: error.message });
     } finally {
       setLoading(false);
     }
   }, [user, tenantId, toast]);
 
-  // Initial fetch
   useEffect(() => {
     fetchSeries();
   }, [fetchSeries]);
@@ -193,26 +157,21 @@ export function useAppointmentSeries() {
       throw new Error('User not authenticated or staff ID not found');
     }
 
-    // Log input data BEFORE conversion for debugging
-    console.log('[useAppointmentSeries] Input data:', {
-      start_date: input.start_date,
-      start_time: input.start_time,
-      staffTimezone,
-      duration_minutes: input.duration_minutes
+    // Convert local start time to UTC via PostgreSQL RPC (server-authoritative)
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('convert_local_to_utc', {
+      p_date: input.start_date,
+      p_time: input.start_time,
+      p_timezone: staffTimezone,
     });
 
-    // Convert local start time to UTC for database storage using staff timezone
-    const startUTC = localToUTC(input.start_date, input.start_time, staffTimezone);
-    
-    // Get database enum value for timezone metadata
+    if (rpcError || !rpcResult) {
+      const msg = rpcError?.message || 'Failed to convert timezone';
+      toast({ variant: 'destructive', title: 'Timezone conversion failed', description: msg });
+      throw new Error(msg);
+    }
+
+    const startUTC = new Date(rpcResult).toISOString();
     const dbTimezone = getDBTimezoneEnum(staffTimezone);
-
-    // Log conversion results for verification
-    console.log('[useAppointmentSeries] Conversion result:', {
-      inputLocal: `${input.start_date} ${input.start_time} in ${staffTimezone}`,
-      outputUTC: startUTC,
-      dbTimezone
-    });
 
     const seriesData = {
       tenant_id: tenantId,
@@ -220,7 +179,7 @@ export function useAppointmentSeries() {
       staff_id: staffId,
       service_id: input.service_id,
       rrule: input.rrule,
-      start_at: startUTC, // Already an ISO string in UTC
+      start_at: startUTC,
       duration_minutes: input.duration_minutes,
       time_zone: dbTimezone,
       series_end_date: input.series_end_date || null,
@@ -230,7 +189,6 @@ export function useAppointmentSeries() {
       created_by_profile_id: user.id,
     };
 
-    // Insert the series
     const { data: newSeries, error: insertError } = await supabase
       .from('appointment_series')
       .insert(seriesData)
@@ -239,11 +197,7 @@ export function useAppointmentSeries() {
 
     if (insertError) {
       console.error('Error creating appointment series:', insertError);
-      toast({
-        variant: 'destructive',
-        title: 'Failed to create recurring appointments',
-        description: insertError.message,
-      });
+      toast({ variant: 'destructive', title: 'Failed to create recurring appointments', description: insertError.message });
       throw insertError;
     }
 
@@ -251,36 +205,18 @@ export function useAppointmentSeries() {
     try {
       const { data: genResult, error: genError } = await supabase.functions.invoke(
         'generate-appointment-occurrences',
-        {
-          body: {
-            seriesId: newSeries.id,
-            monthsAhead: 3,
-            maxOccurrences: 200,
-            is_telehealth: input.is_telehealth ?? false,
-          },
-        }
+        { body: { seriesId: newSeries.id, monthsAhead: 3, maxOccurrences: 200, is_telehealth: input.is_telehealth ?? false } }
       );
 
       if (genError) {
         console.error('Error generating occurrences:', genError);
-        toast({
-          variant: 'destructive',
-          title: 'Series created but occurrences failed',
-          description: genError.message,
-        });
+        toast({ variant: 'destructive', title: 'Series created but occurrences failed', description: genError.message });
       } else {
-        toast({
-          title: 'Recurring appointments created',
-          description: `Series created with ${genResult?.generated?.created || 0} initial appointments`,
-        });
+        toast({ title: 'Recurring appointments created', description: `Series created with ${genResult?.generated?.created || 0} initial appointments` });
       }
     } catch (err: any) {
       console.error('Error invoking generate function:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Series created but occurrences failed',
-        description: err.message,
-      });
+      toast({ variant: 'destructive', title: 'Series created but occurrences failed', description: err.message });
     }
 
     await fetchSeries();
@@ -291,7 +227,6 @@ export function useAppointmentSeries() {
   const updateSeries = async (seriesId: string, updates: Partial<AppointmentSeries>) => {
     if (!user || !tenantId) throw new Error('User not authenticated');
 
-    // Remove computed/joined fields before database update
     const { 
       client_name, service_name, clinician_name, 
       total_occurrences, completed_occurrences, next_occurrence_date,
@@ -311,7 +246,6 @@ export function useAppointmentSeries() {
       throw updateError;
     }
 
-    // If deactivating series, cancel all future appointments
     if (updates.is_active === false) {
       await supabase
         .from('appointments')
@@ -322,55 +256,36 @@ export function useAppointmentSeries() {
         .neq('status', 'documented');
     }
 
-    // Regenerate occurrences if still active
     if (data.is_active) {
       try {
         await supabase.functions.invoke('generate-appointment-occurrences', {
-          body: {
-            seriesId: data.id,
-            monthsAhead: 3,
-            maxOccurrences: 200,
-          },
+          body: { seriesId: data.id, monthsAhead: 3, maxOccurrences: 200 },
         });
       } catch (err) {
         console.error('Error regenerating occurrences:', err);
       }
     }
 
-    toast({
-      title: 'Series updated',
-      description: 'The recurring appointment series has been updated.',
-    });
-
+    toast({ title: 'Series updated', description: 'The recurring appointment series has been updated.' });
     await fetchSeries();
     return data;
   };
 
-  // Delete an appointment series (hard delete series and all appointments)
+  // Delete an appointment series
   const deleteSeries = async (seriesId: string) => {
     if (!user || !tenantId) throw new Error('User not authenticated');
 
-    // Fetch appointment IDs before deleting so we can sync to Google
     const { data: appointmentsToDelete } = await supabase
       .from('appointments')
       .select('id')
       .eq('series_id', seriesId);
 
-    // Fire-and-forget sync deletes to Google Calendar
     if (appointmentsToDelete && appointmentsToDelete.length > 0) {
-      syncMultipleAppointmentsToGoogle(
-        appointmentsToDelete.map(a => a.id),
-        'delete'
-      );
+      syncMultipleAppointmentsToGoogle(appointmentsToDelete.map(a => a.id), 'delete');
     }
 
-    // Now delete all appointments in the series
-    await supabase
-      .from('appointments')
-      .delete()
-      .eq('series_id', seriesId);
+    await supabase.from('appointments').delete().eq('series_id', seriesId);
 
-    // Then delete the series
     const { error: deleteError } = await supabase
       .from('appointment_series')
       .delete()
@@ -382,34 +297,24 @@ export function useAppointmentSeries() {
       throw deleteError;
     }
 
-    toast({
-      title: 'Series deleted',
-      description: 'The recurring appointment series and all its occurrences have been deleted.',
-    });
-
+    toast({ title: 'Series deleted', description: 'The recurring appointment series and all its occurrences have been deleted.' });
     await fetchSeries();
   };
 
-  // Toggle series active status (soft delete/reactivate)
   const toggleActive = async (seriesId: string, isActive: boolean) => {
     return updateSeries(seriesId, { is_active: isActive });
   };
 
   return {
-    // Data
     series,
-    jobSeries: series, // Legacy alias
-    
-    // State
+    jobSeries: series,
     loading,
-    
-    // Actions
     refetch: fetchSeries,
     createSeries,
     updateSeries,
-    updateJobSeries: updateSeries, // Legacy alias
+    updateJobSeries: updateSeries,
     deleteSeries,
-    deleteJobSeries: deleteSeries, // Legacy alias
+    deleteJobSeries: deleteSeries,
     toggleActive,
   };
 }

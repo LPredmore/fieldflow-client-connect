@@ -2,10 +2,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useEffect, useState } from 'react';
-import { useFreshStaffTimezone } from '@/hooks/useStaffTimezone';
 import { useServices } from '@/hooks/useServices';
 import { useClients } from '@/hooks/useClients';
-import { utcToLocalStrings, localToUTC } from '@/lib/appointmentTimezone';
+import { supabase } from '@/integrations/supabase/client';
+import { getDBTimezoneEnum } from '@/lib/appointmentTimezone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,6 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ClientSelector } from '@/components/Clients/ClientSelector';
 import { useToast } from '@/hooks/use-toast';
+import { useStaffTimezone } from '@/hooks/useStaffTimezone';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
 const appointmentSchema = z.object({
@@ -39,6 +40,10 @@ interface AppointmentData {
   status: 'scheduled' | 'completed' | 'cancelled';
   is_telehealth: boolean;
   location_name?: string | null;
+  // Server-resolved local date/time (from RPC time components)
+  // These bypass broken client-side timezone conversion
+  server_local_date?: string; // YYYY-MM-DD in staff's timezone
+  server_local_time?: string; // HH:mm in staff's timezone
 }
 
 interface AppointmentFormProps {
@@ -49,26 +54,16 @@ interface AppointmentFormProps {
 }
 
 export default function AppointmentForm({ appointment, onSubmit, onCancel, loading }: AppointmentFormProps) {
-  const { timezone: userTimezone, isLoading: timezoneLoading } = useFreshStaffTimezone();
   const { services, loading: servicesLoading } = useServices();
   const { clients, loading: clientsLoading } = useClients();
-
-  // Block rendering until timezone is resolved to prevent wrong time display
-  if (timezoneLoading || !userTimezone) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-muted-foreground">Loading timezone...</span>
-      </div>
-    );
-  }
+  const staffTimezone = useStaffTimezone();
 
   return <AppointmentFormInner 
     appointment={appointment} 
     onSubmit={onSubmit} 
     onCancel={onCancel} 
     loading={loading}
-    userTimezone={userTimezone}
+    userTimezone={staffTimezone}
     services={services}
     servicesLoading={servicesLoading}
     clients={clients}
@@ -88,14 +83,26 @@ function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTi
   const { toast } = useToast();
   const [selectedClientName, setSelectedClientName] = useState('');
 
-  // Convert existing appointment times to local timezone for display
+  // Use server-resolved local date/time when editing (bypasses broken client-side conversion)
+  // For new appointments, use sensible defaults
   const getInitialValues = () => {
-    if (appointment?.start_at) {
-      const { date, time } = utcToLocalStrings(appointment.start_at, userTimezone);
+    if (appointment) {
+      // Server-provided local strings from RPC time components
+      if (appointment.server_local_date && appointment.server_local_time) {
+        const durationMinutes = Math.round(
+          (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
+        );
+        return { 
+          date: appointment.server_local_date, 
+          time: appointment.server_local_time, 
+          durationMinutes 
+        };
+      }
+      // Fallback: shouldn't happen but handle gracefully
       const durationMinutes = Math.round(
         (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
       );
-      return { date, time, durationMinutes };
+      return { date: appointment.start_at.split('T')[0], time: '09:00', durationMinutes };
     }
     return { 
       date: new Date().toISOString().split('T')[0], 
@@ -129,9 +136,18 @@ function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTi
 
   const handleSubmit = async (data: AppointmentFormData) => {
     try {
-      // Convert local date/time to UTC
-      const utcStartISO = localToUTC(data.scheduled_date, data.start_time, userTimezone);
-      const utcStart = new Date(utcStartISO);
+      // Convert local date/time to UTC via PostgreSQL RPC (server-authoritative)
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('convert_local_to_utc', {
+        p_date: data.scheduled_date,
+        p_time: data.start_time,
+        p_timezone: userTimezone,
+      });
+
+      if (rpcError || !rpcResult) {
+        throw new Error(rpcError?.message || 'Failed to convert timezone');
+      }
+
+      const utcStart = new Date(rpcResult);
       const utcEnd = new Date(utcStart.getTime() + data.duration_minutes * 60 * 1000);
 
       const submitData: Record<string, any> = {
@@ -145,9 +161,8 @@ function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTi
       };
 
       // Only include time_zone for NEW appointments (not edits)
-      // time_zone represents creation context; existing appointments preserve their original timezone
       if (!appointment) {
-        submitData.time_zone = userTimezone;
+        submitData.time_zone = getDBTimezoneEnum(userTimezone);
       }
 
       await onSubmit(submitData);

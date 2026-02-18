@@ -39,6 +39,12 @@ interface AppointmentData {
   display_time?: string;
   display_end_time?: string;
   display_timezone?: string;
+  // Server-resolved time components (from RPC, for edit form prepopulation)
+  start_year?: number;
+  start_month?: number;
+  start_day?: number;
+  start_hour?: number;
+  start_minute?: number;
 }
 
 interface AppointmentViewProps {
@@ -205,8 +211,30 @@ export default function AppointmentView({
     (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
   );
 
+  // Build server-resolved local date/time from RPC time components
+  // These are integers from get_staff_calendar_appointments, no client-side TZ conversion needed
+  const serverLocalDate = useMemo(() => {
+    const appt = appointment as any;
+    if (appt.start_year && appt.start_month && appt.start_day) {
+      const y = appt.start_year;
+      const m = String(appt.start_month).padStart(2, '0');
+      const d = String(appt.start_day).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return undefined;
+  }, [appointment]);
+
+  const serverLocalTime = useMemo(() => {
+    const appt = appointment as any;
+    if (appt.start_hour !== undefined && appt.start_minute !== undefined) {
+      const h = String(appt.start_hour).padStart(2, '0');
+      const min = String(appt.start_minute).padStart(2, '0');
+      return `${h}:${min}`;
+    }
+    return undefined;
+  }, [appointment]);
+
   if (isEditing) {
-    // Cast to the stricter type expected by AppointmentForm
     const formAppointment = {
       id: appointment.id,
       client_id: appointment.client_id,
@@ -216,6 +244,8 @@ export default function AppointmentView({
       status: appointment.status as 'scheduled' | 'completed' | 'cancelled',
       is_telehealth: appointment.is_telehealth,
       location_name: appointment.location_name,
+      server_local_date: serverLocalDate,
+      server_local_time: serverLocalTime,
     };
     
     return (
