@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.google-calendar-sync-appointment]
 verify_jwt = false
+
+[functions.google-calendar-webhook]
+verify_jwt = false
+
+[functions.google-calendar-watch-start]
+verify_jwt = false

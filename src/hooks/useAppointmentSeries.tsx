@@ -4,6 +4,7 @@ import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useStaffTimezone } from './useStaffTimezone';
 import { localToUTC, getDBTimezoneEnum } from '@/lib/appointmentTimezone';
+import { syncMultipleAppointmentsToGoogle } from '@/lib/googleCalendarSync';
 
 /**
  * Appointment Series interface matching the `appointment_series` table schema
@@ -349,7 +350,21 @@ export function useAppointmentSeries() {
   const deleteSeries = async (seriesId: string) => {
     if (!user || !tenantId) throw new Error('User not authenticated');
 
-    // First delete all appointments in the series
+    // Fetch appointment IDs before deleting so we can sync to Google
+    const { data: appointmentsToDelete } = await supabase
+      .from('appointments')
+      .select('id')
+      .eq('series_id', seriesId);
+
+    // Fire-and-forget sync deletes to Google Calendar
+    if (appointmentsToDelete && appointmentsToDelete.length > 0) {
+      syncMultipleAppointmentsToGoogle(
+        appointmentsToDelete.map(a => a.id),
+        'delete'
+      );
+    }
+
+    // Now delete all appointments in the series
     await supabase
       .from('appointments')
       .delete()
