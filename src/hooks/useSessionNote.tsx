@@ -114,12 +114,12 @@ export function useSessionNote(appointmentId: string | undefined) {
     clientId: string,
     staffId: string,
     diagnosisCodes: string[],
-    activePlan: TreatmentPlan,
+    activePlan: TreatmentPlan | null,
     formData: SessionNoteFormData,
     billingData?: {
-      procCode: string;      // The CPT code string (e.g., "90834")
-      units: number;         // Number of units
-      chargeAmount: number;  // Pre-calculated total charge
+      procCode: string;
+      units: number;
+      chargeAmount: number;
     }
   ) => {
     if (!tenantId) {
@@ -132,30 +132,29 @@ export function useSessionNote(appointmentId: string | undefined) {
     }
 
     try {
-      // Build the session note with treatment plan snapshot
-      // Map from TreatmentPlan (DB column names) to appointment_clinical_notes columns
+      // Build the session note with treatment plan snapshot (null if no plan)
       const sessionNoteData = {
         tenant_id: tenantId,
         appointment_id: appointmentId,
         client_id: clientId,
         staff_id: staffId,
         client_diagnosis: diagnosisCodes,
-        // Treatment plan snapshot - map from TreatmentPlan DB columns
-        client_treatmentplan_startdate: activePlan.treatmentplan_startdate,
-        client_planlength: activePlan.planlength,
-        client_treatmentfrequency: activePlan.treatmentfrequency,
-        client_nexttreatmentplanupdate: activePlan.next_treatmentplan_update,
-        client_problem: activePlan.problem,
-        client_treatmentgoal: activePlan.treatmentgoal,
-        client_primaryobjective: activePlan.primaryobjective,
-        client_secondaryobjective: activePlan.secondaryobjective,
-        client_tertiaryobjective: activePlan.tertiaryobjective,
-        client_intervention1: activePlan.intervention1,
-        client_intervention2: activePlan.intervention2,
-        client_intervention3: activePlan.intervention3,
-        client_intervention4: activePlan.intervention4,
-        client_intervention5: activePlan.intervention5,
-        client_intervention6: activePlan.intervention6,
+        // Treatment plan snapshot - null when no active plan
+        client_treatmentplan_startdate: activePlan?.treatmentplan_startdate ?? null,
+        client_planlength: activePlan?.planlength ?? null,
+        client_treatmentfrequency: activePlan?.treatmentfrequency ?? null,
+        client_nexttreatmentplanupdate: activePlan?.next_treatmentplan_update ?? null,
+        client_problem: activePlan?.problem ?? null,
+        client_treatmentgoal: activePlan?.treatmentgoal ?? null,
+        client_primaryobjective: activePlan?.primaryobjective ?? null,
+        client_secondaryobjective: activePlan?.secondaryobjective ?? null,
+        client_tertiaryobjective: activePlan?.tertiaryobjective ?? null,
+        client_intervention1: activePlan?.intervention1 ?? null,
+        client_intervention2: activePlan?.intervention2 ?? null,
+        client_intervention3: activePlan?.intervention3 ?? null,
+        client_intervention4: activePlan?.intervention4 ?? null,
+        client_intervention5: activePlan?.intervention5 ?? null,
+        client_intervention6: activePlan?.intervention6 ?? null,
         // Form data (MSE, Risk Assessment, Session Content)
         ...formData,
       };

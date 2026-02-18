@@ -73,7 +73,6 @@ export function SessionDocumentationDialog({
   };
 
   const handleYesClick = () => {
-    // Instead of immediately closing, show session options phase
     setPhase('session_options');
   };
 
@@ -166,12 +165,19 @@ export function SessionDocumentationDialog({
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : activePlan ? (
-                // Has active treatment plan - show session note button
+              ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-foreground font-medium">
                     Session confirmed. Would you like to complete the session note?
                   </p>
+                  {!activePlan && (
+                    <Alert className="border-muted bg-muted/50">
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                      <AlertDescription className="text-muted-foreground">
+                        No active treatment plan found. Treatment plan data will not be included in this session note.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <Button
                     variant="default"
                     className="w-full"
@@ -180,41 +186,15 @@ export function SessionDocumentationDialog({
                     <FileText className="h-4 w-4 mr-2" />
                     Complete Session Note
                   </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => handleOpenChange(false)}
-                  >
-                    Complete Later
-                  </Button>
-                </div>
-              ) : (
-                // No active treatment plan - show warning and create plan button
-                <div className="space-y-4">
-                  <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <AlertDescription className="text-amber-800 dark:text-amber-200">
-                      Client must have an active Treatment Plan before creating a session note.
-                    </AlertDescription>
-                  </Alert>
-                  
-                  <Button
-                    variant="default"
-                    className="w-full opacity-50 cursor-not-allowed"
-                    disabled
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Complete Session Note
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleCreateTreatmentPlan}
-                  >
-                    Create Treatment Plan
-                  </Button>
-                  
+                  {!activePlan && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleCreateTreatmentPlan}
+                    >
+                      Create Treatment Plan
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     className="w-full"

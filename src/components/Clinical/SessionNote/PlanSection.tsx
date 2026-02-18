@@ -8,7 +8,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { TreatmentPlan } from '@/hooks/useTreatmentPlans';
 interface PlanSectionProps {
   form: UseFormReturn<any>;
-  activePlan: TreatmentPlan;
+  activePlan: TreatmentPlan | null;
 }
 export const PlanSection: React.FC<PlanSectionProps> = memo(({
   form,
@@ -24,11 +24,14 @@ export const PlanSection: React.FC<PlanSectionProps> = memo(({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Next Treatment Plan Update (read-only) */}
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">Next Treatment Plan Update</label>
-            <Input value={activePlan.next_treatmentplan_update || 'N/A'} readOnly className="bg-muted/50" />
-          </div>
+          {activePlan ? (
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Next Treatment Plan Update</label>
+              <Input value={activePlan.next_treatmentplan_update || 'N/A'} readOnly className="bg-muted/50" />
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No active treatment plan</p>
+          )}
         </CardContent>
       </Card>
 

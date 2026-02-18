@@ -252,12 +252,12 @@ const Index = () => {
       />
 
       {/* Session Note Dialog */}
-      {selectedAppointment && activePlan && staffId && (
+      {selectedAppointment && staffId && (
         <SessionNoteDialog
           open={sessionNoteDialogOpen}
           onOpenChange={setSessionNoteDialogOpen}
           appointment={selectedAppointment}
-          activePlan={activePlan}
+          activePlan={activePlan ?? null}
           staffId={staffId}
           onSuccess={handleSessionNoteSuccess}
         />
