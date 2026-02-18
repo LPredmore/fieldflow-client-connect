@@ -55,7 +55,6 @@ export function useFreshStaffTimezone(): {
 
     const fetchTimezone = async () => {
       const staffId = user?.roleContext?.staffData?.id;
-      console.log('[useFreshStaffTimezone] fetchTimezone called', { staffId, hasUser: !!user });
       if (!staffId) {
         // Staff ID not available yet (auth still hydrating).
         // Stay in loading state -- do NOT mark queryComplete.
@@ -71,7 +70,6 @@ export function useFreshStaffTimezone(): {
           .single();
 
         if (mounted) {
-          console.log('[useFreshStaffTimezone] Query result', { data, error, prov_time_zone: data?.prov_time_zone });
           if (!error && data?.prov_time_zone) {
             setFreshTimezone(data.prov_time_zone);
           }
@@ -98,9 +96,7 @@ export function useFreshStaffTimezone(): {
 
   // Only resolve timezone AFTER query completes - blocks until fresh data
   const timezone = useMemo(() => {
-    const result = !queryComplete ? null : (freshTimezone || 'America/New_York');
-    console.log('[useFreshStaffTimezone] timezone memo', { queryComplete, freshTimezone, result, isLoading });
-    return result;
+    return !queryComplete ? null : (freshTimezone || 'America/New_York');
   }, [queryComplete, freshTimezone, isLoading]);
 
   return {
