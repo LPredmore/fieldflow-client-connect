@@ -73,7 +73,7 @@ interface SessionNoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   appointment: StaffAppointment | null;
-  activePlan: TreatmentPlan;
+  activePlan: TreatmentPlan | null;
   staffId: string;
   onSuccess?: () => void;
 }
@@ -361,16 +361,19 @@ setIsAiAssistMode(false);
                 diagnosesLoading={diagnosesLoading}
               />
 
-              {/* 2. Treatment Objectives Section (with intervention selection) */}
-              <TreatmentObjectivesSection 
-                activePlan={activePlan}
-                selectedInterventions={selectedInterventions}
-                onInterventionChange={setSelectedInterventions}
-                selectionEnabled={true}
-                isAiAssistMode={isAiAssistMode}
-              />
+              {/* 2. Treatment Objectives Section (with intervention selection) - only when plan exists */}
+              {activePlan && (
+                <TreatmentObjectivesSection 
+                  activePlan={activePlan}
+                  selectedInterventions={selectedInterventions}
+                  onInterventionChange={setSelectedInterventions}
+                  selectionEnabled={true}
+                  isAiAssistMode={isAiAssistMode}
+                />
+              )}
 
-              <Separator />
+              {activePlan && <Separator />}
+
 
               {/* 3. Mental Status Examination */}
               <MentalStatusSection form={form} />
