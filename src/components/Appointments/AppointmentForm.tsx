@@ -2,8 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useStaffTimezone } from '@/hooks/useStaffTimezone';
+import { useFreshStaffTimezone } from '@/hooks/useStaffTimezone';
 import { useServices } from '@/hooks/useServices';
 import { useClients } from '@/hooks/useClients';
 import { combineDateTimeToUTC, splitUTCToLocalDateTime } from '@/lib/timezoneUtils';
@@ -50,11 +49,43 @@ interface AppointmentFormProps {
 }
 
 export default function AppointmentForm({ appointment, onSubmit, onCancel, loading }: AppointmentFormProps) {
-  const { user } = useAuth();
-  const userTimezone = useStaffTimezone();
-  const { toast } = useToast();
+  const { timezone: userTimezone, isLoading: timezoneLoading } = useFreshStaffTimezone();
   const { services, loading: servicesLoading } = useServices();
   const { clients, loading: clientsLoading } = useClients();
+
+  // Block rendering until timezone is resolved to prevent wrong time display
+  if (timezoneLoading || !userTimezone) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Loading timezone...</span>
+      </div>
+    );
+  }
+
+  return <AppointmentFormInner 
+    appointment={appointment} 
+    onSubmit={onSubmit} 
+    onCancel={onCancel} 
+    loading={loading}
+    userTimezone={userTimezone}
+    services={services}
+    servicesLoading={servicesLoading}
+    clients={clients}
+    clientsLoading={clientsLoading}
+  />;
+}
+
+interface AppointmentFormInnerProps extends AppointmentFormProps {
+  userTimezone: string;
+  services: any;
+  servicesLoading: boolean;
+  clients: any;
+  clientsLoading: boolean;
+}
+
+function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTimezone, services, servicesLoading, clients, clientsLoading }: AppointmentFormInnerProps) {
+  const { toast } = useToast();
   const [selectedClientName, setSelectedClientName] = useState('');
 
   // Convert existing appointment times to local timezone for display
