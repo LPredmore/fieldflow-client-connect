@@ -16,43 +16,34 @@ export interface CalendarBlock {
 
 /**
  * Creates a "fake local" Date that tricks react-big-calendar into correct grid positioning.
- * Uses the same pattern as useStaffAppointments.
+ * Uses integer time components from the server RPC (same pattern as useStaffAppointments).
  */
-function createFakeLocalDateFromISO(isoString: string, timezone: string): Date {
-  // Parse the ISO timestamp into the staff's timezone to extract local components
-  // We use Intl.DateTimeFormat to extract local components in the target timezone
-  const date = new Date(isoString);
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    hour12: false,
-  });
-  
-  const parts = formatter.formatToParts(date);
-  const get = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0');
-  
+function createFakeLocalDate(
+  year: number,
+  month: number, // 1-12 from PostgreSQL
+  day: number,
+  hour: number,
+  minute: number
+): Date {
   const d = new Date();
-  d.setFullYear(get('year'), get('month') - 1, get('day'));
-  d.setHours(get('hour'), get('minute'), 0, 0);
+  d.setFullYear(year, month - 1, day); // JS months are 0-indexed
+  d.setHours(hour, minute, 0, 0);
   return d;
 }
 
 interface UseStaffCalendarBlocksOptions {
-  staffTimezone?: string;
+  staffTimezone?: string; // kept for API compat but no longer used client-side
   enabled?: boolean;
 }
 
 /**
  * Fetches external calendar blocks (Google Calendar busy periods)
- * for the logged-in staff member. Returns them as calendar-ready events.
+ * for the logged-in staff member using the server-side get_staff_calendar_blocks RPC.
+ * All timezone conversion happens in PostgreSQL — no client-side Intl API usage.
  */
 export function useStaffCalendarBlocks(options?: UseStaffCalendarBlocksOptions) {
   const { user } = useAuth();
-  const { staffTimezone = 'America/New_York', enabled = true } = options || {};
+  const { enabled = true } = options || {};
   const staffId = user?.roleContext?.staffData?.id;
 
   const [blocks, setBlocks] = useState<CalendarBlock[]>([]);
@@ -66,28 +57,32 @@ export function useStaffCalendarBlocks(options?: UseStaffCalendarBlocksOptions) 
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('staff_calendar_blocks')
-        .select('id, staff_id, start_at, end_at, source, summary')
-        .eq('staff_id', staffId)
-        .gte('end_at', new Date().toISOString())
-        .order('start_at', { ascending: true });
+      const { data, error } = await supabase.rpc('get_staff_calendar_blocks', {
+        p_staff_id: staffId,
+        p_from_date: new Date().toISOString(),
+      });
 
       if (error) {
-        console.error('[useStaffCalendarBlocks] Error:', error);
+        console.error('[useStaffCalendarBlocks] RPC error:', error);
         setBlocks([]);
         return;
       }
 
-      const transformed: CalendarBlock[] = (data || []).map((row) => ({
+      const transformed: CalendarBlock[] = (data || []).map((row: any) => ({
         id: row.id,
         staff_id: row.staff_id,
         start_at: row.start_at,
         end_at: row.end_at,
         source: row.source,
         summary: row.summary || 'Busy',
-        calendar_start: createFakeLocalDateFromISO(row.start_at, staffTimezone),
-        calendar_end: createFakeLocalDateFromISO(row.end_at, staffTimezone),
+        calendar_start: createFakeLocalDate(
+          row.start_year, row.start_month, row.start_day,
+          row.start_hour, row.start_minute
+        ),
+        calendar_end: createFakeLocalDate(
+          row.end_year, row.end_month, row.end_day,
+          row.end_hour, row.end_minute
+        ),
       }));
 
       setBlocks(transformed);
@@ -97,7 +92,7 @@ export function useStaffCalendarBlocks(options?: UseStaffCalendarBlocksOptions) 
     } finally {
       setLoading(false);
     }
-  }, [staffId, enabled, staffTimezone]);
+  }, [staffId, enabled]);
 
   useEffect(() => {
     fetchBlocks();

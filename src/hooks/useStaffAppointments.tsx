@@ -276,8 +276,9 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
 
       // Strip display-only and computed fields
       const { 
-        client_name, clinician_name, service_name,
+        client_name, client_legal_name, clinician_name, service_name,
         display_date, display_time, display_end_time, display_timezone,
+        start_year, start_month, start_day, start_hour, start_minute,
         calendar_start, calendar_end, videoroom_url,
         ...dbUpdates 
       } = updates;

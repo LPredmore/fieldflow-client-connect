@@ -1,9 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, User, Edit, Video, MapPin, Repeat, Trash2 } from 'lucide-react';
-import { DateTime } from 'luxon';
+import { supabase } from '@/integrations/supabase/client';
 import AppointmentForm from './AppointmentForm';
 import { RecurringEditDialog } from './RecurringEditDialog';
 import { DeleteAppointmentDialog } from './DeleteAppointmentDialog';
@@ -100,20 +100,30 @@ export default function AppointmentView({
   const displayStartTime = appointment.display_time || '';
   const displayEndTime = appointment.display_end_time || '';
 
-  // Format metadata timestamps using Luxon (no RPC call needed)
-  const displayCreatedAt = useMemo(() => {
-    if (!appointment.created_at) return '';
-    const dt = DateTime.fromISO(appointment.created_at, { zone: 'utc' });
-    if (!dt.isValid) return '';
-    return dt.setZone(appointmentTimezone).toFormat('LLLL dd, yyyy h:mm a');
-  }, [appointment.created_at, appointmentTimezone]);
+  // Format metadata timestamps using server-side RPC (no client-side TZ conversion)
+  const [displayCreatedAt, setDisplayCreatedAt] = useState('');
+  const [displayUpdatedAt, setDisplayUpdatedAt] = useState('');
 
-  const displayUpdatedAt = useMemo(() => {
-    if (!appointment.updated_at) return '';
-    const dt = DateTime.fromISO(appointment.updated_at, { zone: 'utc' });
-    if (!dt.isValid) return '';
-    return dt.setZone(appointmentTimezone).toFormat('LLLL dd, yyyy h:mm a');
-  }, [appointment.updated_at, appointmentTimezone]);
+  useEffect(() => {
+    const formatTimestamps = async () => {
+      const tz = appointmentTimezone || 'America/New_York';
+      const fmt = 'FMMonth DD, YYYY HH12:MI AM';
+      
+      const [createdRes, updatedRes] = await Promise.all([
+        appointment.created_at
+          ? supabase.rpc('format_timestamp_in_timezone', { p_timestamp: appointment.created_at, p_timezone: tz, p_format: fmt })
+          : Promise.resolve({ data: null }),
+        appointment.updated_at
+          ? supabase.rpc('format_timestamp_in_timezone', { p_timestamp: appointment.updated_at, p_timezone: tz, p_format: fmt })
+          : Promise.resolve({ data: null }),
+      ]);
+      
+      if (createdRes.data) setDisplayCreatedAt(createdRes.data);
+      if (updatedRes.data) setDisplayUpdatedAt(updatedRes.data);
+    };
+    
+    formatTimestamps();
+  }, [appointment.created_at, appointment.updated_at, appointmentTimezone]);
 
   const {
     editSingleOccurrence,
