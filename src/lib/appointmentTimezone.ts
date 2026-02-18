@@ -123,6 +123,12 @@ export function utcToLocalStrings(
   }
   
   const local = utc.setZone(zone);
+  console.log('[utcToLocalStrings] DEBUG', {
+    input: { utcTimestamp, zone },
+    utcObj: { iso: utc.toISO(), hour: utc.hour, isValid: utc.isValid },
+    localObj: { iso: local.toISO(), hour: local.hour, zoneName: local.zoneName, offset: local.offset },
+    output: { date: local.toFormat('yyyy-MM-dd'), time: local.toFormat('HH:mm') }
+  });
   return {
     date: local.toFormat('yyyy-MM-dd'),
     time: local.toFormat('HH:mm')
