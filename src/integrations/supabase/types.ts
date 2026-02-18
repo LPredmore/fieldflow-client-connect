@@ -7167,6 +7167,27 @@ export type Database = {
           videoroom_url: string
         }[]
       }
+      get_staff_calendar_blocks: {
+        Args: { p_from_date?: string; p_staff_id: string }
+        Returns: {
+          end_at: string
+          end_day: number
+          end_hour: number
+          end_minute: number
+          end_month: number
+          end_year: number
+          id: string
+          source: string
+          staff_id: string
+          start_at: string
+          start_day: number
+          start_hour: number
+          start_minute: number
+          start_month: number
+          start_year: number
+          summary: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
