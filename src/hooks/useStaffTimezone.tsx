@@ -56,11 +56,9 @@ export function useFreshStaffTimezone(): {
     const fetchTimezone = async () => {
       const staffId = user?.roleContext?.staffData?.id;
       if (!staffId) {
-        // No staff ID available yet, mark complete to use browser fallback
-        if (mounted) {
-          setQueryComplete(true);
-          setIsLoading(false);
-        }
+        // Staff ID not available yet (auth still hydrating).
+        // Stay in loading state -- do NOT mark queryComplete.
+        // The effect will re-run when staffId becomes available.
         return;
       }
 
