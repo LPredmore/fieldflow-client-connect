@@ -1,141 +1,71 @@
 
 
-# Google Calendar Sync -- Backend Infrastructure (No UI)
+# Make Treatment Plan Optional for Session Notes
 
-Build all the server-side plumbing so that when Google OAuth approval comes through, the system is ready to go. No frontend changes in this phase.
+## The Problem
 
----
+The system currently blocks clinicians from documenting a session note unless the client has an active treatment plan. This is enforced purely in the frontend -- the database allows all treatment plan fields to be null. In clinical practice, there are legitimate scenarios where a session note must be written without a treatment plan (e.g., intake sessions, crisis interventions, initial evaluations).
 
-## What Gets Built
+## The Right Technical Decision
 
-### 1. Two New Database Tables
+**Make the treatment plan an optional enhancement, not a gate.** When a plan exists, snapshot it into the note as it does today. When it does not exist, skip the snapshot and let the clinician complete the rest of the note normally.
 
-**`staff_calendar_connections`** -- stores each clinician's Google OAuth connection
+This is the correct decision because:
+- The database already supports it (all treatment plan columns are nullable)
+- A session note is fundamentally a record of what happened in a session -- the MSE, risk assessment, narrative, and billing are the core. Treatment objectives are supplementary context.
+- Blocking documentation creates compliance risk: undocumented sessions are worse than sessions documented without a plan reference.
 
-| Column | Purpose |
-|---|---|
-| id (uuid, PK) | Row identifier |
-| tenant_id (uuid, FK tenants) | Multi-tenant isolation |
-| staff_id (uuid, FK staff) | Which clinician owns this connection |
-| provider (text, default 'google') | Future-proofs for other providers |
-| access_token_encrypted (text) | Encrypted OAuth access token |
-| refresh_token_encrypted (text) | Encrypted OAuth refresh token |
-| token_expires_at (timestamptz) | When the access token expires |
-| selected_calendar_id (text) | Which Google calendar they picked (e.g. "primary") |
-| connection_status (text) | 'connected', 'needs_reconnect', 'disconnected' |
-| last_sync_at (timestamptz) | Last successful sync timestamp |
-| last_error (text) | Last error message if any |
-| created_at / updated_at (timestamptz) | Timestamps |
+## What Changes (6 files, no database changes)
 
-RLS: staff can only read/update their own row (matched via profile_id through the staff table).
+### 1. `SessionDocumentationDialog.tsx` -- Remove the gate
 
-**`calendar_sync_log`** -- maps each EHR appointment to its Google Calendar event
+The `session_options` phase currently branches on `activePlan`: if present, show "Complete Session Note"; if absent, show a warning and disable the button. 
 
-| Column | Purpose |
-|---|---|
-| id (uuid, PK) | Row identifier |
-| tenant_id (uuid, FK tenants) | Multi-tenant isolation |
-| appointment_id (uuid, FK appointments) | The EHR appointment |
-| staff_id (uuid, FK staff) | The clinician whose calendar has the event |
-| google_event_id (text) | The Google Calendar event ID (for update/delete) |
-| google_calendar_id (text) | Which calendar the event lives on |
-| sync_status (text) | 'synced', 'pending', 'failed' |
-| sync_direction (text) | 'outbound' (EHR to Google) |
-| last_synced_at (timestamptz) | When last successfully synced |
-| error_message (text) | Last error if failed |
-| retry_count (integer, default 0) | For retry tracking |
-| created_at / updated_at (timestamptz) | Timestamps |
+**Change**: Always show the "Complete Session Note" button. When no plan exists, show an informational note (not a blocking warning) that says treatment plan data will not be included. Remove the disabled state from the button.
 
-Unique constraint on (appointment_id, staff_id) to prevent duplicate event mappings.
+### 2. `Index.tsx` -- Remove the render guard
 
-**Important**: No existing tables are modified. These are purely additive.
+Line 225 currently requires all three conditions to render `SessionNoteDialog`:
+```
+{selectedAppointment && activePlan && staffId && (
+```
 
----
+**Change**: Remove `activePlan` from this condition. Pass `activePlan` as `activePlan | null` instead of requiring it.
 
-### 2. Five New Edge Functions
+### 3. `SessionNoteDialog.tsx` -- Make `activePlan` optional
 
-All functions are server-side only. OAuth tokens never touch the browser.
+- Change the prop type from `activePlan: TreatmentPlan` to `activePlan: TreatmentPlan | null`
+- Conditionally render `TreatmentObjectivesSection` only when `activePlan` is not null
+- Conditionally render plan metadata in `PlanSection` only when `activePlan` is not null
+- When calling `createSessionNote`, pass `activePlan` as potentially null
 
-#### a) `google-calendar-auth-start`
-- Generates the Google OAuth URL with correct scopes and state parameter
-- State includes staff_id + HMAC signature (using OAUTH_STATE_SIGNING_SECRET)
-- Returns the URL for the frontend to redirect to
-- Scopes: `https://www.googleapis.com/auth/calendar.freebusy` + `https://www.googleapis.com/auth/calendar.events`
+### 4. `useSessionNote.tsx` -- Accept null plan
 
-#### b) `google-calendar-auth-callback`
-- Receives the OAuth callback code from Google
-- Validates the state parameter (HMAC check)
-- Exchanges the code for access + refresh tokens
-- Encrypts tokens using TOKEN_ENCRYPTION_KEY
-- Stores them in `staff_calendar_connections`
-- Sets connection_status = 'connected'
-- Redirects back to the app
+- Change the `activePlan` parameter type from `TreatmentPlan` to `TreatmentPlan | null`
+- When `activePlan` is null, set all `client_treatmentplan_*`, `client_problem`, `client_treatmentgoal`, `client_*objective`, and `client_intervention*` fields to null in the insert
+- Everything else (MSE, risk assessment, narrative, billing, appointment status update) works exactly as before
 
-#### c) `google-calendar-list-calendars`
-- Authenticated endpoint (requires JWT)
-- Reads the clinician's stored tokens, refreshes if expired
-- Calls Google Calendar API to list the clinician's calendars
-- Returns a simple list of { id, summary, primary } for calendar selection
+### 5. `TreatmentObjectivesSection.tsx` -- No structural change needed
 
-#### d) `google-calendar-get-availability`
-- Inputs: staff_id, date range
-- Reads the clinician's stored tokens
-- Calls Google Calendar FreeBusy API for the selected calendar
-- Returns only busy intervals (start/end pairs) -- no event details
-- These intervals will later be merged with EHR appointments to compute open slots
+This component already receives `activePlan` as a required prop and is only rendered by `SessionNoteDialog`. Since we will conditionally render it (step 3), no changes are needed to this component itself.
 
-#### e) `google-calendar-sync-appointment`
-- Inputs: appointment_id, action ('create' | 'update' | 'delete')
-- Looks up the appointment and the clinician's calendar connection
-- On **create**: Creates a Google Calendar event titled "ValorWell" with start/end time only, stores the returned event ID in `calendar_sync_log`
-- On **update**: Uses the stored google_event_id to update the existing event (no duplicate)
-- On **delete/cancel**: Uses the stored google_event_id to delete/cancel the event
-- Handles token refresh automatically
-- If auth fails (revoked token), marks connection as 'needs_reconnect'
+### 6. `PlanSection.tsx` -- Make `activePlan` optional
 
----
+- Change prop type to `activePlan: TreatmentPlan | null`
+- When null, hide the "Next Treatment Plan Update" read-only field (or show "N/A")
+- The private notes portion of this component remains unchanged
 
-### 3. Config Updates
+## What Does NOT Change
 
-**`supabase/config.toml`** -- add all five new functions:
-- `google-calendar-auth-start`: verify_jwt = false (pre-auth)
-- `google-calendar-auth-callback`: verify_jwt = false (OAuth redirect)
-- `google-calendar-list-calendars`: verify_jwt = true
-- `google-calendar-get-availability`: verify_jwt = false (will validate internally, may be called from patient-facing context)
-- `google-calendar-sync-appointment`: verify_jwt = true
+- **No database changes** -- all treatment plan columns are already nullable
+- **No changes to the view/print dialogs** -- `SessionNoteViewDialog` and `SessionNotePrintView` already use conditional rendering (`{note.client_primaryobjective && ...}`), so notes without plan data will simply omit those sections gracefully
+- **No changes to `useTreatmentPlans`** -- the hook continues to return `activePlan` which may be null
+- **No changes to the treatment plan feature itself** -- creating, editing, and versioning plans works exactly as before
+- **AI Assist** -- continues to work because it depends on `selectedInterventions` and `client_sessionnarrative`, not on the plan's existence. When no plan is present, the interventions section is hidden, so AI Assist simply won't have interventions to select (clinicians use the manual narrative path)
 
----
+## Downstream Safety
 
-### 4. Secrets Already Configured
-
-Based on your screenshot, all required secrets are already in place:
-- GOOGLE_CLIENT_ID
-- GOOGLE_CLIENT_SECRET
-- GOOGLE_REDIRECT_URI
-- GOOGLE_SCOPES
-- OAUTH_STATE_SIGNING_SECRET
-- TOKEN_ENCRYPTION_KEY
-- GOOGLE_OAUTH_PROMPT
-- GOOGLE_OAUTH_ACCESS_TYPE
-
-No additional secrets needed.
-
----
-
-## What Does NOT Get Built (Yet)
-
-- No frontend UI (connect button, calendar selection, sync status panel)
-- No "Personal" block overlay on the calendar view
-- No patient self-scheduling integration
-- No automatic triggers (appointment changes won't auto-push to Google yet -- the edge function exists but nothing calls it automatically)
-
----
-
-## Safety Guarantees
-
-- **Zero changes to existing tables**: appointments, staff, and all other tables remain untouched
-- **Zero changes to existing edge functions**: appointment creation/update hooks are not modified
-- **Zero changes to existing frontend code**: no React components are touched
-- **Fully reversible**: if anything goes wrong, delete the two new tables and the five edge functions -- the rest of the app is unaffected
-- **Isolated failure**: if Google API is down or tokens expire, the only impact is the sync features stop working; all core EHR functionality continues normally
+- **Saved notes without plan data**: Already handled. The view dialog, print view, and batch print all use conditional rendering on every treatment plan field. A note with null plan fields will render without those sections -- no crashes, no blank sections.
+- **Billing**: Completely independent of treatment plans. CPT codes, charges, and date fields are derived from the appointment and the billing section, not the plan.
+- **Future notes for the same client**: When a plan is later created, subsequent session notes will snapshot it normally. Earlier notes remain unchanged with null plan fields.
 
