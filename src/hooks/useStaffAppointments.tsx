@@ -44,6 +44,13 @@ export interface StaffAppointment {
   display_end_time: string;
   display_timezone: string;
   
+  // Server-resolved time components (from RPC, for edit form prepopulation)
+  start_year: number;
+  start_month: number;
+  start_day: number;
+  start_hour: number;
+  start_minute: number;
+  
   // "Fake local" Date objects for react-big-calendar grid positioning
   // These are Date objects where getHours() returns the staff's local hour
   calendar_start: Date;
@@ -216,6 +223,11 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
           display_time: row.display_time,
           display_end_time: row.display_end_time,
           display_timezone: row.display_timezone,
+          start_year: row.start_year,
+          start_month: row.start_month,
+          start_day: row.start_day,
+          start_hour: row.start_hour,
+          start_minute: row.start_minute,
           calendar_start,
           calendar_end,
         };
