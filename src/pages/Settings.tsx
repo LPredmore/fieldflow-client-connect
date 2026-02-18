@@ -10,8 +10,10 @@ import ClinicalSettings from "@/components/Settings/ClinicalSettings";
 import { 
   Building, 
   Users,
-  Stethoscope
+  Stethoscope,
+  Calendar
 } from "lucide-react";
+import CalendarSettings from "@/components/Settings/CalendarSettings";
 
 const settingsCategories = [
   { 
@@ -33,6 +35,13 @@ const settingsCategories = [
     icon: Users,
     description: 'Invite and manage team members',
     adminOnly: true
+  },
+  { 
+    id: 'calendar', 
+    name: 'Calendar Integration', 
+    icon: Calendar,
+    description: 'Connect Google Calendar for scheduling sync',
+    adminOnly: true
   }
 ];
 
@@ -48,6 +57,8 @@ export default function Settings() {
         return <ClinicalSettings />;
       case 'users':
         return <UserManagement />;
+      case 'calendar':
+        return <CalendarSettings />;
       default:
         return <BusinessSettings />;
     }

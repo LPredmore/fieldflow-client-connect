@@ -157,6 +157,21 @@ export function useAppointmentCreation() {
       });
     }
 
+    // Fire-and-forget Google Calendar sync
+    if (appointment) {
+      supabase.functions.invoke('google-calendar-sync-appointment', {
+        body: { appointment_id: appointment.id, action: 'create' },
+      }).then(({ data }) => {
+        if (data?.synced) {
+          console.log('[CalendarSync] Appointment synced to Google Calendar');
+        } else {
+          console.log('[CalendarSync] Not synced:', data?.reason || 'unknown');
+        }
+      }).catch((err) => {
+        console.warn('[CalendarSync] Sync failed (non-blocking):', err);
+      });
+    }
+
     return { ...appointment, videoroom_url: videoRoomUrl };
   };
 
