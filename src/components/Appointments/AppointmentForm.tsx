@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useFreshStaffTimezone } from '@/hooks/useStaffTimezone';
 import { useServices } from '@/hooks/useServices';
 import { useClients } from '@/hooks/useClients';
-import { combineDateTimeToUTC, splitUTCToLocalDateTime } from '@/lib/timezoneUtils';
+import { utcToLocalStrings, localToUTC } from '@/lib/appointmentTimezone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -91,17 +91,10 @@ function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTi
   // Convert existing appointment times to local timezone for display
   const getInitialValues = () => {
     if (appointment?.start_at) {
-      const { date, time } = splitUTCToLocalDateTime(appointment.start_at, userTimezone);
+      const { date, time } = utcToLocalStrings(appointment.start_at, userTimezone);
       const durationMinutes = Math.round(
         (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
       );
-      console.log('[AppointmentFormInner] getInitialValues', { 
-        userTimezone, 
-        'appointment.start_at': appointment.start_at, 
-        convertedDate: date, 
-        convertedTime: time, 
-        durationMinutes 
-      });
       return { date, time, durationMinutes };
     }
     return { 
@@ -137,7 +130,8 @@ function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTi
   const handleSubmit = async (data: AppointmentFormData) => {
     try {
       // Convert local date/time to UTC
-      const utcStart = combineDateTimeToUTC(data.scheduled_date, data.start_time, userTimezone);
+      const utcStartISO = localToUTC(data.scheduled_date, data.start_time, userTimezone);
+      const utcStart = new Date(utcStartISO);
       const utcEnd = new Date(utcStart.getTime() + data.duration_minutes * 60 * 1000);
 
       const submitData: Record<string, any> = {
