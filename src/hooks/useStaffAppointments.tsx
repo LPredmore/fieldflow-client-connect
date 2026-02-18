@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { syncAppointmentToGoogle } from '@/lib/googleCalendarSync';
 import { getTodayInTimezone, getDateFromFakeLocalDate, getFakeLocalNow, DEFAULT_TIMEZONE } from '@/lib/timezoneUtils';
 
 /**
@@ -282,6 +283,9 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
         throw error;
       }
 
+      // Fire-and-forget Google Calendar sync
+      syncAppointmentToGoogle(appointmentId, 'update');
+
       toast({ title: 'Appointment updated' });
       await refetch();
       return data;
@@ -304,6 +308,9 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
         console.error('[useStaffAppointments] Error deleting:', error);
         throw error;
       }
+
+      // Fire-and-forget Google Calendar sync
+      syncAppointmentToGoogle(appointmentId, 'delete');
 
       toast({ title: 'Appointment deleted' });
       await refetch();

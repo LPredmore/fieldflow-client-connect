@@ -694,6 +694,57 @@ export type Database = {
           },
         ]
       }
+      calendar_watch_channels: {
+        Row: {
+          calendar_id: string
+          channel_id: string
+          created_at: string
+          expiration: string
+          id: string
+          resource_id: string
+          staff_id: string
+          sync_token: string | null
+          tenant_id: string
+        }
+        Insert: {
+          calendar_id: string
+          channel_id: string
+          created_at?: string
+          expiration: string
+          id?: string
+          resource_id: string
+          staff_id: string
+          sync_token?: string | null
+          tenant_id: string
+        }
+        Update: {
+          calendar_id?: string
+          channel_id?: string
+          created_at?: string
+          expiration?: string
+          id?: string
+          resource_id?: string
+          staff_id?: string
+          sync_token?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_watch_channels_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_watch_channels_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claim_appeals: {
         Row: {
           appeal_date: string
@@ -6438,6 +6489,60 @@ export type Database = {
           },
         ]
       }
+      staff_calendar_blocks: {
+        Row: {
+          created_at: string
+          end_at: string
+          external_event_id: string | null
+          id: string
+          source: string
+          staff_id: string
+          start_at: string
+          summary: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_at: string
+          external_event_id?: string | null
+          id?: string
+          source?: string
+          staff_id: string
+          start_at: string
+          summary?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_at?: string
+          external_event_id?: string | null
+          id?: string
+          source?: string
+          staff_id?: string
+          start_at?: string
+          summary?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_calendar_blocks_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_calendar_blocks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_calendar_connections: {
         Row: {
           access_token_encrypted: string | null
@@ -6942,6 +7047,10 @@ export type Database = {
       }
     }
     Functions: {
+      check_staff_availability: {
+        Args: { p_end: string; p_staff_id: string; p_start: string }
+        Returns: boolean
+      }
       find_clients_by_emails_insensitive: {
         Args: { p_emails: string[]; p_tenant_id: string }
         Returns: {

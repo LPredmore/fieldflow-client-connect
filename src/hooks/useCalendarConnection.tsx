@@ -128,9 +128,11 @@ export function useCalendarConnection() {
     }
   }, [connection?.connection_status, fetchCalendars]);
 
-  // Select a calendar
+  // Select a calendar and start the Google watch channel for inbound sync
   const selectCalendar = useCallback(async (calendarId: string) => {
     if (!connection) return;
+    const staffId = user?.staffAttributes?.staffData?.id;
+    
     const { error } = await supabase
       .from('staff_calendar_connections')
       .update({ selected_calendar_id: calendarId, updated_at: new Date().toISOString() })
@@ -138,15 +140,45 @@ export function useCalendarConnection() {
 
     if (error) {
       toast({ variant: 'destructive', title: 'Failed to select calendar', description: error.message });
-    } else {
-      toast({ title: 'Calendar selected', description: 'Appointments will sync to this calendar.' });
-      refetch();
+      return;
     }
-  }, [connection, toast, refetch]);
 
-  // Disconnect
+    // Start Google watch channel for push notifications (fire-and-forget)
+    if (staffId) {
+      supabase.functions.invoke('google-calendar-watch-start', {
+        body: { staff_id: staffId, calendar_id: calendarId, action: 'start' },
+      }).then(({ data, error: watchError }) => {
+        if (watchError) {
+          console.warn('[CalendarConnection] Watch start failed (non-blocking):', watchError);
+        } else {
+          console.log('[CalendarConnection] Watch channel started:', data);
+        }
+      }).catch((err) => {
+        console.warn('[CalendarConnection] Watch start error (non-blocking):', err);
+      });
+    }
+
+    toast({ title: 'Calendar selected', description: 'Appointments will sync to this calendar.' });
+    refetch();
+  }, [connection, user, toast, refetch]);
+
+  // Disconnect: stop watch channels, clean up blocks, then delete connection
   const disconnect = useCallback(async () => {
     if (!connection) return;
+    const staffIdForCleanup = user?.staffAttributes?.staffData?.id;
+
+    // Stop watch channels and clean up blocks (fire-and-forget)
+    if (staffIdForCleanup) {
+      try {
+        await supabase.functions.invoke('google-calendar-watch-start', {
+          body: { staff_id: staffIdForCleanup, action: 'stop' },
+        });
+        console.log('[CalendarConnection] Watch channels stopped and blocks cleaned up');
+      } catch (err) {
+        console.warn('[CalendarConnection] Cleanup error (continuing with disconnect):', err);
+      }
+    }
+
     const { error } = await supabase
       .from('staff_calendar_connections')
       .delete()
@@ -159,7 +191,7 @@ export function useCalendarConnection() {
       setCalendars([]);
       queryClient.invalidateQueries({ queryKey: ['calendar-connection'] });
     }
-  }, [connection, toast, queryClient]);
+  }, [connection, user, toast, queryClient]);
 
   return {
     connection,

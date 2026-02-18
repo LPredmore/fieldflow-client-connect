@@ -4,6 +4,7 @@ import { DateTime } from 'luxon';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 import { useStaffAppointments } from '@/hooks/useStaffAppointments';
+import { useStaffCalendarBlocks } from '@/hooks/useStaffCalendarBlocks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,6 +15,7 @@ import AppointmentView from '@/components/Appointments/AppointmentView';
 import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppointmentDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { syncAppointmentToGoogle } from '@/lib/googleCalendarSync';
 
 // Luxon localizer for React Big Calendar
 const localizer = luxonLocalizer(DateTime);
@@ -58,6 +60,12 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
     lookbackDays: 14,
   });
   const { tenantId } = useAuth();
+  
+  // Fetch external calendar blocks (Google Calendar busy periods)
+  const { backgroundEvents: externalBlocks } = useStaffCalendarBlocks({
+    staffTimezone: staffTimezone || 'America/New_York',
+    enabled: !!staffTimezone,
+  });
   
   // Debug: log when appointments change
   console.log('[RBCCalendar] Render with appointments count:', appointments?.length ?? 0);
@@ -130,6 +138,21 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
 
   // Dynamic event styling based on status
   const eventStyleGetter = useCallback((event: any) => {
+    // External calendar blocks get distinct styling
+    if (event.resource?.isExternalBlock) {
+      return {
+        style: {
+          backgroundColor: 'hsl(var(--muted))',
+          borderRadius: '4px',
+          opacity: 0.7,
+          color: 'hsl(var(--muted-foreground))',
+          border: '1px dashed hsl(var(--border))',
+          display: 'block',
+          cursor: 'default',
+        },
+      };
+    }
+
     let backgroundColor = 'hsl(var(--primary))';
 
     if (event.resource.status === 'completed') {
@@ -150,8 +173,9 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
     };
   }, []);
 
-  // Handle event click
+  // Handle event click — ignore external blocks
   const handleSelectEvent = useCallback((event: any) => {
+    if (event.resource?.isExternalBlock) return;
     setSelectedAppointmentId(event.id);
     setViewDialogOpen(true);
   }, []);
@@ -213,6 +237,9 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
 
       if (error) throw error;
       
+      // Fire-and-forget Google Calendar sync
+      syncAppointmentToGoogle(appointmentId, 'update');
+      
       setViewDialogOpen(false);
       refetch();
     } catch (error) {
@@ -271,7 +298,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
         <div className="calendar-container h-[600px]">
           <Calendar
             localizer={localizer}
-            events={events}
+            events={[...events, ...externalBlocks]}
             startAccessor="start"
             endAccessor="end"
             style={{ height: '100%' }}
