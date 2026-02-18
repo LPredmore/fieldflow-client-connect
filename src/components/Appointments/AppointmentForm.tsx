@@ -95,6 +95,13 @@ function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTi
       const durationMinutes = Math.round(
         (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
       );
+      console.log('[AppointmentFormInner] getInitialValues', { 
+        userTimezone, 
+        'appointment.start_at': appointment.start_at, 
+        convertedDate: date, 
+        convertedTime: time, 
+        durationMinutes 
+      });
       return { date, time, durationMinutes };
     }
     return { 
