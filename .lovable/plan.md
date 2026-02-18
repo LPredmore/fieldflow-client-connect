@@ -1,55 +1,87 @@
 
 
-# Fix: `useFreshStaffTimezone` Race Condition
+# Fix: AppointmentForm Using Broken Timezone Library
 
-## The Problem
+## Problem Summary
 
-When `AppointmentForm` mounts, it calls `useFreshStaffTimezone()`. The hook's `useEffect` runs immediately, but at that point `user?.roleContext?.staffData?.id` is still `undefined` because auth is still hydrating. The current code (lines 58-64) treats "no staff ID" as "query complete" and immediately sets `queryComplete = true` with `isLoading = false`. This releases the loading gate, and the form initializes React Hook Form `defaultValues` using the fallback timezone (`America/New_York`). 
+The Edit Appointment form shows UTC time (e.g., 7:00 PM) instead of the staff member's local time (1:00 PM CST). The timezone hook fix we applied earlier is working correctly -- the real bug is that `AppointmentForm` calls a conversion function (`splitUTCToLocalDateTime`) that uses a broken library (`date-fns-tz`), when a working Luxon-based equivalent (`utcToLocalStrings`) already exists in the codebase but is not being used.
 
-When auth finishes hydrating and `staffId` becomes available, the `useEffect` re-runs and fetches the real timezone (`America/Chicago`). But it's too late -- React Hook Form locked in its `defaultValues` on first render and won't update them.
+## Root Cause
+
+`splitUTCToLocalDateTime` in `src/lib/timezoneUtils.ts` calls `formatInTimeZone()` from `date-fns-tz` v3.x, which silently fails to apply the timezone conversion in the Lovable preview environment (UTC system timezone). It returns the raw UTC hour instead of the converted local hour.
+
+Meanwhile, `src/lib/appointmentTimezone.ts` already contains `utcToLocalStrings()` -- a Luxon-based function that does the exact same conversion correctly and reliably.
 
 ## The Fix
 
-**One file change: `src/hooks/useStaffTimezone.tsx`**
+**One file change: `src/components/Appointments/AppointmentForm.tsx`**
 
-Modify the `useFreshStaffTimezone` hook so that when `staffId` is not available, it does **nothing** -- it stays in loading state (`isLoading: true`, `queryComplete: false`, `timezone: null`). It simply returns early without setting any state. When the `useEffect` dependency (`user?.roleContext?.staffData?.id`) changes from `undefined` to an actual ID, the effect re-runs and performs the real fetch. Only then does it set `queryComplete = true`.
+### Step 1: Change the import
 
-This means:
-- `AppointmentForm` stays on its loading spinner (the "Loading timezone..." screen) until the real timezone is fetched
-- React Hook Form `defaultValues` are only calculated once the correct timezone is available
-- The save path (`combineDateTimeToUTC`) also uses the correct timezone
-
-### Specific code change
-
-In the `useEffect` inside `useFreshStaffTimezone`, replace the early-exit block (lines 58-64):
-
+Replace:
 ```
-if (!staffId) {
-  // No staff ID available yet, mark complete to use browser fallback
-  if (mounted) {
-    setQueryComplete(true);
-    setIsLoading(false);
-  }
-  return;
-}
+import { combineDateTimeToUTC, splitUTCToLocalDateTime } from '@/lib/timezoneUtils';
 ```
 
 With:
-
 ```
-if (!staffId) {
-  // Staff ID not available yet (auth still hydrating).
-  // Stay in loading state -- do NOT mark queryComplete.
-  // The effect will re-run when staffId becomes available.
-  return;
-}
+import { utcToLocalStrings, localToUTC } from '@/lib/appointmentTimezone';
 ```
 
-That is the entire fix. No other files need to change. `AppointmentForm` already handles the loading state correctly (it shows a spinner when `timezoneLoading || !userTimezone`), so the gate holds until the real timezone resolves.
+### Step 2: Update `getInitialValues` (line 94)
 
-## Risk
+Replace:
+```
+const { date, time } = splitUTCToLocalDateTime(appointment.start_at, userTimezone);
+```
 
-If `staffId` never becomes available (e.g., a non-staff user somehow reaches this form), the form will stay on the loading spinner indefinitely. This is acceptable because:
-1. Only staff users can access the appointment form (routing guards enforce this)
-2. An infinite spinner is better than silently saving appointments in the wrong timezone
+With:
+```
+const { date, time } = utcToLocalStrings(appointment.start_at, userTimezone);
+```
+
+### Step 3: Update `handleSubmit` (line 140)
+
+Replace:
+```
+const utcStart = combineDateTimeToUTC(data.scheduled_date, data.start_time, userTimezone);
+const utcEnd = new Date(utcStart.getTime() + data.duration_minutes * 60 * 1000);
+```
+
+With:
+```
+const utcStartISO = localToUTC(data.scheduled_date, data.start_time, userTimezone);
+const utcStart = new Date(utcStartISO);
+const utcEnd = new Date(utcStart.getTime() + data.duration_minutes * 60 * 1000);
+```
+
+Note: `localToUTC` returns an ISO string, so we wrap it in `new Date()` to maintain the same downstream behavior for `utcEnd` calculation and `.toISOString()` calls.
+
+### Step 4: Remove debug logging
+
+Remove the `console.log` statements added in the previous debugging session (lines 98-104 in `AppointmentForm.tsx` and the three logging statements in `useStaffTimezone.tsx`).
+
+## Why This Is the Right Decision
+
+1. **Luxon is already the canonical timezone library for this system.** The calendar (RBCCalendar), appointment display (AppointmentView), and the appointment utility file all use Luxon. `date-fns-tz` is a secondary dependency that has proven unreliable.
+
+2. **`appointmentTimezone.ts` was specifically built for this purpose.** It has matching read/write functions (`utcToLocalStrings` / `localToUTC`) designed as a pair for appointment forms. Using them together ensures round-trip consistency.
+
+3. **No new code is being written.** We are wiring up existing, tested functions instead of writing yet another conversion implementation.
+
+4. **No database or schema changes.** The fix is purely a client-side import swap.
+
+## What Is NOT Changing
+
+- No changes to `timezoneUtils.ts` itself (other code may depend on it)
+- No changes to the database, RPC functions, or edge functions
+- No changes to `useFreshStaffTimezone` (it is now working correctly)
+- No changes to `appointmentTimezone.ts` (it already has everything we need)
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/components/Appointments/AppointmentForm.tsx` | Switch imports from `timezoneUtils` to `appointmentTimezone`; update two function calls; remove debug logs |
+| `src/hooks/useStaffTimezone.tsx` | Remove debug console.log statements (cleanup only) |
 
