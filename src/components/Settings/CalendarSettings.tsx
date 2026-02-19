@@ -9,9 +9,10 @@ import { Calendar, CheckCircle2, AlertTriangle, Loader2, Unplug, RefreshCw } fro
 
 interface CalendarSettingsProps {
   embedded?: boolean;
+  onSaved?: () => void;
 }
 
-export default function CalendarSettings({ embedded = false }: CalendarSettingsProps) {
+export default function CalendarSettings({ embedded = false, onSaved }: CalendarSettingsProps) {
   const {
     connection,
     isLoading,
@@ -77,7 +78,7 @@ export default function CalendarSettings({ embedded = false }: CalendarSettingsP
             {status === 'needs_reconnect' ? 'Reconnect' : 'Connect Google Calendar'}
           </Button>
         ) : (
-          <Button variant="outline" onClick={disconnect} className="text-destructive hover:text-destructive">
+          <Button variant="outline" onClick={async () => { await disconnect(); onSaved?.(); }} className="text-destructive hover:text-destructive">
             Disconnect
           </Button>
         )}
@@ -116,7 +117,7 @@ export default function CalendarSettings({ embedded = false }: CalendarSettingsP
             ) : calendars.length > 0 ? (
               <Select
                 value={connection.selected_calendar_id ?? ''}
-                onValueChange={selectCalendar}
+                onValueChange={async (val) => { await selectCalendar(val); onSaved?.(); }}
               >
                 <SelectTrigger className="w-full max-w-md">
                   <SelectValue placeholder="Select a calendar" />

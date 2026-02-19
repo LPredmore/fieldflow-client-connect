@@ -69,7 +69,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   const { fakeLocalNow: serverNow } = useServerNow(authStaffTimezone);
   
   // Fetch availability schedule for shading
-  const { slots: availabilitySlots } = useStaffAvailability();
+  const { slots: availabilitySlots, refetch: refetchAvailability } = useStaffAvailability();
 
   // Build availability lookup: Map<dayOfWeek, Array<{startMinutes, endMinutes}>>
   const availabilityMap = useMemo(() => {
@@ -117,6 +117,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<{ id: string; summary: string; source: string } | null>(null);
   const [prefilledDate, setPrefilledDate] = useState<string>('');
+  const [prefilledTime, setPrefilledTime] = useState<string>('');
   
   // Working hours state with localStorage persistence
   const [workingHoursStart, setWorkingHoursStart] = useState(() => loadWorkingHours().start);
@@ -127,6 +128,11 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
     setWorkingHoursEnd(end);
     saveWorkingHours(start, end);
   }, []);
+
+  const handleSettingsChanged = useCallback(() => {
+    refetchAvailability();
+    refetchBlocks();
+  }, [refetchAvailability, refetchBlocks]);
 
   // Plain local Date objects for min/max
   const minTime = useMemo(() => createLocalTime(workingHoursStart, 0), [workingHoursStart]);
@@ -233,6 +239,9 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   // Handle slot selection
   const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
     setPrefilledDate(DateTime.fromJSDate(slotInfo.start).toFormat('yyyy-MM-dd'));
+    const hh = String(slotInfo.start.getHours()).padStart(2, '0');
+    const mm = String(slotInfo.start.getMinutes()).padStart(2, '0');
+    setPrefilledTime(`${hh}:${mm}`);
     setCreateDialogOpen(true);
   }, []);
 
@@ -362,6 +371,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
       {/* Create Appointment Dialog */}
       <CreateAppointmentDialog
         prefilledDate={prefilledDate}
+        prefilledTime={prefilledTime}
         trigger={null}
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
@@ -411,6 +421,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
         workingHoursStart={workingHoursStart}
         workingHoursEnd={workingHoursEnd}
         onWorkingHoursChange={handleWorkingHoursChange}
+        onSettingsChanged={handleSettingsChanged}
       />
     </Card>
   );

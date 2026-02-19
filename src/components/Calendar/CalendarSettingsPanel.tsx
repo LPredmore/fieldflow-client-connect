@@ -43,6 +43,7 @@ interface CalendarSettingsPanelProps {
   workingHoursStart: number;
   workingHoursEnd: number;
   onWorkingHoursChange: (start: number, end: number) => void;
+  onSettingsChanged?: () => void;
 }
 
 export function CalendarSettingsPanel({
@@ -51,6 +52,7 @@ export function CalendarSettingsPanel({
   workingHoursStart,
   workingHoursEnd,
   onWorkingHoursChange,
+  onSettingsChanged,
 }: CalendarSettingsPanelProps) {
   const [workingOpen, setWorkingOpen] = useState(true);
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
@@ -124,7 +126,7 @@ export function CalendarSettingsPanel({
               <ChevronDown className={cn('h-4 w-4 transition-transform', availabilityOpen && 'rotate-180')} />
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-4 pb-2">
-              <AvailabilitySettings embedded />
+              <AvailabilitySettings embedded onSaved={onSettingsChanged} />
             </CollapsibleContent>
           </Collapsible>
 
@@ -135,7 +137,7 @@ export function CalendarSettingsPanel({
               <ChevronDown className={cn('h-4 w-4 transition-transform', calendarOpen && 'rotate-180')} />
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-4 pb-2">
-              <CalendarSettings embedded />
+              <CalendarSettings embedded onSaved={onSettingsChanged} />
             </CollapsibleContent>
           </Collapsible>
         </div>
