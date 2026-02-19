@@ -1,60 +1,37 @@
 
 
-# Show Availability Windows on the Calendar
+# Add Debugging to Availability Shading
 
-## Approach: `slotPropGetter` to Dim Unavailable Slots
+There are two possible failure points, and without logging we can't distinguish them:
 
-React Big Calendar's `slotPropGetter` callback is called for every 30-minute slot in the week/day views. It receives a `Date` object where `getDay()` returns 0-6 and `getHours()`/`getMinutes()` return the time -- which, thanks to the "fake local date" pattern already in use, correspond directly to the staff's local timezone.
+1. **`slotPropGetter` is never called or returns empty** -- meaning the availability data isn't reaching the callback
+2. **`slotPropGetter` IS applying the class, but the CSS is invisible** -- the gradient uses very low opacity values on a near-white background that may be imperceptible
 
-The availability data in `staff_availability_schedules` is stored as plain `TIME` values (e.g., `09:00`, `17:00`) in the staff's local timezone with a `day_of_week` (0=Sunday, 6=Saturday).
+## Changes
 
-This means **zero timezone conversion is needed**. The slot's `date.getHours()` already returns the staff-local hour, and the availability `start_time` is already in the staff-local hour. A simple numeric comparison determines whether a slot is inside or outside availability.
+### `src/components/Calendar/RBCCalendar.tsx`
 
-Slots outside the clinician's defined availability will be shaded with a subtle background color (light grey/striped), making it immediately obvious which times are open for booking. This is purely visual -- it does not prevent clicking to create appointments (clinicians may occasionally need to book outside their standard hours).
+Add console logging at three points:
 
-## Technical Details
+1. **After the availability map is built** -- log the map contents and `hasAvailability` flag so we can confirm the data arrived and was parsed correctly
+2. **Inside `slotPropGetter`** -- log the first few calls to confirm it's being invoked and what it returns (throttled to avoid console spam -- only log once per unique day+hour combination)
+3. **Log the `availabilitySlots` raw data** from the hook to confirm the fetch returned rows
 
-### Data flow
+### `src/styles/react-big-calendar.css`
 
-1. `useStaffAvailability` already fetches all `staff_availability_schedules` rows for the logged-in staff
-2. In `RBCCalendar`, import and call this hook
-3. Build a lookup structure: `Map<dayOfWeek, Array<{startMinutes, endMinutes}>>` from active slots
-4. Pass a `slotPropGetter` function that checks whether the slot falls inside any active availability window for that day
-5. If outside all windows (or no windows defined for that day), return a dimmed background style
+Temporarily make the unavailable shading extremely obvious (bright red background at full opacity) so that if the class IS being applied, it will be impossible to miss. This eliminates the "is it there but invisible?" question entirely.
 
-### Lookup logic (pseudocode)
-
-```text
-Parse "09:00" -> 540 minutes from midnight
-Parse "17:00" -> 1020 minutes from midnight
-Slot date -> day = date.getDay(), minutes = date.getHours() * 60 + date.getMinutes()
-isAvailable = windows[day].some(w => minutes >= w.start && minutes < w.end)
+```css
+.rbc-slot-unavailable {
+  background: rgba(255, 0, 0, 0.3) !important;
+}
 ```
 
-### Files changed
+Once we confirm which layer is broken (data vs. CSS), we can fix it and then restore subtle styling.
 
-**`src/components/Calendar/RBCCalendar.tsx`**
-- Import `useStaffAvailability`
-- Call the hook to get `slots` (the weekly schedule)
-- Build a `useMemo` availability lookup map from active slots
-- Add a `slotPropGetter` callback that dims slots outside availability
-- Pass `slotPropGetter` to the `<Calendar>` component
-- Add a small legend indicator in the header (e.g., "Grey = outside availability")
-
-**`src/styles/react-big-calendar.css`**
-- Add a CSS class `.rbc-slot-unavailable` with a subtle striped or dimmed background pattern for unavailable slots, ensuring it works in both light and dark mode
-
-### No other files change
+## No other files change
 
 - No database changes
-- No new hooks or components
-- No timezone conversion (the data is already in the right coordinate space)
-- `useStaffAvailability` is called read-only; no mutations
-- Appointments and blocks continue to render exactly as before on top of the shaded grid
-
-### Edge cases
-
-- **No availability configured**: All slots render normally (no dimming) so the calendar looks unchanged until the clinician sets up their schedule
-- **Month view**: `slotPropGetter` only fires in week/day views, so month view is unaffected (correct behavior -- time slots don't exist in month view)
-- **Multiple windows per day** (split shifts): The lookup checks all windows for the day, so 9-12 and 1-5 both show as available with the lunch gap dimmed
+- No new files
+- Two files modified with temporary debugging code
 
