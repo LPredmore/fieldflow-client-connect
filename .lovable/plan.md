@@ -1,68 +1,79 @@
 
-# Fix: Appointment Details — Show Preferred First Name + Legal Last Name
+# Fix: Allow All Staff to Connect Google Calendar
 
-## What Is Currently Happening
+## What Is Wrong
 
-The Client Information card in `AppointmentView` displays `appointment.client_name`, which maps to the `client_name` field from the `get_staff_calendar_appointments` RPC. That field contains the client's **preferred name only** — it is intentionally designed that way for calendar display (compact, familiar).
+Two edge functions have a hardcoded admin-only gate that blocks every non-admin clinician from using the Google Calendar sync feature:
 
-The RPC already returns a second field, `client_legal_name`, which contains **First (legal) + Last name**, built from `pat_name_f` and `pat_name_l`. This field is used in session notes (`ClientInfoSection.tsx`) for clinical documentation. It is already present on every appointment object in memory — the `AppointmentView` component simply does not reference it.
+1. **`google-calendar-auth-start`** — generates the Google OAuth URL. Blocked at line 55 with `if (!adminRole) return 403`.
+2. **`google-calendar-list-calendars`** — lists the user's Google calendars after connecting. Blocked at line 150 with the same check.
 
-## What Needs to Change
+The correct authorization model for this feature is: **any authenticated staff member with a valid staff record should be able to connect their own Google calendar**. There is no reason to restrict this to admins — each connection is scoped to the individual staff member's own `staff_id` and `tenant_id`. One user cannot access or interfere with another user's calendar connection.
 
-The user wants to see the client's **preferred first name + last name** in the Appointment Details view. This is a hybrid: not the purely preferred name (`client_name`), and not the purely legal name (`client_legal_name`). It is `pat_name_preferred` (or `pat_name_f` if no preferred) + `pat_name_l`.
+`google-calendar-watch-start` does NOT have this admin gate, so no change is needed there.
 
-The RPC does not expose `pat_name_preferred` and `pat_name_l` as separate columns — it pre-computes `client_name` (preferred only) and `client_legal_name` (legal first + last). So the cleanest correct approach, without modifying the database or RPC, is:
+## What Changes
 
-**Display `client_legal_name` as the primary name**, and if `client_name` (preferred) differs from the legal first name, show it as a secondary line labeled "Preferred Name."
+### File 1: `supabase/functions/google-calendar-auth-start/index.ts`
 
-This is exactly the right clinical UX: the legal name is shown prominently for identification purposes, and the preferred name is shown beneath it so clinicians know what to call the client. This matches how clinical documentation works throughout the rest of the system.
-
-## Files Changed
-
-Only **one file** changes: `src/components/Appointments/AppointmentView.tsx`
-
-### Change 1: Add `client_legal_name` to the `AppointmentData` interface
+Remove the entire admin role check block (lines 42–63):
 
 ```typescript
-// Joined data
-client_name?: string;           // Preferred name
-client_legal_name?: string;     // First (legal) + Last name
-client_email?: string;
-client_phone?: string;
+// DELETE THIS ENTIRE BLOCK:
+const { data: adminRole } = await supabaseAdmin
+  .from("user_roles")
+  .select("role")
+  .eq("user_id", userId)
+  .eq("role", "admin")
+  .maybeSingle();
+
+if (!adminRole) {
+  return new Response(
+    JSON.stringify({ error: "Admin access required" }),
+    { status: 403, ... }
+  );
+}
 ```
 
-### Change 2: Update the Client Information card rendering
+The remaining logic — looking up the staff record by `profile_id`, building the HMAC-signed state, and generating the OAuth URL — is unchanged and correct for all staff users.
 
-Replace the single name line:
+The security model remains sound: the function still requires a valid JWT (authenticated user), and the state parameter is HMAC-signed with `staffId:tenantId`, so no user can forge a connection for another user's staff record.
 
-```tsx
-<p className="font-medium">{appointment.client_name || 'Unknown Client'}</p>
+### File 2: `supabase/functions/google-calendar-list-calendars/index.ts`
+
+Remove the same admin role check block (lines 142–158):
+
+```typescript
+// DELETE THIS ENTIRE BLOCK:
+const { data: adminRole } = await supabaseAdmin
+  .from("user_roles")
+  .select("role")
+  .eq("user_id", userId)
+  .eq("role", "admin")
+  .maybeSingle();
+
+if (!adminRole) {
+  return new Response(
+    JSON.stringify({ error: "Admin access required" }),
+    { status: 403, ... }
+  );
+}
 ```
 
-With:
+After the gate is removed, the function looks up the staff record by `profile_id` (the authenticated user's own ID), then fetches only that staff member's calendar connection. Users can only ever see their own calendars — there is no cross-user data exposure.
 
-```tsx
-<p className="font-medium">
-  {appointment.client_legal_name || appointment.client_name || 'Unknown Client'}
-</p>
-{appointment.client_name && 
- appointment.client_legal_name && 
- appointment.client_name !== appointment.client_legal_name && (
-  <p className="text-sm text-muted-foreground">
-    Preferred: {appointment.client_name}
-  </p>
-)}
-```
+## Security Confirmation
 
-This means:
-- If the client has a legal name available (which all appointments from `useStaffAppointments` will), it shows that.
-- If the preferred name differs from the legal name, it shows a secondary "Preferred:" line.
-- If no legal name is available (e.g. edge case from a different data source), it falls back to `client_name`, then `'Unknown Client'`.
+- Both functions still require a valid Supabase JWT. Unauthenticated requests get a 401.
+- Both functions still require the caller to have a `staff` record in the database. Non-staff users get a 404.
+- Each staff member can only connect and view calendars for their own `staff_id` — the lookup is always scoped to `profile_id = userId` (the authenticated user's own ID).
+- No RLS changes are needed. The `staff_calendar_connections` table is already scoped per `staff_id`.
 
-## Why This Is the Right Decision
+## No Other Changes Needed
 
-The alternative — modifying the RPC to return `pat_name_preferred` and `pat_name_l` separately and concatenating them on the client — would require a database function change and would break the constraint that the code must always adapt to the database, not the other way around.
-
-Using `client_legal_name` (already returned by the RPC, already in the appointment object, already used in session notes for the same purpose) is the correct approach. It is consistent with how the rest of the clinical system uses names, requires zero database changes, and requires zero changes to any hook or data-fetching layer.
-
-The "Preferred:" secondary label is standard clinical practice and matches the intent of having both name fields in the system in the first place.
+- `google-calendar-watch-start` — no admin gate, already works for any staff member.
+- `google-calendar-auth-callback` — no admin gate, already works.
+- `google-calendar-sync-appointment` — no admin gate, already works.
+- `google-calendar-webhook` — public webhook endpoint, no auth needed.
+- Frontend (`useCalendarConnection.tsx`, `CalendarSettings.tsx`) — no changes needed.
+- Database — no changes needed.
