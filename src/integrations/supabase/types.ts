@@ -7183,6 +7183,17 @@ export type Database = {
           total_responsibility: number
         }[]
       }
+      get_now_in_timezone: {
+        Args: { p_timezone?: string }
+        Returns: {
+          now_day: number
+          now_hour: number
+          now_minute: number
+          now_month: number
+          now_year: number
+          today_date: string
+        }[]
+      }
       get_staff_calendar_appointments: {
         Args: { p_from_date?: string; p_staff_id: string; p_to_date?: string }
         Returns: {

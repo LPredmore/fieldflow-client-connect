@@ -6,7 +6,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useStaffAppointments } from '@/hooks/useStaffAppointments';
 import { useStaffCalendarBlocks } from '@/hooks/useStaffCalendarBlocks';
 import { useStaffTimezone } from '@/hooks/useStaffTimezone';
-import { getFakeLocalNow } from '@/lib/timezoneUtils';
+import { useServerNow } from '@/hooks/useServerNow';
 import { useStaffAvailability } from '@/hooks/useStaffAvailability';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,9 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   
   // Get staff timezone directly from auth context (independent of appointment loading)
   const authStaffTimezone = useStaffTimezone();
+  
+  // Server-authoritative "now" — same coordinate system as appointment positioning
+  const { fakeLocalNow: serverNow } = useServerNow(authStaffTimezone);
   
   // Fetch availability schedule for shading
   const { slots: availabilitySlots } = useStaffAvailability();
@@ -304,7 +307,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
         <div className="calendar-container h-[600px]">
           <Calendar
             localizer={localizer}
-            getNow={() => getFakeLocalNow(authStaffTimezone)}
+            getNow={() => serverNow}
             events={[...events, ...externalBlocks]}
             startAccessor="start"
             endAccessor="end"
