@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { useStaffTimezone } from './useStaffTimezone';
+import { useFreshStaffTimezone } from './useStaffTimezone';
 import { getDBTimezoneEnum } from '@/lib/appointmentTimezone';
 import { syncMultipleAppointmentsToGoogle } from '@/lib/googleCalendarSync';
 
@@ -65,7 +65,7 @@ export type JobSeries = AppointmentSeries;
 export function useAppointmentSeries() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
-  const staffTimezone = useStaffTimezone();
+  const { timezone: staffTimezone, isLoading: timezoneLoading } = useFreshStaffTimezone();
 
   const [series, setSeries] = useState<AppointmentSeries[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,6 +153,9 @@ export function useAppointmentSeries() {
 
   // Create a new appointment series
   const createSeries = async (input: CreateAppointmentSeriesInput) => {
+    if (timezoneLoading || !staffTimezone) {
+      throw new Error('Timezone not yet loaded. Please wait a moment and try again.');
+    }
     if (!user || !tenantId || !staffId) {
       throw new Error('User not authenticated or staff ID not found');
     }
