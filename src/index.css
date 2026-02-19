@@ -148,7 +148,7 @@
 }
 
 /* React Big Calendar Styles */
-@import '../styles/react-big-calendar.css';
+@import './styles/react-big-calendar.css';
 
 /* Print Styles for Session Notes and Clinical Documents */
 @media print {
