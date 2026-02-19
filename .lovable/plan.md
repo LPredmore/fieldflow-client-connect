@@ -1,64 +1,103 @@
 
 
-# Calendar Refresh on Settings Change + Time Slot Pre-fill
+# Add Self-Scheduling Toggle and Slot Interval to Calendar Settings
 
 ## Summary
 
-Two changes: (1) the calendar automatically refreshes when any setting in the Calendar Settings panel is saved, and (2) clicking a time slot on the calendar pre-fills the Create Appointment dialog with that exact time.
+Add two new per-clinician settings to the Calendar Settings panel: (1) a toggle for whether the clinician allows client self-scheduling, and (2) a selector for whether clients can book on the hour only (60-minute intervals) or also on the half-hour (30-minute intervals). This requires two new columns on the `staff` table and a corresponding update to the `get_available_appointment_slots` database function.
 
-## Change 1: Calendar refreshes after settings changes
+## Why these belong on the `staff` table
 
-### The problem
+Both settings are per-clinician preferences that directly affect how *their* availability is computed and presented. The `staff` table already holds analogous per-clinician flags (`prov_accepting_new_clients`, `prov_time_zone`). A separate settings table would add a join for no benefit.
 
-`AvailabilitySettings` and `CalendarSettings` each instantiate their own data hooks internally. When the user saves inside the panel, only the panel's hook re-fetches. The separate hook instances in `RBCCalendar` (which drive availability shading and external block rendering) remain stale until a full page reload.
+## Database changes (migration)
 
-### The right approach: callback prop, not shared state
+### New columns on `staff`
 
-The correct pattern here is a simple `onSaved` callback prop -- the same pattern the codebase already uses for `onAppointmentCreated`, `onBlockCreated`, and `onRefresh`. Alternatives like lifting the hooks to a shared parent or using a global event bus would introduce coupling and complexity that isn't justified. The callback pattern keeps components self-contained and follows the established convention documented in the project's architecture notes.
+| Column | Type | Default | Purpose |
+|---|---|---|---|
+| `prov_self_scheduling_enabled` | `boolean NOT NULL` | `false` | Whether this clinician's slots appear in the client self-scheduling flow |
+| `prov_scheduling_interval_minutes` | `integer NOT NULL` | `60` | Slot step size: 60 = hour-only, 30 = half-hour |
 
-### File changes
+Both columns are additive with safe defaults. Existing rows get `false` / `60`, so nothing changes for current users until they opt in.
 
-**`AvailabilitySettings.tsx`** -- Accept an optional `onSaved?: () => void` prop. Call it at the end of every successful `upsertSlot`, `updateSlot`, and `deleteSlot` operation (three call sites).
+### Update `get_available_appointment_slots` function
 
-**`CalendarSettings.tsx`** -- Accept an optional `onSaved?: () => void` prop. Call it after `selectCalendar` succeeds and after `disconnect` succeeds (the two operations that change calendar sync state).
+The function currently hardcodes `'30 minutes'::INTERVAL` for slot generation. Replace this with a dynamic lookup:
 
-**`CalendarSettingsPanel.tsx`** -- Accept an `onSettingsChanged?: () => void` prop. Pass it as `onSaved` to both `AvailabilitySettings` and `CalendarSettings`.
+1. At the top of the function, query the staff member's `prov_scheduling_interval_minutes` value.
+2. Use that value in the `generate_series` call instead of the hardcoded 30 minutes.
 
-**`RBCCalendar.tsx`** -- Three things:
-1. Destructure `refetch` from the existing `useStaffAvailability()` call (it's already returned as `refetch: fetchSlots`).
-2. Create a `handleSettingsChanged` callback that calls both `refetch()` (availability shading) and `refetchBlocks()` (external calendar blocks).
-3. Pass `onSettingsChanged={handleSettingsChanged}` to `CalendarSettingsPanel`.
+This keeps all slot math server-side (consistent with the project's "zero client-side timezone math" principle).
 
-Working hours changes already work reactively (they update React state in `RBCCalendar` directly via `onWorkingHoursChange`), so no additional wiring is needed for that section.
+### Validation trigger
 
-## Change 2: Pre-fill time from clicked calendar slot
+Add a validation trigger on `staff` that ensures `prov_scheduling_interval_minutes` is either 30 or 60 (using a trigger, not a CHECK constraint, per project guidelines).
 
-### The problem
+## Frontend changes
 
-`handleSelectSlot` in `RBCCalendar` extracts only the date from `slotInfo.start` and passes it as `prefilledDate`. The time always defaults to `09:00` because that's the initial state in `CreateAppointmentDialog`.
+### 1. CalendarSettingsPanel.tsx -- Add "Scheduling Preferences" collapsible
 
-### The right approach
+Add a fourth collapsible section titled **Scheduling Preferences** between Availability and Calendar Integration. It contains:
 
-Extract the time from `slotInfo.start` at the same point we already extract the date. Pass it as a separate `prefilledTime` prop. This is straightforward because `slotInfo.start` is a "fake local" Date whose `getHours()`/`getMinutes()` already represent the staff's local time -- no timezone conversion needed.
+- **Allow Client Self-Scheduling** -- A `Switch` toggle with descriptive text: "When enabled, clients can book appointments during your available time slots."
+- **Booking Interval** -- A `Select` dropdown with two options: "On the hour (e.g., 9:00, 10:00)" and "On the half-hour (e.g., 9:00, 9:30, 10:00)". Only visible/enabled when self-scheduling is turned on.
 
-### File changes
+Both controls save immediately on change (same pattern as the Google Calendar selector -- no separate Save button).
 
-**`RBCCalendar.tsx`**:
-- Add a `prefilledTime` state variable (string, e.g. `"14:30"`).
-- In `handleSelectSlot`, format the time from `slotInfo.start` using zero-padded hours and minutes: ``const hh = String(slotInfo.start.getHours()).padStart(2, '0'); const mm = String(slotInfo.start.getMinutes()).padStart(2, '0');`` then set `prefilledTime` to `${hh}:${mm}`.
-- Pass `prefilledTime={prefilledTime}` to the `CreateAppointmentDialog`.
+### 2. New hook: useSchedulingPreferences.ts
 
-**`CreateAppointmentDialog.tsx`**:
-- Add `prefilledTime?: string` to the props interface.
-- Add a `useEffect` that syncs `prefilledTime` into `formData.time` when it changes (identical pattern to the existing `prefilledDate` effect on line 62-66).
-- Keep the default initial time as `'09:00'` for cases where no slot was clicked (e.g. the header "Create Appointment" button).
+A small hook that:
+- Reads the current staff member's `prov_self_scheduling_enabled` and `prov_scheduling_interval_minutes` from the `staff` table (using the existing `staffId` from `useAuth`).
+- Exposes `updatePreference(field, value)` that performs a targeted `supabase.from('staff').update(...)`.
+- Calls `onSaved?.()` after a successful update so the calendar can refresh.
 
-Duration remains at 60 minutes by default -- no change needed.
+This is kept separate from `useStaffProfile` because `useStaffProfile` is a heavier general-purpose hook. A focused hook avoids re-fetching all staff fields on every toggle.
+
+### 3. Update types in useStaffProfile.tsx and useStaffData.tsx
+
+Add the two new fields to the `StaffMember` interfaces so TypeScript knows about them (the generated `types.ts` will update automatically after migration, but the manually-defined interfaces in hooks need the fields added).
+
+### 4. No changes to CalendarToolbar, RBCCalendar, or appointments
+
+These settings affect the *client-facing* slot generation function, not the staff calendar view. The staff calendar grid step size, appointment creation dialog, and toolbar remain unchanged.
 
 ## What does NOT change
 
-- No database or table changes
-- No hook logic changes (availability, calendar connection, appointments)
-- No changes to the CalendarToolbar component
-- No changes to working hours persistence (already reactive)
+- No existing columns modified or removed
+- No changes to RLS policies (the staff table's existing policies already gate access)
+- No changes to the CalendarToolbar, RBCCalendar, or appointment creation flow
+- No changes to AvailabilitySettings or CalendarSettings components
+- The `check_staff_availability` function is unaffected (it checks conflicts, not slot generation)
+
+## Technical detail: migration SQL sketch
+
+```text
+-- 1. Add columns
+ALTER TABLE staff
+  ADD COLUMN prov_self_scheduling_enabled boolean NOT NULL DEFAULT false,
+  ADD COLUMN prov_scheduling_interval_minutes integer NOT NULL DEFAULT 60;
+
+-- 2. Validation trigger
+CREATE OR REPLACE FUNCTION validate_scheduling_interval()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.prov_scheduling_interval_minutes NOT IN (30, 60) THEN
+    RAISE EXCEPTION 'scheduling interval must be 30 or 60';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_validate_scheduling_interval
+  BEFORE INSERT OR UPDATE ON staff
+  FOR EACH ROW EXECUTE FUNCTION validate_scheduling_interval();
+
+-- 3. Update slot generation function
+--    Replace hardcoded '30 minutes' with staff preference lookup
+```
+
+## Risk assessment
+
+**Low risk.** Two additive columns with safe defaults, a validation trigger, and a self-contained UI section. The only behavioral change is in `get_available_appointment_slots`, which gains a dynamic interval lookup instead of a hardcoded value -- a one-line change in the function body.
 
