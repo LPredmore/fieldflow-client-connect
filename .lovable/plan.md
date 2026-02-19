@@ -1,112 +1,122 @@
 
 
-# Fix Edit Form 9:00 AM Default and Misplaced Busy Blocks
+# Staff Availability Schedule + Manual Time Blocks (Revised)
 
-## Two Bugs, One Root Cause
+## Revision from Previous Plan
 
-Both issues stem from incomplete adoption of the server-authoritative timezone model. Some code paths still rely on the browser's broken `Intl` API or simply never received the server-computed data.
+One constraint has been reinforced and is now a hard architectural rule:
 
----
+**The future `get_available_slots` RPC will be 100% PostgreSQL.** No JavaScript slot calculation, no date-fns-tz, no browser Intl. The function will:
 
-## Bug 1: Edit Form Always Shows 9:00 AM
+1. Convert `staff_availability_schedules` TIME values from staff local timezone to UTC using `AT TIME ZONE`
+2. Subtract `appointments` (already UTC)
+3. Subtract `staff_calendar_blocks` (already UTC)
+4. Return pre-formatted display strings in the requesting client's timezone using `TO_CHAR(... AT TIME ZONE client_tz)`
 
-### What is happening
+This matches the existing pattern established by `get_client_appointments_display` and `get_staff_calendar_appointments`. The client portal will receive ready-to-render strings and never perform timezone math.
 
-The RPC `get_staff_calendar_appointments` returns seven time component columns for every appointment: `start_year`, `start_month`, `start_day`, `start_hour`, `start_minute`, `end_hour`, `end_minute`. These are correct -- PostgreSQL computes them using `AT TIME ZONE`.
-
-The `useStaffAppointments` hook reads these columns to build `calendar_start` and `calendar_end` Date objects (lines 177-192), but then **discards them**. The `StaffAppointment` interface (lines 12-51) does not declare `start_year`, `start_month`, `start_day`, `start_hour`, or `start_minute` as fields, and the object constructed at lines 194-221 never maps them.
-
-When `AppointmentView` tries to build `serverLocalDate` and `serverLocalTime` (lines 216-235), it accesses `appointment.start_year` etc., but these are all `undefined` because they were never carried through. The fallback in `AppointmentForm.getInitialValues` (line 105) then fires: `time: '09:00'`.
-
-### The fix
-
-Add `start_year`, `start_month`, `start_day`, `start_hour`, and `start_minute` to the `StaffAppointment` interface and populate them in the transform mapping inside `useStaffAppointments`. No new RPC, no new database function -- the data is already there, it just gets dropped at the TypeScript mapping step.
-
-### Files changed
-
-- `src/hooks/useStaffAppointments.tsx`
-  - Add five fields to the `StaffAppointment` interface: `start_year: number`, `start_month: number`, `start_day: number`, `start_hour: number`, `start_minute: number`
-  - Add five lines to the transform object (around line 218): `start_year: row.start_year`, `start_month: row.start_month`, `start_day: row.start_day`, `start_hour: row.start_hour`, `start_minute: row.start_minute`
-
-That is the entire fix for Bug 1. No other files need changes -- `AppointmentView` already reads these fields and formats them for `AppointmentForm`, which already accepts `server_local_date` and `server_local_time`.
+This RPC is NOT built in this phase, but the data model below is designed specifically to make it straightforward in PostgreSQL.
 
 ---
 
-## Bug 2: Busy Block at 5 AM on Feb 19 (Should Be 11 PM on Feb 18)
+## What Gets Built Now
 
-### What is happening
+### 1. Weekly Availability Schedule (Settings)
 
-The database contains a Google Calendar block:
-- `start_at`: `2026-02-19 05:00:00+00` (UTC)
-- `end_at`: `2026-02-19 06:00:00+00` (UTC)
+**New table: `staff_availability_schedules`**
 
-In `America/Chicago` (UTC-6), this is **February 18, 11:00 PM to midnight**. But `useStaffCalendarBlocks` uses `createFakeLocalDateFromISO`, which calls `Intl.DateTimeFormat` with `timeZone: 'America/Chicago'`. In the production environment, this API is broken and returns UTC components (offset 0), so the block renders at 5:00 AM on Feb 19.
-
-### The fix
-
-Apply the same server-authoritative pattern: create a small PostgreSQL RPC that fetches calendar blocks with server-side timezone conversion, returning integer time components just like `get_staff_calendar_appointments` does for appointments.
-
-### New database function
-
-```sql
-CREATE OR REPLACE FUNCTION get_staff_calendar_blocks(
-  p_staff_id UUID,
-  p_from_date TIMESTAMPTZ DEFAULT NOW()
-)
-RETURNS TABLE(
-  id UUID,
-  staff_id UUID,
-  start_at TIMESTAMPTZ,
-  end_at TIMESTAMPTZ,
-  source TEXT,
-  summary TEXT,
-  start_year INT, start_month INT, start_day INT,
-  start_hour INT, start_minute INT,
-  end_year INT, end_month INT, end_day INT,
-  end_hour INT, end_minute INT
-)
+```
+id              UUID PRIMARY KEY
+tenant_id       UUID NOT NULL -> tenants(id)
+staff_id        UUID NOT NULL -> staff(id)
+day_of_week     INTEGER NOT NULL (0=Sun, 6=Sat)
+start_time      TIME NOT NULL (e.g., '09:00')
+end_time        TIME NOT NULL (e.g., '17:00')
+is_active       BOOLEAN NOT NULL DEFAULT true
+created_at      TIMESTAMPTZ DEFAULT now()
+updated_at      TIMESTAMPTZ DEFAULT now()
+UNIQUE(staff_id, day_of_week, start_time)
 ```
 
-This function looks up the staff member's `prov_time_zone` and uses `EXTRACT(... FROM timestamp AT TIME ZONE tz)` to return integer components, exactly matching the appointments RPC pattern.
+Times are plain TIME in the clinician's local timezone (from `staff.prov_time_zone`). This is intentional: PostgreSQL can convert `'09:00'::TIME AT TIME ZONE prov_time_zone` to UTC trivially in the future RPC without any schema changes.
 
-### Hook refactor
+**RLS policies:**
+- SELECT: staff can read their own rows (join through `staff.profile_id = auth.uid()`)
+- INSERT/UPDATE/DELETE: staff can manage their own rows
 
-`useStaffCalendarBlocks` will:
-- Call the new RPC instead of a direct table query
-- Use `createFakeLocalDate(year, month, day, hour, minute)` (the same function already in `useStaffAppointments`) instead of `createFakeLocalDateFromISO`
-- Delete the broken `createFakeLocalDateFromISO` function entirely
+**UI: `AvailabilitySettings.tsx`**
+- 7-day grid (Monday-Sunday)
+- Each day toggleable on/off
+- Active days show start/end time pickers
+- "Add slot" button per day for split schedules (e.g., 9-12 and 1-5)
+- Save on change with toast confirmation
+- Timezone label displayed from `staff.prov_time_zone` (informational only, no conversion)
 
-### Files changed
+**Location:** New "Availability" settings category -- NOT admin-only, every clinician manages their own schedule.
 
-- New migration: create `get_staff_calendar_blocks` function
-- `src/hooks/useStaffCalendarBlocks.tsx`: replace direct query with RPC call, use integer components for fake local dates, remove `createFakeLocalDateFromISO`
+### 2. Manual Block Time (Calendar)
+
+**No new table.** Inserts into `staff_calendar_blocks` with `source = 'manual'`.
+
+Benefits of reusing the existing table:
+- `check_staff_availability` already queries it -- manual blocks immediately prevent double-booking
+- `get_staff_calendar_blocks` RPC already returns it with server-computed time components -- blocks render correctly on the calendar
+- Future `get_available_slots` subtracts this table -- manual blocks automatically reduce available slots
+
+**New RLS policies on `staff_calendar_blocks`:**
+- INSERT: staff can insert where `staff_id` matches their record AND `source = 'manual'`
+- UPDATE: staff can update where `staff_id` matches their record AND `source = 'manual'`
+- DELETE: staff can delete where `staff_id` matches their record AND `source = 'manual'`
+
+Google-synced blocks (`source != 'manual'`) remain protected from client-side mutation.
+
+**UI: `BlockTimeDialog.tsx`**
+- Date picker, start time, end time, optional label (default: "Blocked")
+- Uses `convert_local_to_utc` RPC for both start and end before inserting (zero client-side timezone math)
+- Refetches calendar blocks after insert
+
+**Calendar interaction:**
+- "Block Time" button added to `RBCCalendar` header (next to "Create Appointment")
+- Clicking a manual block shows details + "Delete" button
+- Google blocks remain read-only (no delete)
+- Distinguished by `resource.source === 'manual'`
 
 ---
 
-## Bug 2b: Metadata Timestamps (created_at, updated_at)
+## Files
 
-`AppointmentView` lines 104-116 use `dt.setZone(appointmentTimezone)` via Luxon to format `created_at` and `updated_at`. This also produces wrong times due to the same broken `Intl` API. Since this is low-priority metadata (not clinical data), the fix is to use the `format_timestamp_in_timezone` PostgreSQL function that already exists in the database, called via RPC when the view renders. Alternatively, accept slightly wrong metadata timestamps for now and address in a follow-up.
+### New files
+- `src/components/Settings/AvailabilitySettings.tsx` -- Weekly schedule editor
+- `src/hooks/useStaffAvailability.tsx` -- CRUD for `staff_availability_schedules`
+- `src/components/Calendar/BlockTimeDialog.tsx` -- Manual block creation dialog
 
-**Decision**: Use the existing `format_timestamp_in_timezone` database function via RPC for these two values. This keeps the "zero client-side timezone conversion" guarantee complete rather than leaving a known-broken path in the code.
+### Modified files
+- `src/pages/Settings.tsx` -- Add "Availability" category
+- `src/components/Calendar/RBCCalendar.tsx` -- Add "Block Time" button, manual block click handling
+- `src/hooks/useStaffCalendarBlocks.tsx` -- Add `createBlock` and `deleteBlock` mutations
 
-### Files changed
-
-- `src/components/Appointments/AppointmentView.tsx`: Replace Luxon-based `displayCreatedAt` and `displayUpdatedAt` with calls to `format_timestamp_in_timezone` RPC, or accept raw UTC display with a "(UTC)" label as a simpler alternative.
+### Database migrations
+- Create `staff_availability_schedules` table with RLS and `set_updated_at` trigger
+- Add INSERT/UPDATE/DELETE RLS policies to `staff_calendar_blocks` for `source = 'manual'` rows
 
 ---
 
 ## Execution Order
 
-1. Add `start_year/month/day/hour/minute` to `StaffAppointment` interface and mapping (fixes Bug 1)
-2. Create `get_staff_calendar_blocks` database function (migration)
-3. Refactor `useStaffCalendarBlocks` to use the new RPC (fixes Bug 2)
-4. Fix metadata timestamp display in `AppointmentView` (fixes Bug 2b)
-5. Remove dead `createFakeLocalDateFromISO` function
+1. Database migration: `staff_availability_schedules` table + RLS + trigger
+2. Database migration: manual block RLS policies on `staff_calendar_blocks`
+3. `useStaffAvailability` hook
+4. `AvailabilitySettings` component
+5. Add to Settings page
+6. Add `createBlock`/`deleteBlock` to `useStaffCalendarBlocks`
+7. `BlockTimeDialog` component
+8. Add "Block Time" button and manual block interaction to `RBCCalendar`
 
 ## What This Does NOT Change
 
-- No database table columns are modified (respecting the custom knowledge constraint)
-- No changes to appointment creation or write path (already fixed in prior work)
-- No changes to the calendar grid display (already working via fake local dates)
-- No changes to client portal code
+- No existing database columns modified
+- No changes to `check_staff_availability` function
+- No changes to Google Calendar sync
+- No changes to appointment CRUD or timezone handling
+- No JavaScript timezone conversion introduced anywhere
 
