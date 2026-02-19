@@ -202,6 +202,7 @@ export function useConsentTemplatesData(): UseConsentTemplatesDataReturn {
           content: systemTemplate.content,
           version: 1,
           is_active: false,
+          is_required: true,
           created_by_profile_id: user.id,
         })
         .select()
