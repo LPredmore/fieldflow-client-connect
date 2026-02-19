@@ -1,47 +1,39 @@
 
 
-# Invert Calendar Shading: Highlight Available Times
+# Fix: Current Time Indicator Using Staff Timezone
 
-## What changes
+## Problem
 
-Instead of shading **unavailable** slots, the calendar will apply a subtle wash of your Secondary Brand Color to **available** time slots. Everything outside your availability stays plain/white, and the times you're open for appointments get a gentle colored highlight.
+The green "current time" line on the calendar shows the wrong time because react-big-calendar's internal clock uses a plain `new Date()`, which returns the browser's local time (or UTC depending on the localizer). Meanwhile, all appointment events are positioned using "fake local" Date objects where `getHours()` returns the staff's timezone hour. These two coordinate systems don't match, so the line appears in the wrong place.
 
-This is arguably more intuitive: "colored = open for business."
+## Why this is the correct fix
 
-## Changes (2 files)
+The system already uses a "fake local Date" pattern: appointment Dates are constructed so that `getHours()` returns the staff's local hour, tricking react-big-calendar into correct grid positioning. The current-time indicator must use the same trick. The utility function `getFakeLocalNow(timezone)` in `src/lib/timezoneUtils.ts` already exists for exactly this purpose -- it creates a fake local Date representing "right now" in the staff's timezone. It just needs to be wired into the calendar.
 
-### 1. `src/components/Calendar/RBCCalendar.tsx`
+react-big-calendar accepts a `getNow` prop -- a function that returns a Date used for both the red/green time indicator line and for determining "today" highlighting. Passing a function that calls `getFakeLocalNow(staffTimezone)` aligns the indicator with the same coordinate system used by events.
 
-Flip the logic in `slotPropGetter`:
+## Change: `src/components/Calendar/RBCCalendar.tsx`
 
-- Currently: applies class when slot is **outside** availability
-- New: applies class when slot is **inside** availability
-- Rename the class from `rbc-slot-unavailable` to `rbc-slot-available` for clarity
-- Update the legend text from "Dimmed = outside availability" to something like "Highlighted = available hours"
+One edit:
 
-Concretely, line 92-94 changes from:
+1. Import `getFakeLocalNow` from `@/lib/timezoneUtils`
+2. Create a memoized `getNow` callback that returns `getFakeLocalNow(authStaffTimezone)`
+3. Pass `getNow={getNow}` to the `<Calendar>` component
 
-```js
-const isUnavailable = !windows || !windows.some(w => ...);
-if (isUnavailable) {
-  return { className: 'rbc-slot-unavailable' };
-}
+That is the entire change. No new files, no database changes, no other components affected.
+
+## Technical detail
+
+```text
+Before:
+  <Calendar localizer={localizer} ... />
+  (no getNow prop --> library uses new Date() --> wrong coordinate system)
+
+After:
+  <Calendar localizer={localizer} getNow={getNow} ... />
+  getNow = () => getFakeLocalNow(authStaffTimezone)
+  (returns fake local Date where getHours() = staff's current hour)
 ```
 
-to:
-
-```js
-const isAvailable = windows && windows.some(w => ...);
-if (isAvailable) {
-  return { className: 'rbc-slot-available' };
-}
-```
-
-### 2. `src/styles/react-big-calendar.css`
-
-Rename `.rbc-slot-unavailable` to `.rbc-slot-available` (and its `.dark` variant). The rule itself stays the same -- solid semi-transparent secondary brand color fill at 15% (light) / 25% (dark) opacity.
-
-### No other files change
-
-The `BrandColorProvider` changes from the approved plan still apply as-is (injecting `--brand-secondary`). This plan just inverts which slots get the color.
+`getFakeLocalNow` uses `formatInTimeZone` from date-fns-tz to get the real hour/minute in the staff's timezone, then constructs a Date with those values set via `setHours()`. This is the same pattern used by `createFakeLocalDate` in `useStaffAppointments`, so the indicator and events share the same coordinate system.
 
