@@ -1,37 +1,69 @@
 
 
-# Add Debugging to Availability Shading
+# Fix: Availability Shading Not Visible on Calendar
 
-There are two possible failure points, and without logging we can't distinguish them:
+## Root Cause
 
-1. **`slotPropGetter` is never called or returns empty** -- meaning the availability data isn't reaching the callback
-2. **`slotPropGetter` IS applying the class, but the CSS is invisible** -- the gradient uses very low opacity values on a near-white background that may be imperceptible
+The entire custom calendar stylesheet (`src/styles/react-big-calendar.css`) has never been loaded. The import path in `src/index.css` is wrong:
+
+```
+Current (broken):  @import '../styles/react-big-calendar.css';
+Correct:           @import './styles/react-big-calendar.css';
+```
+
+From `src/index.css`, the `../` prefix navigates up to the project root, then looks for `styles/react-big-calendar.css` at the root level. That directory is empty. The actual file is at `src/styles/react-big-calendar.css`, which requires `./styles/` (staying within `src/`).
+
+Vite silently drops the broken import rather than throwing a build error, so the app loads fine -- but none of the custom calendar CSS rules ever take effect. This means:
+
+- The `.rbc-slot-unavailable` shading rule never applied (even the bright red debug version)
+- All other custom calendar theming in that file (border-radius, theme-colored headers, dark mode, etc.) has also been absent
+
+The debug logging confirmed every other layer works: the database returns availability slots, the map is built correctly, `slotPropGetter` fires and returns `{ className: 'rbc-slot-unavailable' }` for the right slots. The class is on the DOM elements. There is just no CSS rule loaded to style it.
 
 ## Changes
 
-### `src/components/Calendar/RBCCalendar.tsx`
+### 1. `src/index.css` (line 151) -- Fix the import path
 
-Add console logging at three points:
+Change `'../styles/react-big-calendar.css'` to `'./styles/react-big-calendar.css'`.
 
-1. **After the availability map is built** -- log the map contents and `hasAvailability` flag so we can confirm the data arrived and was parsed correctly
-2. **Inside `slotPropGetter`** -- log the first few calls to confirm it's being invoked and what it returns (throttled to avoid console spam -- only log once per unique day+hour combination)
-3. **Log the `availabilitySlots` raw data** from the hook to confirm the fetch returned rows
+One character change. This loads the entire stylesheet, fixing both the availability shading and all existing calendar theme customizations.
 
-### `src/styles/react-big-calendar.css`
+### 2. `src/styles/react-big-calendar.css` -- Restore production styling
 
-Temporarily make the unavailable shading extremely obvious (bright red background at full opacity) so that if the class IS being applied, it will be impossible to miss. This eliminates the "is it there but invisible?" question entirely.
+Replace the bright red debug rule with the intended subtle shading for unavailable slots. Use a repeating diagonal stripe pattern at low opacity for light mode and slightly higher opacity for dark mode:
 
 ```css
 .rbc-slot-unavailable {
-  background: rgba(255, 0, 0, 0.3) !important;
+  background: repeating-linear-gradient(
+    135deg,
+    hsl(var(--muted) / 0.35),
+    hsl(var(--muted) / 0.35) 4px,
+    hsl(var(--muted) / 0.15) 4px,
+    hsl(var(--muted) / 0.15) 8px
+  ) !important;
+}
+
+.dark .rbc-slot-unavailable {
+  background: repeating-linear-gradient(
+    135deg,
+    hsl(var(--muted) / 0.5),
+    hsl(var(--muted) / 0.5) 4px,
+    hsl(var(--muted) / 0.25) 4px,
+    hsl(var(--muted) / 0.25) 8px
+  ) !important;
 }
 ```
 
-Once we confirm which layer is broken (data vs. CSS), we can fix it and then restore subtle styling.
+### 3. `src/components/Calendar/RBCCalendar.tsx` -- Remove debug logging
 
-## No other files change
+Strip out the three debug additions:
+- Remove the `useEffect` that logs raw availability data and map contents
+- Remove the `slotPropGetterLoggedRef` Set and the throttled console logging inside `slotPropGetter`
+- Keep the actual availability logic (the `useMemo` map, the `slotPropGetter` callback, the legend indicator) exactly as-is
+
+### No other files change
 
 - No database changes
 - No new files
-- Two files modified with temporary debugging code
+- No logic changes to the availability calculation
 
