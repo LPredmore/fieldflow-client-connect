@@ -89,9 +89,9 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
     const day = date.getDay();
     const minutes = date.getHours() * 60 + date.getMinutes();
     const windows = availabilityMap.get(day);
-    const isUnavailable = !windows || !windows.some(w => minutes >= w.startMinutes && minutes < w.endMinutes);
-    if (isUnavailable) {
-      return { className: 'rbc-slot-unavailable' };
+    const isAvailable = windows && windows.some(w => minutes >= w.startMinutes && minutes < w.endMinutes);
+    if (isAvailable) {
+      return { className: 'rbc-slot-available' };
     }
     return {};
   }, [availabilityMap, hasAvailability]);
@@ -268,7 +268,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
           <div className="flex items-center gap-2">
             {hasAvailability && (
               <span className="text-xs text-muted-foreground px-2 py-1 rounded border border-border">
-                Dimmed = outside availability
+                Highlighted = available hours
               </span>
             )}
             {tzMismatch && (

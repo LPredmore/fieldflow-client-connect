@@ -1,15 +1,20 @@
 import { useEffect } from 'react';
 import { generateBrandColorPalette, DEFAULT_BRAND_COLORS, hexToHsl } from '@/lib/colorUtils';
+import { useTenantBranding } from '@/hooks/useTenantBranding';
 
 interface BrandColorProviderProps {
   children: React.ReactNode;
 }
+
+const DEFAULT_SECONDARY_HSL = '160 84% 39%'; // #10B981
 
 /**
  * Brand Color Provider - Dynamically injects CSS variables based on brand color setting
  * Temporarily simplified to avoid auth context issues until database is set up
  */
 export function BrandColorProvider({ children }: BrandColorProviderProps) {
+  const { brandColors } = useTenantBranding();
+
   useEffect(() => {
     // Apply default brand colors until database is properly set up
     const colorPalette = DEFAULT_BRAND_COLORS;
@@ -26,6 +31,21 @@ export function BrandColorProvider({ children }: BrandColorProviderProps) {
     // Update dark theme variables by creating/updating CSS rule
     updateDarkThemeVariables(colorPalette.dark);
   }, []);
+
+  // Inject --brand-secondary CSS variable from tenant's secondary brand color
+  useEffect(() => {
+    const root = document.documentElement;
+    let hsl = DEFAULT_SECONDARY_HSL;
+
+    if (brandColors.secondary) {
+      const converted = hexToHsl(brandColors.secondary);
+      if (converted) {
+        hsl = converted;
+      }
+    }
+
+    root.style.setProperty('--brand-secondary', hsl);
+  }, [brandColors.secondary]);
 
   return <>{children}</>;
 }
