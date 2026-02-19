@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { getDBTimezoneEnum } from '@/lib/appointmentTimezone';
-import { useStaffTimezone } from './useStaffTimezone';
+import { useFreshStaffTimezone } from './useStaffTimezone';
 import { useDefaultLocation } from './useDefaultLocation';
 
 export interface CreateAppointmentInput {
@@ -28,7 +28,7 @@ export interface CreateAppointmentInput {
 export function useAppointmentCreation() {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
-  const staffTimezone = useStaffTimezone();
+  const { timezone: staffTimezone, isLoading: timezoneLoading } = useFreshStaffTimezone();
   const { defaultLocation } = useDefaultLocation();
 
   // Get the current staff_id from auth context
@@ -56,6 +56,9 @@ export function useAppointmentCreation() {
   };
 
   const createAppointment = async (data: CreateAppointmentInput) => {
+    if (timezoneLoading || !staffTimezone) {
+      throw new Error('Timezone not yet loaded. Please wait a moment and try again.');
+    }
     if (!user || !tenantId || !staffId) {
       throw new Error('User not authenticated or staff ID not found');
     }
@@ -160,5 +163,6 @@ export function useAppointmentCreation() {
     createAppointment,
     createVideoRoom,
     staffId,
+    timezoneLoading,
   };
 }

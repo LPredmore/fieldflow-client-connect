@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ClientSelector } from '@/components/Clients/ClientSelector';
 import { useToast } from '@/hooks/use-toast';
-import { useStaffTimezone } from '@/hooks/useStaffTimezone';
+import { useFreshStaffTimezone } from '@/hooks/useStaffTimezone';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
 const appointmentSchema = z.object({
@@ -56,14 +56,15 @@ interface AppointmentFormProps {
 export default function AppointmentForm({ appointment, onSubmit, onCancel, loading }: AppointmentFormProps) {
   const { services, loading: servicesLoading } = useServices();
   const { clients, loading: clientsLoading } = useClients();
-  const staffTimezone = useStaffTimezone();
+  const { timezone: staffTimezone, isLoading: timezoneLoading } = useFreshStaffTimezone();
 
   return <AppointmentFormInner 
     appointment={appointment} 
     onSubmit={onSubmit} 
     onCancel={onCancel} 
     loading={loading}
-    userTimezone={staffTimezone}
+    userTimezone={staffTimezone ?? 'America/New_York'}
+    timezoneLoading={timezoneLoading}
     services={services}
     servicesLoading={servicesLoading}
     clients={clients}
@@ -73,13 +74,14 @@ export default function AppointmentForm({ appointment, onSubmit, onCancel, loadi
 
 interface AppointmentFormInnerProps extends AppointmentFormProps {
   userTimezone: string;
+  timezoneLoading: boolean;
   services: any;
   servicesLoading: boolean;
   clients: any;
   clientsLoading: boolean;
 }
 
-function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTimezone, services, servicesLoading, clients, clientsLoading }: AppointmentFormInnerProps) {
+function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTimezone, timezoneLoading, services, servicesLoading, clients, clientsLoading }: AppointmentFormInnerProps) {
   const { toast } = useToast();
   const [selectedClientName, setSelectedClientName] = useState('');
 
@@ -391,8 +393,8 @@ function AppointmentFormInner({ appointment, onSubmit, onCancel, loading, userTi
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" disabled={loading || isLoadingData}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" disabled={loading || isLoadingData || timezoneLoading}>
+            {(loading || timezoneLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {appointment ? 'Update Appointment' : 'Create Appointment'}
           </Button>
         </div>
