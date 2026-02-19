@@ -11,9 +11,11 @@ import {
   Building, 
   Users,
   Stethoscope,
-  Calendar
+  Calendar,
+  Clock
 } from "lucide-react";
 import CalendarSettings from "@/components/Settings/CalendarSettings";
+import AvailabilitySettings from "@/components/Settings/AvailabilitySettings";
 
 const settingsCategories = [
   { 
@@ -42,6 +44,12 @@ const settingsCategories = [
     icon: Calendar,
     description: 'Connect Google Calendar for scheduling sync',
     adminOnly: true
+  },
+  { 
+    id: 'availability', 
+    name: 'Availability', 
+    icon: Clock,
+    description: 'Set your weekly scheduling availability'
   }
 ];
 
@@ -59,6 +67,8 @@ export default function Settings() {
         return <UserManagement />;
       case 'calendar':
         return <CalendarSettings />;
+      case 'availability':
+        return <AvailabilitySettings />;
       default:
         return <BusinessSettings />;
     }

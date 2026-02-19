@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { useAuth } from './useAuth';
 
 export interface CalendarBlock {
@@ -112,10 +113,28 @@ export function useStaffCalendarBlocks(options?: UseStaffCalendarBlocksOptions) 
     }));
   }, [blocks]);
 
+  const deleteBlock = useCallback(async (blockId: string) => {
+    const { error } = await supabase
+      .from('staff_calendar_blocks')
+      .delete()
+      .eq('id', blockId)
+      .eq('source', 'manual'); // Safety: only delete manual blocks
+
+    if (error) {
+      console.error('[useStaffCalendarBlocks] Delete error:', error);
+      toast.error('Failed to delete block');
+      return;
+    }
+
+    toast.success('Block removed');
+    await fetchBlocks();
+  }, [fetchBlocks]);
+
   return {
     blocks,
     backgroundEvents,
     loading,
     refetch: fetchBlocks,
+    deleteBlock,
   };
 }
