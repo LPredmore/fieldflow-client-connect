@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { syncAppointmentToGoogle } from '@/lib/googleCalendarSync';
-import { getTodayInTimezone, getDateFromFakeLocalDate, getFakeLocalNow, DEFAULT_TIMEZONE } from '@/lib/timezoneUtils';
+import { getDateFromFakeLocalDate, DEFAULT_TIMEZONE } from '@/lib/timezoneUtils';
+import { useServerNow } from '@/hooks/useServerNow';
 
 /**
  * Staff appointment with all timezone data resolved server-side.
@@ -111,6 +112,10 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
   const { user, tenantId } = useAuth();
   const { toast } = useToast();
   const { enabled = true, lookbackDays = 7, forwardDays = 90, staffIds } = options || {};
+  
+  // Server-authoritative "now" for dashboard filters
+  const staffTz = user?.roleContext?.staffData?.prov_time_zone || DEFAULT_TIMEZONE;
+  const { fakeLocalNow: serverNow, todayDate: serverTodayDate } = useServerNow(staffTz);
   
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRangeRef = useRef<string>('');
@@ -358,47 +363,40 @@ export function useStaffAppointments(options?: UseStaffAppointmentsOptions) {
 
   // Derived data for dashboard - extract timezone directly from appointments to eliminate race condition
   const todaysAppointments = useMemo(() => {
-    // Use timezone from appointment data (set by database RPC) to avoid race condition with staffTimezone state
-    const tz = appointments[0]?.display_timezone || DEFAULT_TIMEZONE;
-    const today = getTodayInTimezone(tz); // Returns "YYYY-MM-DD"
+    // Use server-authoritative today date (from get_now_in_timezone RPC)
+    const today = serverTodayDate;
     
     const filtered = appointments.filter(appt => {
-      // Extract date from fake local Date in same YYYY-MM-DD format
       const apptDate = getDateFromFakeLocalDate(appt.calendar_start);
       return apptDate === today && (appt.status === 'scheduled' || appt.status === 'documented');
     });
     
     console.log('[useStaffAppointments] Today calculation:', {
-      extractedTimezone: appointments[0]?.display_timezone,
-      effectiveTimezone: tz,
-      todayInTz: today,
+      serverTodayDate,
       appointmentCount: appointments.length,
       matchingCount: filtered.length,
       firstApptDate: appointments[0] ? getDateFromFakeLocalDate(appointments[0].calendar_start) : 'none',
     });
     
     return filtered;
-  }, [appointments]);
+  }, [appointments, serverTodayDate]);
 
   const upcomingAppointments = useMemo(() => {
-    const tz = appointments[0]?.display_timezone || DEFAULT_TIMEZONE;
-    const nowInTz = getFakeLocalNow(tz);
-    // Set to end of today in staff's timezone
-    nowInTz.setHours(23, 59, 59, 999);
+    // Use server-authoritative "now" — set to end of today for upcoming filter
+    const endOfToday = new Date(serverNow.getTime());
+    endOfToday.setHours(23, 59, 59, 999);
     
     return appointments
-      .filter(appt => appt.calendar_start > nowInTz && appt.status === 'scheduled')
+      .filter(appt => appt.calendar_start > endOfToday && appt.status === 'scheduled')
       .slice(0, 5);
-  }, [appointments]);
+  }, [appointments, serverNow]);
 
   const undocumentedAppointments = useMemo(() => {
-    const tz = appointments[0]?.display_timezone || DEFAULT_TIMEZONE;
-    const nowInTz = getFakeLocalNow(tz);
-    
+    // Use server-authoritative "now" for undocumented filter
     return appointments.filter(appt => {
-      return appt.calendar_start <= nowInTz && appt.status === 'scheduled';
+      return appt.calendar_start <= serverNow && appt.status === 'scheduled';
     });
-  }, [appointments]);
+  }, [appointments, serverNow]);
 
   // Memoized Map for O(1) appointment lookup by ID
   const appointmentsById = useMemo(() => {

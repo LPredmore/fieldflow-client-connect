@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, User, FileText, Repeat } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useStaffTimezone } from '@/hooks/useStaffTimezone';
-import { formatInUserTimezone } from '@/lib/timezoneUtils';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
 /**
@@ -37,13 +36,53 @@ interface AppointmentSeriesData {
 }
 
 interface AppointmentSeriesViewProps {
-  jobSeries: AppointmentSeriesData; // Keep 'jobSeries' prop name for backward compatibility
+  jobSeries: AppointmentSeriesData;
   onUpdate?: (seriesId: string, data: Partial<AppointmentSeriesData>) => Promise<any>;
+}
+
+/**
+ * Format a timestamp using the server-authoritative format_timestamp_in_timezone RPC.
+ * Returns a pre-formatted string in the specified timezone.
+ */
+function useServerFormattedTimestamp(
+  timestamp: string | null | undefined,
+  timezone: string,
+  pgFormat: string
+): string {
+  const [formatted, setFormatted] = useState<string>('');
+
+  useEffect(() => {
+    if (!timestamp) {
+      setFormatted('');
+      return;
+    }
+
+    supabase
+      .rpc('format_timestamp_in_timezone', {
+        p_timestamp: timestamp,
+        p_timezone: timezone,
+        p_format: pgFormat,
+      })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setFormatted(data);
+        }
+      });
+  }, [timestamp, timezone, pgFormat]);
+
+  return formatted;
 }
 
 export default function AppointmentSeriesView({ jobSeries: series, onUpdate }: AppointmentSeriesViewProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const userTimezone = useStaffTimezone();
+  const tz = series.time_zone || 'America/New_York';
+
+  // Server-authoritative formatted timestamps
+  const startDate = useServerFormattedTimestamp(series.start_at, tz, 'FMMonth DD, YYYY');
+  const startTime = useServerFormattedTimestamp(series.start_at, tz, 'FMHH12:MI AM');
+  const nextOccurrence = useServerFormattedTimestamp(series.next_occurrence_date, tz, 'FMMonth DD, YYYY FMHH12:MI AM');
+  const createdAt = useServerFormattedTimestamp(series.created_at, tz, 'FMMon DD, YYYY FMHH12:MI AM');
+  const updatedAt = useServerFormattedTimestamp(series.updated_at, tz, 'FMMon DD, YYYY FMHH12:MI AM');
 
   const handleToggleActive = async () => {
     if (!onUpdate) return;
@@ -160,15 +199,11 @@ export default function AppointmentSeriesView({ jobSeries: series, onUpdate }: A
         <CardContent className="space-y-2">
           <div>
             <span className="text-sm text-muted-foreground">Start Date:</span>
-            <p className="font-medium">
-              {formatInUserTimezone(series.start_at, userTimezone, 'MMMM d, yyyy')}
-            </p>
+            <p className="font-medium">{startDate || '...'}</p>
           </div>
           <div>
             <span className="text-sm text-muted-foreground">Start Time:</span>
-            <p className="font-medium">
-              {formatInUserTimezone(series.start_at, userTimezone, 'h:mm a')}
-            </p>
+            <p className="font-medium">{startTime || '...'}</p>
           </div>
           <div>
             <span className="text-sm text-muted-foreground">Duration:</span>
@@ -183,9 +218,7 @@ export default function AppointmentSeriesView({ jobSeries: series, onUpdate }: A
           {series.next_occurrence_date && (
             <div>
               <span className="text-sm text-muted-foreground">Next Appointment:</span>
-              <p className="font-medium">
-                {formatInUserTimezone(series.next_occurrence_date, userTimezone, 'MMMM d, yyyy h:mm a')}
-              </p>
+              <p className="font-medium">{nextOccurrence || '...'}</p>
             </div>
           )}
         </CardContent>
@@ -256,16 +289,12 @@ export default function AppointmentSeriesView({ jobSeries: series, onUpdate }: A
         <CardContent className="space-y-2">
           <div>
             <span className="text-sm text-muted-foreground">Created:</span>
-            <p className="font-medium">
-              {formatInUserTimezone(series.created_at, userTimezone, 'MMM d, yyyy h:mm a')}
-            </p>
+            <p className="font-medium">{createdAt || '...'}</p>
           </div>
           {series.updated_at && (
             <div>
               <span className="text-sm text-muted-foreground">Last Updated:</span>
-              <p className="font-medium">
-                {formatInUserTimezone(series.updated_at, userTimezone, 'MMM d, yyyy h:mm a')}
-              </p>
+              <p className="font-medium">{updatedAt || '...'}</p>
             </div>
           )}
           <div>
