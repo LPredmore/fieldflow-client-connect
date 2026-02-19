@@ -29,6 +29,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(false);
   const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadedUserIdRef = useRef<string | null>(null);
 
   const clearPasswordRecovery = useCallback(() => {
     setIsPasswordRecovery(false);
@@ -89,6 +90,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
       }
 
       setUser(userData);
+      loadedUserIdRef.current = userData.id;
       setError(null);
 
       console.log('✅ [AuthenticationProvider] User data loaded successfully', {
@@ -437,6 +439,11 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
 
             case 'SIGNED_IN':
               if (session?.user) {
+                // Guard against token refresh re-fires (TOKEN_REFRESHED → SIGNED_IN sequence)
+                if (loadedUserIdRef.current === session.user.id) {
+                  console.debug('[AuthenticationProvider] SIGNED_IN skipped — already loaded (token refresh)');
+                  return;
+                }
                 // Prevent infinite retry loop if loadUserData previously failed for this user
                 if (lastFailedUserId === session.user.id) {
                   console.warn('[AuthenticationProvider] Skipping loadUserData - previously failed for this user');
@@ -444,12 +451,15 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
                 }
                 
                 console.debug('[AuthenticationProvider] User signed in, loading data');
+                setIsLoading(true);
                 try {
                   await loadUserData(session.user.id, session.user.email || '');
                   lastFailedUserId = null; // Reset on success
                 } catch (err) {
                   lastFailedUserId = session.user.id; // Track failure to prevent retry loop
                   throw err;
+                } finally {
+                  setIsLoading(false);
                 }
               }
               break;
@@ -457,6 +467,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
             case 'SIGNED_OUT':
               console.debug('[AuthenticationProvider] User signed out, clearing state');
               setUser(null);
+              loadedUserIdRef.current = null;
               setError(null);
               sessionCacheService.clear();
               break;
@@ -468,7 +479,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
 
             case 'USER_UPDATED':
               console.debug('[AuthenticationProvider] User updated');
-              if (session?.user && user) {
+              if (session?.user && loadedUserIdRef.current !== null) {
                 // Optionally refresh user data
                 console.debug('[AuthenticationProvider] Refreshing user data after update');
                 await loadUserData(session.user.id, session.user.email || '');
@@ -499,7 +510,7 @@ export function AuthenticationProvider({ children }: AuthenticationProviderProps
       console.debug('[AuthenticationProvider] Cleaning up auth state listener');
       subscription.unsubscribe();
     };
-  }, [loadUserData, user]);
+  }, [loadUserData]);
 
   /**
    * Legacy method: signIn
