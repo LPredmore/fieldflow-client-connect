@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface CreateAppointmentDialogProps {
   prefilledDate?: string;
+  prefilledTime?: string;
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -26,6 +27,7 @@ interface CreateAppointmentDialogProps {
 
 export function CreateAppointmentDialog({ 
   prefilledDate, 
+  prefilledTime,
   trigger,
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
@@ -65,6 +67,13 @@ export function CreateAppointmentDialog({
       setFormData(prev => ({ ...prev, date: prefilledDate }));
     }
   }, [prefilledDate]);
+
+  // Update time when prefilledTime changes
+  useEffect(() => {
+    if (prefilledTime) {
+      setFormData(prev => ({ ...prev, time: prefilledTime }));
+    }
+  }, [prefilledTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -43,9 +43,10 @@ interface NewSlotState {
 
 interface AvailabilitySettingsProps {
   embedded?: boolean;
+  onSaved?: () => void;
 }
 
-export default function AvailabilitySettings({ embedded = false }: AvailabilitySettingsProps) {
+export default function AvailabilitySettings({ embedded = false, onSaved }: AvailabilitySettingsProps) {
   const { slots, loading, staffTimezone, upsertSlot, updateSlot, deleteSlot } = useStaffAvailability();
   const [addingDay, setAddingDay] = useState<number | null>(null);
   const [newSlot, setNewSlot] = useState<NewSlotState>({ start_time: '09:00:00', end_time: '17:00:00' });
@@ -63,6 +64,7 @@ export default function AvailabilitySettings({ embedded = false }: AvailabilityS
     await upsertSlot(input);
     setAddingDay(null);
     setNewSlot({ start_time: '09:00:00', end_time: '17:00:00' });
+    onSaved?.();
   };
 
   const formatTime = (time: string) => {
@@ -134,7 +136,7 @@ export default function AvailabilitySettings({ embedded = false }: AvailabilityS
               >
                 <Switch
                   checked={slot.is_active}
-                  onCheckedChange={(checked) => updateSlot(slot.id, { is_active: checked })}
+                  onCheckedChange={async (checked) => { await updateSlot(slot.id, { is_active: checked }); onSaved?.(); }}
                 />
                 <span className="text-sm font-medium text-foreground flex-1">
                   {formatTime(slot.start_time)} — {formatTime(slot.end_time)}
@@ -143,7 +145,7 @@ export default function AvailabilitySettings({ embedded = false }: AvailabilityS
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-destructive hover:text-destructive"
-                  onClick={() => deleteSlot(slot.id)}
+                  onClick={async () => { await deleteSlot(slot.id); onSaved?.(); }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
