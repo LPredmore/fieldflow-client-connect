@@ -1,58 +1,64 @@
 
 
-# Move Calendar Settings to Calendar Page
+# Calendar Refresh on Settings Change + Time Slot Pre-fill
 
 ## Summary
 
-Replace the small "Working Hours" popover on the Calendar toolbar's settings gear with a larger slide-out panel (Sheet) containing three collapsible sections: **Working Hours**, **Availability**, and **Calendar Integration**. Remove the corresponding entries from the Settings page since they'll live on the Calendar page now.
+Two changes: (1) the calendar automatically refreshes when any setting in the Calendar Settings panel is saved, and (2) clicking a time slot on the calendar pre-fills the Create Appointment dialog with that exact time.
 
-## Changes
+## Change 1: Calendar refreshes after settings changes
 
-### 1. Create `CalendarSettingsPanel` component
+### The problem
 
-New file: `src/components/Calendar/CalendarSettingsPanel.tsx`
+`AvailabilitySettings` and `CalendarSettings` each instantiate their own data hooks internally. When the user saves inside the panel, only the panel's hook re-fetches. The separate hook instances in `RBCCalendar` (which drive availability shading and external block rendering) remain stale until a full page reload.
 
-A Sheet (slide-out drawer) triggered by the existing Settings gear icon. Contains three `Collapsible` sections using the existing collapsible component:
+### The right approach: callback prop, not shared state
 
-- **Working Hours** -- The existing start/end hour selectors (currently in the Popover). Controls which hours the calendar grid displays.
-- **Availability** -- The full `AvailabilitySettings` content (day-by-day slot management). Rendered inline without its wrapping Card.
-- **Calendar Integration** -- The full `CalendarSettings` content (Google Calendar OAuth, calendar selector, privacy info). Rendered inline without its wrapping Card.
+The correct pattern here is a simple `onSaved` callback prop -- the same pattern the codebase already uses for `onAppointmentCreated`, `onBlockCreated`, and `onRefresh`. Alternatives like lifting the hooks to a shared parent or using a global event bus would introduce coupling and complexity that isn't justified. The callback pattern keeps components self-contained and follows the established convention documented in the project's architecture notes.
 
-Each section will have a header row with a chevron toggle, expanding/collapsing its content.
+### File changes
 
-### 2. Update `CalendarToolbar.tsx`
+**`AvailabilitySettings.tsx`** -- Accept an optional `onSaved?: () => void` prop. Call it at the end of every successful `upsertSlot`, `updateSlot`, and `deleteSlot` operation (three call sites).
 
-- Remove the `Popover` that currently wraps the Settings gear
-- Instead, the Settings gear button will call a new `onSettingsClick` callback prop
-- Remove the working hours `Select` components from this file (they move to the panel)
-- The toolbar still receives `workingHoursStart` / `workingHoursEnd` props for display but doesn't edit them directly
+**`CalendarSettings.tsx`** -- Accept an optional `onSaved?: () => void` prop. Call it after `selectCalendar` succeeds and after `disconnect` succeeds (the two operations that change calendar sync state).
 
-### 3. Update `RBCCalendar.tsx`
+**`CalendarSettingsPanel.tsx`** -- Accept an `onSettingsChanged?: () => void` prop. Pass it as `onSaved` to both `AvailabilitySettings` and `CalendarSettings`.
 
-- Add state: `const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)`
-- Pass `onSettingsClick={() => setSettingsPanelOpen(true)}` to `CalendarToolbar`
-- Render `<CalendarSettingsPanel>` with the working hours state, its change handler, and the open/onOpenChange props
+**`RBCCalendar.tsx`** -- Three things:
+1. Destructure `refetch` from the existing `useStaffAvailability()` call (it's already returned as `refetch: fetchSlots`).
+2. Create a `handleSettingsChanged` callback that calls both `refetch()` (availability shading) and `refetchBlocks()` (external calendar blocks).
+3. Pass `onSettingsChanged={handleSettingsChanged}` to `CalendarSettingsPanel`.
 
-### 4. Update `Settings.tsx`
+Working hours changes already work reactively (they update React state in `RBCCalendar` directly via `onWorkingHoursChange`), so no additional wiring is needed for that section.
 
-- Remove the `'calendar'` and `'availability'` entries from `settingsCategories`
-- Remove the corresponding `case` branches in `renderContent()`
-- Remove the imports for `CalendarSettings`, `AvailabilitySettings`, `Calendar` icon, and `Clock` icon
+## Change 2: Pre-fill time from clicked calendar slot
 
-### 5. Refactor `AvailabilitySettings.tsx` and `CalendarSettings.tsx`
+### The problem
 
-Make both components accept an optional `embedded` prop. When `embedded={true}`, they skip rendering their outer `<Card>` wrapper and just render the inner content directly. This avoids card-inside-sheet visual nesting while keeping them usable standalone if ever needed again.
+`handleSelectSlot` in `RBCCalendar` extracts only the date from `slotInfo.start` and passes it as `prefilledDate`. The time always defaults to `09:00` because that's the initial state in `CreateAppointmentDialog`.
+
+### The right approach
+
+Extract the time from `slotInfo.start` at the same point we already extract the date. Pass it as a separate `prefilledTime` prop. This is straightforward because `slotInfo.start` is a "fake local" Date whose `getHours()`/`getMinutes()` already represent the staff's local time -- no timezone conversion needed.
+
+### File changes
+
+**`RBCCalendar.tsx`**:
+- Add a `prefilledTime` state variable (string, e.g. `"14:30"`).
+- In `handleSelectSlot`, format the time from `slotInfo.start` using zero-padded hours and minutes: ``const hh = String(slotInfo.start.getHours()).padStart(2, '0'); const mm = String(slotInfo.start.getMinutes()).padStart(2, '0');`` then set `prefilledTime` to `${hh}:${mm}`.
+- Pass `prefilledTime={prefilledTime}` to the `CreateAppointmentDialog`.
+
+**`CreateAppointmentDialog.tsx`**:
+- Add `prefilledTime?: string` to the props interface.
+- Add a `useEffect` that syncs `prefilledTime` into `formData.time` when it changes (identical pattern to the existing `prefilledDate` effect on line 62-66).
+- Keep the default initial time as `'09:00'` for cases where no slot was clicked (e.g. the header "Create Appointment" button).
+
+Duration remains at 60 minutes by default -- no change needed.
 
 ## What does NOT change
 
-- The `useStaffAvailability` hook, `useCalendarConnection` hook, and all data logic remain identical
 - No database or table changes
-- No route changes -- the Calendar page route stays the same
-- The Settings page continues to exist with Business Profile, Clinical Settings, and User Management
-
-## Risk Assessment
-
-- **Low risk**: The Availability and Calendar Integration components are self-contained. Moving them into a Sheet is purely a layout change.
-- **No data impact**: All hooks and DB queries remain unchanged.
-- **Settings page still works**: Only two sidebar entries are removed; the page and remaining sections are untouched.
+- No hook logic changes (availability, calendar connection, appointments)
+- No changes to the CalendarToolbar component
+- No changes to working hours persistence (already reactive)
 
