@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { CalendarIcon, Plus, Ban, Trash2 } from 'lucide-react';
 import { CalendarToolbar } from './CalendarToolbar';
+import { CalendarSettingsPanel } from './CalendarSettingsPanel';
 import { AppointmentEvent } from './AppointmentEvent';
 import AppointmentView from '@/components/Appointments/AppointmentView';
 import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppointmentDialog';
@@ -113,6 +114,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<{ id: string; summary: string; source: string } | null>(null);
   const [prefilledDate, setPrefilledDate] = useState<string>('');
   
@@ -325,9 +327,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
               toolbar: (props) => (
                 <CalendarToolbar
                   {...props}
-                  workingHoursStart={workingHoursStart}
-                  workingHoursEnd={workingHoursEnd}
-                  onWorkingHoursChange={handleWorkingHoursChange}
+                  onSettingsClick={() => setSettingsPanelOpen(true)}
                 />
               ),
               event: AppointmentEvent,
@@ -404,6 +404,14 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
           </DialogContent>
         </Dialog>
       )}
+      {/* Calendar Settings Panel */}
+      <CalendarSettingsPanel
+        open={settingsPanelOpen}
+        onOpenChange={setSettingsPanelOpen}
+        workingHoursStart={workingHoursStart}
+        workingHoursEnd={workingHoursEnd}
+        onWorkingHoursChange={handleWorkingHoursChange}
+      />
     </Card>
   );
 }
