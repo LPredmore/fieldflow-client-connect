@@ -39,6 +39,8 @@ export interface StaffMember {
   prov_min_client_age?: number | null;
   /** Boolean in database - convert to "Yes"/"No" for display only */
   prov_accepting_new_clients?: boolean | null;
+  prov_self_scheduling_enabled?: boolean | null;
+  prov_scheduling_interval_minutes?: number | null;
   prov_time_zone?: string | null;
   prov_dob?: string | null;
   prov_degree?: string | null;

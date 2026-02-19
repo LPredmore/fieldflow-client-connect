@@ -5,8 +5,10 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import AvailabilitySettings from '@/components/Settings/AvailabilitySettings';
 import CalendarSettings from '@/components/Settings/CalendarSettings';
+import { useSchedulingPreferences } from '@/hooks/useSchedulingPreferences';
 
 const ALL_HOURS = [
   { value: 0, label: '12:00 AM' },
@@ -56,7 +58,12 @@ export function CalendarSettingsPanel({
 }: CalendarSettingsPanelProps) {
   const [workingOpen, setWorkingOpen] = useState(true);
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [schedulingOpen, setSchedulingOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+
+  const { preferences, loading: prefsLoading, saving, updatePreference } = useSchedulingPreferences({
+    onSaved: onSettingsChanged,
+  });
 
   const startOptions = ALL_HOURS.filter(opt => opt.value <= 23 - MIN_HOUR_GAP);
   const endOptions = ALL_HOURS.filter(opt => opt.value >= workingHoursStart + MIN_HOUR_GAP);
@@ -130,7 +137,48 @@ export function CalendarSettingsPanel({
             </CollapsibleContent>
           </Collapsible>
 
-          {/* Calendar Integration */}
+          {/* Scheduling Preferences */}
+          <Collapsible open={schedulingOpen} onOpenChange={setSchedulingOpen}>
+            <CollapsibleTrigger className="flex items-center justify-between w-full rounded-lg border border-border px-4 py-3 font-medium text-sm hover:bg-accent transition-colors">
+              Scheduling Preferences
+              <ChevronDown className={cn('h-4 w-4 transition-transform', schedulingOpen && 'rotate-180')} />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-4 pt-4 pb-2 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Allow Client Self-Scheduling</Label>
+                  <p className="text-xs text-muted-foreground">
+                    When enabled, clients can book appointments during your available time slots.
+                  </p>
+                </div>
+                <Switch
+                  checked={preferences.prov_self_scheduling_enabled}
+                  onCheckedChange={(checked) => updatePreference('prov_self_scheduling_enabled', checked)}
+                  disabled={prefsLoading || saving}
+                />
+              </div>
+
+              {preferences.prov_self_scheduling_enabled && (
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Booking Interval</Label>
+                  <Select
+                    value={preferences.prov_scheduling_interval_minutes.toString()}
+                    onValueChange={(val) => updatePreference('prov_scheduling_interval_minutes', parseInt(val, 10))}
+                    disabled={prefsLoading || saving}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="60">On the hour (e.g., 9:00, 10:00)</SelectItem>
+                      <SelectItem value="30">On the half-hour (e.g., 9:00, 9:30, 10:00)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+
           <Collapsible open={calendarOpen} onOpenChange={setCalendarOpen}>
             <CollapsibleTrigger className="flex items-center justify-between w-full rounded-lg border border-border px-4 py-3 font-medium text-sm hover:bg-accent transition-colors">
               Calendar Integration

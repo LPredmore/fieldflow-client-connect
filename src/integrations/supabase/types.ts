@@ -6385,6 +6385,8 @@ export type Database = {
           prov_npi: string | null
           prov_phone: string | null
           prov_qualifier: string | null
+          prov_scheduling_interval_minutes: number
+          prov_self_scheduling_enabled: boolean
           prov_state: Database["public"]["Enums"]["state_code_enum"] | null
           prov_status:
             | Database["public"]["Enums"]["clinician_status_enum"]
@@ -6422,6 +6424,8 @@ export type Database = {
           prov_npi?: string | null
           prov_phone?: string | null
           prov_qualifier?: string | null
+          prov_scheduling_interval_minutes?: number
+          prov_self_scheduling_enabled?: boolean
           prov_state?: Database["public"]["Enums"]["state_code_enum"] | null
           prov_status?:
             | Database["public"]["Enums"]["clinician_status_enum"]
@@ -6459,6 +6463,8 @@ export type Database = {
           prov_npi?: string | null
           prov_phone?: string | null
           prov_qualifier?: string | null
+          prov_scheduling_interval_minutes?: number
+          prov_self_scheduling_enabled?: boolean
           prov_state?: Database["public"]["Enums"]["state_code_enum"] | null
           prov_status?:
             | Database["public"]["Enums"]["clinician_status_enum"]
