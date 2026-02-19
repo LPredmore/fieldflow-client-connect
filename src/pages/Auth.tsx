@@ -41,6 +41,21 @@ export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Set favicon to org logo on the Auth page
+  useEffect(() => {
+    let faviconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!faviconLink) {
+      faviconLink = document.createElement('link');
+      faviconLink.rel = 'icon';
+      document.head.appendChild(faviconLink);
+    }
+    const originalHref = faviconLink.href;
+    faviconLink.href = valorwellLogo;
+    return () => {
+      if (faviconLink) faviconLink.href = originalHref || '/favicon.ico';
+    };
+  }, []);
+
   // Check for password recovery token in URL (query param or hash)
   useEffect(() => {
     const handlePasswordRecovery = async () => {
