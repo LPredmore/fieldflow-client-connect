@@ -7117,6 +7117,21 @@ export type Database = {
         Args: { p_format?: string; p_timestamp: string; p_timezone: string }
         Returns: string
       }
+      get_available_appointment_slots: {
+        Args: {
+          p_client_timezone: string
+          p_duration_minutes?: number
+          p_staff_id: string
+          p_target_date: string
+        }
+        Returns: {
+          display_date: string
+          display_end_time: string
+          display_time: string
+          slot_end_utc: string
+          slot_start_utc: string
+        }[]
+      }
       get_client_appointments_display:
         | {
             Args: {
