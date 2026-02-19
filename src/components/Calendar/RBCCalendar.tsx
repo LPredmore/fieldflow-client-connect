@@ -83,17 +83,36 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
 
   const hasAvailability = availabilityMap.size > 0;
 
+  // DEBUG: log raw availability data and parsed map
+  useEffect(() => {
+    console.log('[RBCCalendar] availabilitySlots raw:', availabilitySlots);
+    console.log('[RBCCalendar] availabilityMap size:', availabilityMap.size, 'hasAvailability:', hasAvailability);
+    if (availabilityMap.size > 0) {
+      availabilityMap.forEach((windows, day) => {
+        console.log(`[RBCCalendar] Day ${day}:`, windows);
+      });
+    }
+  }, [availabilitySlots, availabilityMap, hasAvailability]);
+
   // slotPropGetter: dim slots outside availability windows
+  const slotPropGetterLoggedRef = useMemo(() => new Set<string>(), []);
   const slotPropGetter = useCallback((date: Date) => {
     if (!hasAvailability) return {};
     const day = date.getDay();
     const minutes = date.getHours() * 60 + date.getMinutes();
     const windows = availabilityMap.get(day);
-    if (!windows || !windows.some(w => minutes >= w.startMinutes && minutes < w.endMinutes)) {
+    const isUnavailable = !windows || !windows.some(w => minutes >= w.startMinutes && minutes < w.endMinutes);
+    // Throttled debug logging: once per unique day+hour
+    const logKey = `${day}-${date.getHours()}`;
+    if (!slotPropGetterLoggedRef.has(logKey)) {
+      slotPropGetterLoggedRef.add(logKey);
+      console.log(`[slotPropGetter] day=${day} hour=${date.getHours()} min=${date.getMinutes()} windows=`, windows, 'unavailable=', isUnavailable);
+    }
+    if (isUnavailable) {
       return { className: 'rbc-slot-unavailable' };
     }
     return {};
-  }, [availabilityMap, hasAvailability]);
+  }, [availabilityMap, hasAvailability, slotPropGetterLoggedRef]);
 
   // Fetch external calendar blocks (Google Calendar busy periods)
   const { backgroundEvents: externalBlocks, refetch: refetchBlocks, deleteBlock } = useStaffCalendarBlocks({
