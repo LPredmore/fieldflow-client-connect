@@ -41,7 +41,11 @@ interface NewSlotState {
   end_time: string;
 }
 
-export default function AvailabilitySettings() {
+interface AvailabilitySettingsProps {
+  embedded?: boolean;
+}
+
+export default function AvailabilitySettings({ embedded = false }: AvailabilitySettingsProps) {
   const { slots, loading, staffTimezone, upsertSlot, updateSlot, deleteSlot } = useStaffAvailability();
   const [addingDay, setAddingDay] = useState<number | null>(null);
   const [newSlot, setNewSlot] = useState<NewSlotState>({ start_time: '09:00:00', end_time: '17:00:00' });
@@ -67,6 +71,15 @@ export default function AvailabilitySettings() {
   };
 
   if (loading) {
+    if (embedded) {
+      return (
+        <div className="animate-pulse space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-12 bg-muted rounded" />
+          ))}
+        </div>
+      );
+    }
     return (
       <Card>
         <CardHeader>
@@ -80,6 +93,126 @@ export default function AvailabilitySettings() {
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  const daysList = (
+    <div className="space-y-4">
+      {DAYS.map((day) => {
+        const daySlots = slotsForDay(day.value);
+        const isAdding = addingDay === day.value;
+
+        return (
+          <div
+            key={day.value}
+            className="border border-border rounded-lg p-4 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-foreground">{day.label}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setAddingDay(isAdding ? null : day.value);
+                  setNewSlot({ start_time: '09:00:00', end_time: '17:00:00' });
+                }}
+                className="text-xs"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add Slot
+              </Button>
+            </div>
+
+            {daySlots.length === 0 && !isAdding && (
+              <p className="text-sm text-muted-foreground">No availability set</p>
+            )}
+
+            {daySlots.map((slot) => (
+              <div
+                key={slot.id}
+                className="flex items-center gap-3 bg-secondary/50 rounded-md px-3 py-2"
+              >
+                <Switch
+                  checked={slot.is_active}
+                  onCheckedChange={(checked) => updateSlot(slot.id, { is_active: checked })}
+                />
+                <span className="text-sm font-medium text-foreground flex-1">
+                  {formatTime(slot.start_time)} — {formatTime(slot.end_time)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => deleteSlot(slot.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+
+            {isAdding && (
+              <div className="flex items-center gap-2 bg-accent/30 rounded-md px-3 py-2">
+                <Select
+                  value={newSlot.start_time}
+                  onValueChange={(v) => setNewSlot((s) => ({ ...s, start_time: v }))}
+                >
+                  <SelectTrigger className="w-[130px] h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_OPTIONS.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">to</span>
+                <Select
+                  value={newSlot.end_time}
+                  onValueChange={(v) => setNewSlot((s) => ({ ...s, end_time: v }))}
+                >
+                  <SelectTrigger className="w-[130px] h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_OPTIONS.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" className="h-8" onClick={() => handleAddSlot(day.value)}>
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8"
+                  onClick={() => setAddingDay(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">Set your weekly recurring availability</p>
+          <Badge variant="outline" className="text-xs">
+            Times in {staffTimezone}
+          </Badge>
+        </div>
+        {daysList}
+      </div>
     );
   }
 
@@ -101,108 +234,8 @@ export default function AvailabilitySettings() {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {DAYS.map((day) => {
-          const daySlots = slotsForDay(day.value);
-          const isAdding = addingDay === day.value;
-
-          return (
-            <div
-              key={day.value}
-              className="border border-border rounded-lg p-4 space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-foreground">{day.label}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setAddingDay(isAdding ? null : day.value);
-                    setNewSlot({ start_time: '09:00:00', end_time: '17:00:00' });
-                  }}
-                  className="text-xs"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add Slot
-                </Button>
-              </div>
-
-              {daySlots.length === 0 && !isAdding && (
-                <p className="text-sm text-muted-foreground">No availability set</p>
-              )}
-
-              {daySlots.map((slot) => (
-                <div
-                  key={slot.id}
-                  className="flex items-center gap-3 bg-secondary/50 rounded-md px-3 py-2"
-                >
-                  <Switch
-                    checked={slot.is_active}
-                    onCheckedChange={(checked) => updateSlot(slot.id, { is_active: checked })}
-                  />
-                  <span className="text-sm font-medium text-foreground flex-1">
-                    {formatTime(slot.start_time)} — {formatTime(slot.end_time)}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => deleteSlot(slot.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
-
-              {isAdding && (
-                <div className="flex items-center gap-2 bg-accent/30 rounded-md px-3 py-2">
-                  <Select
-                    value={newSlot.start_time}
-                    onValueChange={(v) => setNewSlot((s) => ({ ...s, start_time: v }))}
-                  >
-                    <SelectTrigger className="w-[130px] h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_OPTIONS.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-sm text-muted-foreground">to</span>
-                  <Select
-                    value={newSlot.end_time}
-                    onValueChange={(v) => setNewSlot((s) => ({ ...s, end_time: v }))}
-                  >
-                    <SelectTrigger className="w-[130px] h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_OPTIONS.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" className="h-8" onClick={() => handleAddSlot(day.value)}>
-                    Save
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8"
-                    onClick={() => setAddingDay(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              )}
-            </div>
-          );
-        })}
+      <CardContent>
+        {daysList}
       </CardContent>
     </Card>
   );
