@@ -1,150 +1,72 @@
 
 
-# Unified Timezone Fix: Server-Authoritative "Now" + Dead Code Cleanup
+# Consent Templates: Default Templates as Blueprints Only
 
-## Problem Statement
+## Summary
 
-The system has three competing timezone strategies:
+Change the consent system so that system-level templates (where `tenant_id IS NULL`) serve purely as starting-point blueprints. They are never directly sent to clients. A tenant must customize (copy) a default template and mark it active + required before it appears in the client portal.
 
-1. **Writes** (server-authoritative via `convert_local_to_utc` RPC) -- Working correctly
-2. **Reads/Positioning** (server-authoritative via `get_staff_calendar_appointments` RPC returning integer components) -- Working correctly
-3. **"Now" calculations** (client-side via `date-fns-tz` / `formatInTimeZone`) -- **Broken**: silently returns UTC in the production environment because the Intl API lacks timezone data
+## Current Problem
 
-This causes two visible bugs:
-- The green current-time indicator on the calendar shows UTC instead of the staff's local time
-- Dashboard filters (Today's / Upcoming / Undocumented) use `getTodayInTimezone` and `getFakeLocalNow`, which also silently fall back to UTC, causing appointments to appear in the wrong category
+The database currently has this state:
 
-Additionally, `AppointmentSeriesView` uses `formatInUserTimezone`, which ignores the timezone parameter entirely and formats in the browser's local timezone -- a third inconsistent behavior.
+| consent_type | tenant_id | is_active | is_required | Role |
+|---|---|---|---|---|
+| financial_agreement | NULL | true | true | System default |
+| financial_agreement | tenant | true | **false** | Customized copy |
+| telehealth_informed_consent | NULL | true | true | System default |
+| telehealth_informed_consent | tenant | true | **false** | Customized copy |
 
-## Technical Decision
+The compliance hook (`useClientConsentStatus`) looks for tenant templates where `is_active = true AND is_required = true`. It finds none (because the customized copies have `is_required = false`), so it falls back to system defaults -- showing the generic versions instead of the customized ones.
 
-**Extend the server-authoritative model to cover "now".**
+## Architectural Change
 
-This is the only correct choice. Here is why the alternatives are wrong:
+**Remove the fallback entirely.** If a tenant has no customized required templates, the system shows nothing -- not system defaults. System defaults exist only as copyable blueprints visible to staff in the Form Library.
 
-- **Native `Intl.DateTimeFormat`**: The existing comment in `appointmentTimezone.ts` explicitly documents that "the production environment's Intl API lacks timezone data." The same `Intl` API that `date-fns-tz` uses internally is what is failing. Using `Intl.DateTimeFormat` directly would fail for the same reason. We cannot verify this works without deploying and testing in production, making it a risky bet.
+This means:
+- Clients only ever see tenant-owned templates
+- A tenant must explicitly customize and activate templates
+- The "Required" toggle on tenant templates controls what clients must sign
+- System defaults are read-only reference material in the staff UI
 
-- **Browser timezone only**: Would work for the green line if the staff's system clock matches their profile timezone. But the system already handles timezone mismatches (the yellow "Showing times in X" badge exists). Staff using a VPN, traveling, or on a shared device would see incorrect results.
+## Technical Changes
 
-**Server-authoritative "now"** is the only approach that is guaranteed to work, because PostgreSQL's `AT TIME ZONE` is already proven reliable in this system. It uses the same code path as appointment positioning, which is already correct.
+### 1. `useClientConsentStatus.tsx` -- Remove system default fallback
 
-## Implementation Plan
+Remove lines 94-113 (the entire "fall back to system defaults" block). The hook will only query for tenant-specific templates where `is_active = true AND is_required = true`. If a tenant hasn't set any up, `consentStatuses` returns empty and `isFullyCompliant` returns `true` (vacuously -- no requirements means compliant).
 
-### Phase 1: Create a PostgreSQL RPC for "now" components
+### 2. `FormLibrary.tsx` -- Rename "System Defaults" to "Default Templates"
 
-Create a new database function `get_now_in_timezone` that returns the current time's integer components in a specified timezone:
+- Change the section heading from "System Defaults" to "Default Templates"
+- Update the description text from "Templates you can customize for your practice" to "Starting-point templates. Customize a copy to make it available for your clients."
+- The "Customize" button and "View" button remain the same
 
-```sql
-CREATE OR REPLACE FUNCTION public.get_now_in_timezone(p_timezone text DEFAULT 'America/New_York')
-RETURNS TABLE(
-  now_year integer,
-  now_month integer,
-  now_day integer,
-  now_hour integer,
-  now_minute integer,
-  today_date text
-)
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT
-    EXTRACT(YEAR   FROM NOW() AT TIME ZONE p_timezone)::integer,
-    EXTRACT(MONTH  FROM NOW() AT TIME ZONE p_timezone)::integer,
-    EXTRACT(DAY    FROM NOW() AT TIME ZONE p_timezone)::integer,
-    EXTRACT(HOUR   FROM NOW() AT TIME ZONE p_timezone)::integer,
-    EXTRACT(MINUTE FROM NOW() AT TIME ZONE p_timezone)::integer,
-    TO_CHAR(NOW() AT TIME ZONE p_timezone, 'YYYY-MM-DD');
-$$;
-```
+### 3. `ConsentEditor.tsx` -- Update system default messaging
 
-This mirrors the exact pattern used in `get_staff_calendar_appointments` (EXTRACT + AT TIME ZONE), so it is guaranteed to produce consistent results.
+- Change the card title from "View System Template" to "View Default Template"
+- Change the description from "This is a system default template. Click 'Customize' to create your own version." to "This is a default template. Customize a copy to use it with your clients."
 
-### Phase 2: Create a `useServerNow` hook
+### 4. `useConsentTemplatesData.tsx` -- `customizeSystemDefault` sets `is_required: true`
 
-A new hook that fetches "now" from the server on mount and refreshes every 60 seconds:
+When a tenant clicks "Customize" on a default template, the copy should be created with `is_required: true` (inheriting the default's intent) instead of the current `is_required: false`. The template is still created as `is_active: false` (draft), so it won't go live until the tenant publishes it. This prevents the common mistake of customizing a template but forgetting to toggle "Required."
 
-```text
-src/hooks/useServerNow.ts
-```
+### 5. Fix existing data
 
-- Calls `get_now_in_timezone` RPC with the staff's `prov_time_zone`
-- Returns `{ fakeLocalNow: Date, todayDate: string, isLoading: boolean }`
-- `fakeLocalNow` is constructed using `createFakeLocalDate` (same pattern as appointments)
-- `todayDate` is the `YYYY-MM-DD` string for dashboard filtering
-- Refreshes every 60 seconds via `setInterval` to keep the green line moving
-- Falls back to previous value during refresh (no loading flicker)
+The two customized tenant templates that are currently `is_active: true` but `is_required: false` need to be updated to `is_required: true` so they start appearing for clients immediately. This will be done via a targeted SQL update scoped to the existing tenant.
 
-### Phase 3: Wire into RBCCalendar
+## What This Does NOT Change
 
-In `src/components/Calendar/RBCCalendar.tsx`:
+- The `consent_templates` table schema (no columns added/removed)
+- How signatures are recorded in `client_telehealth_consents`
+- The ConsentStatusCard or ClientFormsTab components
+- Any RLS policies
 
-- Import and call `useServerNow(authStaffTimezone)`
-- Replace `getNow={() => getFakeLocalNow(authStaffTimezone)}` with `getNow={() => serverNow.fakeLocalNow}`
-- The `fakeLocalNow` Date is in the same coordinate system as the appointment `calendar_start` Dates, so the Luxon localizer's `diff` will produce correct results
-
-### Phase 4: Wire into useStaffAppointments dashboard filters
-
-In `src/hooks/useStaffAppointments.tsx`:
-
-- Accept an optional `serverNow` parameter (or create a separate internal call)
-- Replace `getTodayInTimezone(tz)` in `todaysAppointments` with the server-provided `today_date`
-- Replace `getFakeLocalNow(tz)` in `upcomingAppointments` and `undocumentedAppointments` with the server-provided `fakeLocalNow`
-- This ensures dashboard cards use the same server-authoritative time source
-
-### Phase 5: Fix AppointmentSeriesView
-
-In `src/components/Appointments/AppointmentSeriesView.tsx`:
-
-- Replace `formatInUserTimezone(series.start_at, userTimezone, ...)` calls with the existing `format_timestamp_in_timezone` PostgreSQL RPC
-- This eliminates the last place where timezone formatting pretends to use a timezone parameter but actually ignores it
-- The series data already includes `time_zone`, so the RPC call has the correct timezone
-
-### Phase 6: Clean up dead code in timezoneUtils.ts
-
-Remove unused/broken functions from `src/lib/timezoneUtils.ts`:
-
-- `getFakeLocalNow` (replaced by server-authoritative hook)
-- `getTodayInTimezone` (replaced by server-authoritative hook)
-- `getNowComponentsInTimezone` (replaced by server-authoritative hook)
-- `combineDateTimeToUTC` (writes use `convert_local_to_utc` RPC)
-- `convertToUTC` (already marked deprecated)
-- `splitUTCToLocalDateTime` (unused)
-- `convertFromUTC` (trivial wrapper, unused in meaningful way)
-- `formatInUserTimezone` (replaced in Phase 5)
-- `formatLocalTime` (only used by `formatInUserTimezone`)
-- `getLocalDateTimeStrings` (only used by `splitUTCToLocalDateTime`)
-
-Keep only:
-- `normalizeTimestamp` + `parseUTCTimestamp` (used for parsing raw DB strings)
-- `DEFAULT_TIMEZONE` constant
-- `getDateFromFakeLocalDate` (used in dashboard filters)
-- `calculateEndTime` (pure arithmetic)
-- `toCalendarFormat` (pure formatting)
-
-Remove the `date-fns-tz` import entirely from `timezoneUtils.ts`.
-
-## Files Modified
+## File Summary
 
 | File | Change |
-|------|--------|
-| **New SQL migration** | `get_now_in_timezone` RPC |
-| `src/hooks/useServerNow.ts` | **New file** - server-authoritative "now" hook |
-| `src/components/Calendar/RBCCalendar.tsx` | Use `useServerNow` instead of `getFakeLocalNow` |
-| `src/hooks/useStaffAppointments.tsx` | Use server "now" for dashboard filters |
-| `src/components/Appointments/AppointmentSeriesView.tsx` | Use `format_timestamp_in_timezone` RPC |
-| `src/lib/timezoneUtils.ts` | Remove all broken/dead functions, remove `date-fns-tz` import |
-
-## What This Does NOT Touch (Confirmed Safe)
-
-- **Appointment grid positioning**: Already uses server-provided integer components via `createFakeLocalDate` -- no change
-- **Blocked time positioning**: Already uses server-provided integer components via `get_staff_calendar_blocks` RPC -- no change
-- **Availability shading**: Uses raw `HH:MM:SS` strings from DB compared to slot hours -- no change
-- **Writes (creating appointments/blocks)**: Already uses `convert_local_to_utc` RPC -- no change
-- **Google Calendar sync**: Runs in Deno edge functions server-side -- no change
-- **Database tables**: No columns added or modified
-
-## Risk Assessment
-
-- **Low risk**: The RPC pattern (`EXTRACT` + `AT TIME ZONE`) is identical to what already works for appointment positioning
-- **Stale "now"**: The 60-second refresh interval means the green line could be up to 60 seconds behind. This is acceptable for a calendar UI. A 30-second interval could be used if needed.
-- **Network dependency**: If the RPC call fails, the hook retains the last known value. On initial load failure, it falls back to `new Date()` (browser time) -- same behavior as today, no regression.
+|---|---|
+| `src/hooks/useClientConsentStatus.tsx` | Remove system default fallback (lines 94-113) |
+| `src/components/Forms/FormLibrary/FormLibrary.tsx` | Rename "System Defaults" heading and description |
+| `src/components/Forms/ConsentEditor/ConsentEditor.tsx` | Update system default label text |
+| `src/hooks/forms/useConsentTemplatesData.tsx` | Set `is_required: true` in `customizeSystemDefault` |
+| SQL migration | Update existing tenant templates to `is_required = true` |
