@@ -435,12 +435,12 @@ export function FormLibrary() {
                   {systemConsentTemplates.length > 0 && (
                     <div>
                       <div className="mb-3">
-                        <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                       <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                           <Lock className="h-4 w-4" />
-                          System Defaults
+                          Default Templates
                         </h3>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Templates you can customize for your practice. Click "Customize" to create your own version.
+                          Starting-point templates. Customize a copy to make it available for your clients.
                         </p>
                       </div>
                       <Table>

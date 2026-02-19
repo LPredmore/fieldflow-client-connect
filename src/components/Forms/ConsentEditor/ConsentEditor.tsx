@@ -235,11 +235,11 @@ export function ConsentEditor({ template, isSystemDefault, onSave, onClose }: Co
       <Card>
         <CardHeader>
           <CardTitle>
-            {isSystemDefault ? 'View System Template' : template ? 'Edit Consent Template' : 'Create Consent Template'}
+            {isSystemDefault ? 'View Default Template' : template ? 'Edit Consent Template' : 'Create Consent Template'}
           </CardTitle>
           <CardDescription>
             {isSystemDefault 
-              ? 'This is a system default template. Click "Customize" to create your own version.'
+              ? 'This is a default template. Customize a copy to use it with your clients.'
               : 'Configure your consent form details'}
           </CardDescription>
         </CardHeader>

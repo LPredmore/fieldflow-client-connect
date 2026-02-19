@@ -91,27 +91,7 @@ export function useClientConsentStatus({
         }
       }
 
-      // If no tenant-specific required templates found, fall back to system defaults
-      if (consentsFromDb.length === 0) {
-        const { data: systemDefaults, error: systemError } = await supabase
-          .from('consent_templates')
-          .select('consent_type, title, is_required, required_for')
-          .is('tenant_id', null)
-          .eq('is_active', true)
-          .eq('is_required', true);
-
-        if (systemError) {
-          throw systemError;
-        }
-
-        consentsFromDb = (systemDefaults || []).map(t => ({
-          key: t.consent_type,
-          label: t.title,
-          required: t.is_required ?? true,
-          requiredFor: t.required_for,
-        }));
-      }
-      
+      // No fallback to system defaults -- tenants must customize templates explicitly
       setRequiredConsents(consentsFromDb);
 
       // Fetch client's consent signatures
@@ -177,7 +157,7 @@ export function useClientConsentStatus({
     return {
       signedCount: signed.length,
       requiredCount: required.length,
-      isFullyCompliant: required.length > 0 && signed.length === required.length,
+      isFullyCompliant: required.length === 0 || signed.length === required.length,
     };
   }, [consentStatuses]);
 
