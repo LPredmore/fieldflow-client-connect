@@ -1,17 +1,47 @@
 
 
-# Fix: Move CSS @import to Top of File
+# Invert Calendar Shading: Highlight Available Times
 
-## Problem
+## What changes
 
-The `@import './styles/react-big-calendar.css'` on line 151 of `src/index.css` is ignored by the browser because CSS spec requires all `@import` statements to appear before any other rules. The `@tailwind` directives on lines 1-3 count as rules, so the browser silently discards the import.
+Instead of shading **unavailable** slots, the calendar will apply a subtle wash of your Secondary Brand Color to **available** time slots. Everything outside your availability stays plain/white, and the times you're open for appointments get a gentle colored highlight.
 
-## Change
+This is arguably more intuitive: "colored = open for business."
 
-**`src/index.css`** -- two edits:
+## Changes (2 files)
 
-1. Add `@import './styles/react-big-calendar.css';` as the very first line of the file (before `@tailwind base;`)
-2. Delete the current import and its comment on lines 150-151
+### 1. `src/components/Calendar/RBCCalendar.tsx`
 
-No other files change. No logic changes. No database changes.
+Flip the logic in `slotPropGetter`:
+
+- Currently: applies class when slot is **outside** availability
+- New: applies class when slot is **inside** availability
+- Rename the class from `rbc-slot-unavailable` to `rbc-slot-available` for clarity
+- Update the legend text from "Dimmed = outside availability" to something like "Highlighted = available hours"
+
+Concretely, line 92-94 changes from:
+
+```js
+const isUnavailable = !windows || !windows.some(w => ...);
+if (isUnavailable) {
+  return { className: 'rbc-slot-unavailable' };
+}
+```
+
+to:
+
+```js
+const isAvailable = windows && windows.some(w => ...);
+if (isAvailable) {
+  return { className: 'rbc-slot-available' };
+}
+```
+
+### 2. `src/styles/react-big-calendar.css`
+
+Rename `.rbc-slot-unavailable` to `.rbc-slot-available` (and its `.dark` variant). The rule itself stays the same -- solid semi-transparent secondary brand color fill at 15% (light) / 25% (dark) opacity.
+
+### No other files change
+
+The `BrandColorProvider` changes from the approved plan still apply as-is (injecting `--brand-secondary`). This plan just inverts which slots get the color.
 
