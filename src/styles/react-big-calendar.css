@@ -95,24 +95,9 @@
 }
 
 /* Unavailable slot shading */
+/* DEBUG: bright red so we can confirm the class is being applied */
 .rbc-slot-unavailable {
-  background: repeating-linear-gradient(
-    135deg,
-    hsl(var(--muted) / 0.35),
-    hsl(var(--muted) / 0.35) 4px,
-    hsl(var(--muted) / 0.15) 4px,
-    hsl(var(--muted) / 0.15) 8px
-  ) !important;
-}
-
-.dark .rbc-slot-unavailable {
-  background: repeating-linear-gradient(
-    135deg,
-    hsl(var(--muted) / 0.5),
-    hsl(var(--muted) / 0.5) 4px,
-    hsl(var(--muted) / 0.25) 4px,
-    hsl(var(--muted) / 0.25) 8px
-  ) !important;
+  background: rgba(255, 0, 0, 0.3) !important;
 }
 
 /* Selection styling */
