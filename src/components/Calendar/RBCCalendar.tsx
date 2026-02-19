@@ -86,11 +86,9 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
     return map;
   }, [availabilitySlots]);
 
-  const hasAvailability = availabilityMap.size > 0;
-
   // slotPropGetter: dim slots outside availability windows
   const slotPropGetter = useCallback((date: Date) => {
-    if (!hasAvailability) return {};
+    if (availabilityMap.size === 0) return {};
     const day = date.getDay();
     const minutes = date.getHours() * 60 + date.getMinutes();
     const windows = availabilityMap.get(day);
@@ -99,7 +97,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
       return { className: 'rbc-slot-available' };
     }
     return {};
-  }, [availabilityMap, hasAvailability]);
+  }, [availabilityMap]);
 
   // Fetch external calendar blocks (Google Calendar busy periods)
   const { backgroundEvents: externalBlocks, refetch: refetchBlocks, deleteBlock } = useStaffCalendarBlocks({
@@ -139,9 +137,6 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   const maxTime = useMemo(() => createLocalTime(workingHoursEnd, 0), [workingHoursEnd]);
   const scrollToTime = useMemo(() => createLocalTime(workingHoursStart, 0), [workingHoursStart]);
 
-  // Timezone mismatch indicator (uses auth-based timezone, not appointment-dependent)
-  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const tzMismatch = authStaffTimezone !== browserTimezone;
 
   // Convert appointments to RBC event format using "fake local" Dates
   // The calendar_start and calendar_end Dates are constructed so getHours() returns
@@ -281,16 +276,6 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
             Schedule Calendar
           </CardTitle>
           <div className="flex items-center gap-2">
-            {hasAvailability && (
-              <span className="text-xs text-muted-foreground px-2 py-1 rounded border border-border">
-                Highlighted = available hours
-              </span>
-            )}
-            {tzMismatch && (
-              <span className="text-xs text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-1 rounded border border-yellow-300 dark:border-yellow-700">
-                Showing times in {authStaffTimezone}
-              </span>
-            )}
             <Button
               variant="outline"
               size="sm"
