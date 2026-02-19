@@ -1,72 +1,58 @@
 
 
-# Consent Templates: Default Templates as Blueprints Only
+# Move Calendar Settings to Calendar Page
 
 ## Summary
 
-Change the consent system so that system-level templates (where `tenant_id IS NULL`) serve purely as starting-point blueprints. They are never directly sent to clients. A tenant must customize (copy) a default template and mark it active + required before it appears in the client portal.
+Replace the small "Working Hours" popover on the Calendar toolbar's settings gear with a larger slide-out panel (Sheet) containing three collapsible sections: **Working Hours**, **Availability**, and **Calendar Integration**. Remove the corresponding entries from the Settings page since they'll live on the Calendar page now.
 
-## Current Problem
+## Changes
 
-The database currently has this state:
+### 1. Create `CalendarSettingsPanel` component
 
-| consent_type | tenant_id | is_active | is_required | Role |
-|---|---|---|---|---|
-| financial_agreement | NULL | true | true | System default |
-| financial_agreement | tenant | true | **false** | Customized copy |
-| telehealth_informed_consent | NULL | true | true | System default |
-| telehealth_informed_consent | tenant | true | **false** | Customized copy |
+New file: `src/components/Calendar/CalendarSettingsPanel.tsx`
 
-The compliance hook (`useClientConsentStatus`) looks for tenant templates where `is_active = true AND is_required = true`. It finds none (because the customized copies have `is_required = false`), so it falls back to system defaults -- showing the generic versions instead of the customized ones.
+A Sheet (slide-out drawer) triggered by the existing Settings gear icon. Contains three `Collapsible` sections using the existing collapsible component:
 
-## Architectural Change
+- **Working Hours** -- The existing start/end hour selectors (currently in the Popover). Controls which hours the calendar grid displays.
+- **Availability** -- The full `AvailabilitySettings` content (day-by-day slot management). Rendered inline without its wrapping Card.
+- **Calendar Integration** -- The full `CalendarSettings` content (Google Calendar OAuth, calendar selector, privacy info). Rendered inline without its wrapping Card.
 
-**Remove the fallback entirely.** If a tenant has no customized required templates, the system shows nothing -- not system defaults. System defaults exist only as copyable blueprints visible to staff in the Form Library.
+Each section will have a header row with a chevron toggle, expanding/collapsing its content.
 
-This means:
-- Clients only ever see tenant-owned templates
-- A tenant must explicitly customize and activate templates
-- The "Required" toggle on tenant templates controls what clients must sign
-- System defaults are read-only reference material in the staff UI
+### 2. Update `CalendarToolbar.tsx`
 
-## Technical Changes
+- Remove the `Popover` that currently wraps the Settings gear
+- Instead, the Settings gear button will call a new `onSettingsClick` callback prop
+- Remove the working hours `Select` components from this file (they move to the panel)
+- The toolbar still receives `workingHoursStart` / `workingHoursEnd` props for display but doesn't edit them directly
 
-### 1. `useClientConsentStatus.tsx` -- Remove system default fallback
+### 3. Update `RBCCalendar.tsx`
 
-Remove lines 94-113 (the entire "fall back to system defaults" block). The hook will only query for tenant-specific templates where `is_active = true AND is_required = true`. If a tenant hasn't set any up, `consentStatuses` returns empty and `isFullyCompliant` returns `true` (vacuously -- no requirements means compliant).
+- Add state: `const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)`
+- Pass `onSettingsClick={() => setSettingsPanelOpen(true)}` to `CalendarToolbar`
+- Render `<CalendarSettingsPanel>` with the working hours state, its change handler, and the open/onOpenChange props
 
-### 2. `FormLibrary.tsx` -- Rename "System Defaults" to "Default Templates"
+### 4. Update `Settings.tsx`
 
-- Change the section heading from "System Defaults" to "Default Templates"
-- Update the description text from "Templates you can customize for your practice" to "Starting-point templates. Customize a copy to make it available for your clients."
-- The "Customize" button and "View" button remain the same
+- Remove the `'calendar'` and `'availability'` entries from `settingsCategories`
+- Remove the corresponding `case` branches in `renderContent()`
+- Remove the imports for `CalendarSettings`, `AvailabilitySettings`, `Calendar` icon, and `Clock` icon
 
-### 3. `ConsentEditor.tsx` -- Update system default messaging
+### 5. Refactor `AvailabilitySettings.tsx` and `CalendarSettings.tsx`
 
-- Change the card title from "View System Template" to "View Default Template"
-- Change the description from "This is a system default template. Click 'Customize' to create your own version." to "This is a default template. Customize a copy to use it with your clients."
+Make both components accept an optional `embedded` prop. When `embedded={true}`, they skip rendering their outer `<Card>` wrapper and just render the inner content directly. This avoids card-inside-sheet visual nesting while keeping them usable standalone if ever needed again.
 
-### 4. `useConsentTemplatesData.tsx` -- `customizeSystemDefault` sets `is_required: true`
+## What does NOT change
 
-When a tenant clicks "Customize" on a default template, the copy should be created with `is_required: true` (inheriting the default's intent) instead of the current `is_required: false`. The template is still created as `is_active: false` (draft), so it won't go live until the tenant publishes it. This prevents the common mistake of customizing a template but forgetting to toggle "Required."
+- The `useStaffAvailability` hook, `useCalendarConnection` hook, and all data logic remain identical
+- No database or table changes
+- No route changes -- the Calendar page route stays the same
+- The Settings page continues to exist with Business Profile, Clinical Settings, and User Management
 
-### 5. Fix existing data
+## Risk Assessment
 
-The two customized tenant templates that are currently `is_active: true` but `is_required: false` need to be updated to `is_required: true` so they start appearing for clients immediately. This will be done via a targeted SQL update scoped to the existing tenant.
+- **Low risk**: The Availability and Calendar Integration components are self-contained. Moving them into a Sheet is purely a layout change.
+- **No data impact**: All hooks and DB queries remain unchanged.
+- **Settings page still works**: Only two sidebar entries are removed; the page and remaining sections are untouched.
 
-## What This Does NOT Change
-
-- The `consent_templates` table schema (no columns added/removed)
-- How signatures are recorded in `client_telehealth_consents`
-- The ConsentStatusCard or ClientFormsTab components
-- Any RLS policies
-
-## File Summary
-
-| File | Change |
-|---|---|
-| `src/hooks/useClientConsentStatus.tsx` | Remove system default fallback (lines 94-113) |
-| `src/components/Forms/FormLibrary/FormLibrary.tsx` | Rename "System Defaults" heading and description |
-| `src/components/Forms/ConsentEditor/ConsentEditor.tsx` | Update system default label text |
-| `src/hooks/forms/useConsentTemplatesData.tsx` | Set `is_required: true` in `customizeSystemDefault` |
-| SQL migration | Update existing tenant templates to `is_required = true` |
