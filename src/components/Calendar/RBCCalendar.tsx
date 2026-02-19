@@ -8,12 +8,13 @@ import { useStaffCalendarBlocks } from '@/hooks/useStaffCalendarBlocks';
 import { useStaffTimezone } from '@/hooks/useStaffTimezone';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CalendarIcon, Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { CalendarIcon, Plus, Ban, Trash2 } from 'lucide-react';
 import { CalendarToolbar } from './CalendarToolbar';
 import { AppointmentEvent } from './AppointmentEvent';
 import AppointmentView from '@/components/Appointments/AppointmentView';
 import { CreateAppointmentDialog } from '@/components/Appointments/CreateAppointmentDialog';
+import { BlockTimeDialog } from './BlockTimeDialog';
 
 // Luxon localizer for React Big Calendar
 const localizer = luxonLocalizer(DateTime);
@@ -62,7 +63,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   const authStaffTimezone = useStaffTimezone();
   
   // Fetch external calendar blocks (Google Calendar busy periods)
-  const { backgroundEvents: externalBlocks } = useStaffCalendarBlocks({
+  const { backgroundEvents: externalBlocks, refetch: refetchBlocks, deleteBlock } = useStaffCalendarBlocks({
     staffTimezone: authStaffTimezone,
     enabled: true,
   });
@@ -73,6 +74,8 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [selectedBlock, setSelectedBlock] = useState<{ id: string; summary: string; source: string } | null>(null);
   const [prefilledDate, setPrefilledDate] = useState<string>('');
   
   // Working hours state with localStorage persistence
@@ -172,9 +175,17 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
     };
   }, []);
 
-  // Handle event click — ignore external blocks
+  // Handle event click — show block details for blocks, appointment details otherwise
   const handleSelectEvent = useCallback((event: any) => {
-    if (event.resource?.isExternalBlock) return;
+    if (event.resource?.isExternalBlock) {
+      const blockId = String(event.id).replace('block-', '');
+      setSelectedBlock({
+        id: blockId,
+        summary: event.title || 'Busy',
+        source: event.resource.source || '',
+      });
+      return;
+    }
     setSelectedAppointmentId(event.id);
     setViewDialogOpen(true);
   }, []);
@@ -226,6 +237,15 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
                 Showing times in {authStaffTimezone}
               </span>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => setBlockDialogOpen(true)}
+            >
+              <Ban className="h-4 w-4" />
+              Block Time
+            </Button>
             {showCreateButton && (
               <CreateAppointmentDialog
                 trigger={
@@ -302,6 +322,43 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
         onOpenChange={setCreateDialogOpen}
         onAppointmentCreated={refetch}
       />
+
+      {/* Block Time Dialog */}
+      <BlockTimeDialog
+        open={blockDialogOpen}
+        onOpenChange={setBlockDialogOpen}
+        prefilledDate={prefilledDate}
+        onBlockCreated={refetchBlocks}
+      />
+
+      {/* Manual Block Details Dialog */}
+      {selectedBlock && (
+        <Dialog open={!!selectedBlock} onOpenChange={() => setSelectedBlock(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{selectedBlock.summary}</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              {selectedBlock.source === 'manual' ? 'Manually blocked time' : `Synced from ${selectedBlock.source}`}
+            </p>
+            {selectedBlock.source === 'manual' && (
+              <DialogFooter>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={async () => {
+                    await deleteBlock(selectedBlock.id);
+                    setSelectedBlock(null);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete Block
+                </Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 }
