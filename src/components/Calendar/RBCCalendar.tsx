@@ -6,6 +6,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useStaffAppointments } from '@/hooks/useStaffAppointments';
 import { useStaffCalendarBlocks } from '@/hooks/useStaffCalendarBlocks';
 import { useStaffTimezone } from '@/hooks/useStaffTimezone';
+import { useStaffAvailability } from '@/hooks/useStaffAvailability';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -62,6 +63,38 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
   // Get staff timezone directly from auth context (independent of appointment loading)
   const authStaffTimezone = useStaffTimezone();
   
+  // Fetch availability schedule for shading
+  const { slots: availabilitySlots } = useStaffAvailability();
+
+  // Build availability lookup: Map<dayOfWeek, Array<{startMinutes, endMinutes}>>
+  const availabilityMap = useMemo(() => {
+    const map = new Map<number, Array<{ startMinutes: number; endMinutes: number }>>();
+    const activeSlots = availabilitySlots.filter(s => s.is_active);
+    for (const slot of activeSlots) {
+      const [sh, sm] = slot.start_time.split(':').map(Number);
+      const [eh, em] = slot.end_time.split(':').map(Number);
+      const entry = { startMinutes: sh * 60 + (sm || 0), endMinutes: eh * 60 + (em || 0) };
+      const existing = map.get(slot.day_of_week) || [];
+      existing.push(entry);
+      map.set(slot.day_of_week, existing);
+    }
+    return map;
+  }, [availabilitySlots]);
+
+  const hasAvailability = availabilityMap.size > 0;
+
+  // slotPropGetter: dim slots outside availability windows
+  const slotPropGetter = useCallback((date: Date) => {
+    if (!hasAvailability) return {};
+    const day = date.getDay();
+    const minutes = date.getHours() * 60 + date.getMinutes();
+    const windows = availabilityMap.get(day);
+    if (!windows || !windows.some(w => minutes >= w.startMinutes && minutes < w.endMinutes)) {
+      return { className: 'rbc-slot-unavailable' };
+    }
+    return {};
+  }, [availabilityMap, hasAvailability]);
+
   // Fetch external calendar blocks (Google Calendar busy periods)
   const { backgroundEvents: externalBlocks, refetch: refetchBlocks, deleteBlock } = useStaffCalendarBlocks({
     staffTimezone: authStaffTimezone,
@@ -232,6 +265,11 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
             Schedule Calendar
           </CardTitle>
           <div className="flex items-center gap-2">
+            {hasAvailability && (
+              <span className="text-xs text-muted-foreground px-2 py-1 rounded border border-border">
+                Dimmed = outside availability
+              </span>
+            )}
             {tzMismatch && (
               <span className="text-xs text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-1 rounded border border-yellow-300 dark:border-yellow-700">
                 Showing times in {authStaffTimezone}
@@ -276,6 +314,7 @@ export function RBCCalendar({ showCreateButton = false }: RBCCalendarProps) {
             onSelectEvent={handleSelectEvent}
             onSelectSlot={handleSelectSlot}
             eventPropGetter={eventStyleGetter}
+            slotPropGetter={slotPropGetter}
             components={{
               toolbar: (props) => (
                 <CalendarToolbar
