@@ -29,7 +29,8 @@ interface AppointmentData {
   created_at: string;
   updated_at: string;
   // Joined data
-  client_name?: string;
+  client_name?: string;           // Preferred name
+  client_legal_name?: string;     // First (legal) + Last name
   client_email?: string;
   client_phone?: string;
   service_name?: string;
@@ -331,7 +332,16 @@ export default function AppointmentView({
         <CardContent className="space-y-2">
           <div>
             <span className="text-sm text-muted-foreground">Name:</span>
-            <p className="font-medium">{appointment.client_name || 'Unknown Client'}</p>
+            <p className="font-medium">
+              {appointment.client_legal_name || appointment.client_name || 'Unknown Client'}
+            </p>
+            {appointment.client_name &&
+             appointment.client_legal_name &&
+             appointment.client_name !== appointment.client_legal_name && (
+              <p className="text-sm text-muted-foreground">
+                Preferred: {appointment.client_name}
+              </p>
+            )}
           </div>
           {appointment.client_email && (
             <div>
